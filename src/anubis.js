@@ -35,9 +35,9 @@ export class Anubis extends Sprite {
   idle() { resetAnubisIdle(this.spine.state); }
   react(wins) { playAnubisResult(this.spine.state, wins); }
   layout(compact) {
-    const scale = compact ? .24 : .42;
+    const scale = compact ? .30 : .50;
     this.scale.set(scale);
-    this.position.set((compact ? 193 : 110) - 260 * scale, (compact ? 465 : 365) - 520 * scale);
+    this.position.set((compact ? 195 : 135) - 260 * scale, (compact ? 450 : 335) - 520 * scale);
   }
   advance(delta, force = false) {
     this.elapsed += delta;

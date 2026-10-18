@@ -71,15 +71,26 @@ export class SlotScene {
     const { Anubis } = await import('./anubis.js');
     this.guardian = await Anubis.create();
     this.app.stage.addChild(this.guardian);
-    this.guardian.layout(host.clientWidth < 800);
-    this.resizeObserver = new ResizeObserver(() => this.guardian.layout(host.clientWidth < 800));
-    this.resizeObserver.observe(host);
     this.effects = new Container(); this.app.stage.addChild(this.effects);
     this.winArt = new Container();
     this.winArt.addChild(new Graphics().roundRect(270, 280, 660, 340, 20).fill({ color: 0x21102b, alpha: .94 }).stroke({ color: GOLD, alpha: .8, width: 2 }));
     const decor = new Sprite(this.art['big_win_decor.png']); decor.anchor.set(.5); decor.position.set(600, 365); decor.width = 290; decor.height = 206;
     const title = new Sprite(this.art['big_win.png']); title.anchor.set(.5); title.position.set(600, 385); title.width = 540; title.height = 133;
     this.winArt.addChild(decor, title); this.winArt.visible = false; this.app.stage.addChild(this.winArt);
+    // Reframe the same game coordinates; never stretch symbols or restart animation.
+    const fitViewport = () => {
+      const style = getComputedStyle(host);
+      const width = Number(style.getPropertyValue('--scene-width')) || W;
+      const height = Number(style.getPropertyValue('--scene-height')) || H;
+      const x = Number(style.getPropertyValue('--scene-x')) || 0;
+      this.app.renderer.resize(width, height);
+      this.app.stage.position.set(-x, 0);
+      Object.assign(this.app.canvas.style, { width: '100%', height: 'auto' });
+      this.guardian.layout(width < 1000);
+    };
+    this.resizeObserver = new ResizeObserver(fitViewport);
+    this.resizeObserver.observe(host);
+    fitViewport();
     this.app.ticker.add(t => this.tick(t));
   }
   addArt(name, x, y, width) {

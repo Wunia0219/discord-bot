@@ -1,6 +1,7 @@
 import './style.css';
 import { SlotScene } from './scene.js';
 import { Sound } from './audio.js';
+import { connectActivity } from './discord-activity.js';
 import { BETS, SYMBOL_NAMES, SYMBOL_CODES, SYMBOLS, PAYTABLE, PAYLINES, MODEL_VERSION, INITIAL_STOPS, PREVIEW_STOPS, drawStops, roundFromStops, restoredStops, freshState, readState, createRound } from './game.js';
 
 const $ = s => document.querySelector(s);
@@ -10,7 +11,7 @@ const icon = (name) => {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.star}</svg>`;
 };
 $('#app').innerHTML = `
-  <header class="header"><a class="brand" href="#" aria-label="凱美特之冠首頁"><span class="brand-mark">♜</span><span>KEMET<small>凱美特之冠</small></span></a><div class="header-right"><span class="test-label"><i></i>內部試玩</span><button id="all-history" class="utility" aria-haspopup="dialog">${icon('clock')}<span>遊玩紀錄</span></button><button id="sound" class="icon-button" aria-label="開啟音效" aria-pressed="false">${icon('muted')}</button><button id="help" class="utility" aria-haspopup="dialog">${icon('info')}<span>遊玩介紹</span></button></div></header>
+  <header class="header"><nav class="header-right" aria-label="遊戲工具"><span class="test-label"><i></i>內部試玩</span><button id="all-history" class="utility" aria-label="遊玩紀錄" title="遊玩紀錄" aria-haspopup="dialog">${icon('clock')}<span>遊玩紀錄</span></button><button id="sound" class="icon-button" aria-label="開啟音效" aria-pressed="false">${icon('muted')}</button><button id="help" class="utility" aria-label="遊玩介紹" title="遊玩介紹" aria-haspopup="dialog">${icon('info')}<span>遊玩介紹</span></button></nav></header>
   <main>
     <section class="game-panel" aria-label="凱美特之冠：五軸三列老虎機">
       <h1 class="sr-only">CROWNS OF KEMET · 凱美特之冠</h1>
@@ -20,7 +21,7 @@ $('#app').innerHTML = `
       <div class="control-deck">
         <div class="bet-group"><label>BET <span>每次下注</span></label><div class="bets">${BETS.map(b=>'<button data-bet="'+b+'" aria-pressed="'+(b===100)+'">'+fmt(b)+'</button>').join('')}</div></div>
         <button id="preview-win" class="gold-button"><span>BIG WIN</span><small>大獎預覽</small></button>
-        <button id="spin" class="spin" aria-label="旋轉一次" disabled>${icon('spin')}<span>SPIN</span></button>
+        <button id="spin" class="spin" aria-label="旋轉一次" aria-keyshortcuts="Space" title="旋轉一次（空白鍵）" disabled>${icon('spin')}<span>SPIN</span></button>
         <button id="max-bet" class="gold-button"><span>MAX BET</span><small>最大下注</small></button>
         <div class="wallet"><span>COINS <small>測試籌碼</small></span><strong id="balance">10,000</strong></div>
       </div>
@@ -35,6 +36,7 @@ let state, storageAvailable=true;
 try { state=readState(localStorage.getItem(KEY)); } catch { state=freshState();storageAvailable=false; }
 let bet=100, busy=false, ready=false, countAnimation=0, payoutAnimation=0, celebrationTimer=0;
 const scene=new SlotScene(), sound=new Sound();
+let activityMode='browser';
 const motion=matchMedia('(prefers-reduced-motion: reduce)');scene.reduced=motion.matches;motion.addEventListener('change',()=>scene.reduced=motion.matches);
 const signed=n=>(n>0?'+':'')+fmt(n);
 function save(next) { state=next;try{localStorage.setItem(KEY,JSON.stringify(state));}catch{storageAvailable=false;} }
@@ -143,10 +145,22 @@ function openDialog(title,body) {$('#dialog-title').textContent=title;$('#dialog
 function showRules(){
   const table=SYMBOLS.map(s=>'<tr><td>'+SYMBOL_CODES[s]+' · '+SYMBOL_NAMES[s]+'</td>'+PAYTABLE[s].map(p=>'<td>'+fmt(p)+'×</td>').join('')+'</tr>').join('');
   const lines=PAYLINES.map((rows,i)=>'<div class="payline-card"><b>'+String(i+1).padStart(2,'0')+'</b><svg viewBox="0 0 100 60" role="img" aria-label="第 '+(i+1)+' 線，列序 '+rows.map(r=>r+1).join('、')+'"><path d="M0 20H100M0 40H100M20 0V60M40 0V60M60 0V60M80 0V60" stroke="#765067" stroke-width="1"/><polyline points="'+rows.map((r,c)=>(c*20+10)+','+(r*20+10)).join(' ')+'" fill="none" stroke="#ffd57d" stroke-width="3"/>'+rows.map((r,c)=>'<circle cx="'+(c*20+10)+'" cy="'+(r*20+10)+'" r="4" fill="#ffd57d"/>').join('')+'</svg></div>').join('');
-  openDialog('20 線遊戲規則',`<p>5 軸 × 3 列，20 條線全部啟用。每軸從固定輪帶獨立等機率抽取停點；理論 RTP 為 96%，代表長期平均，單次或短期結果會波動。規則版本：${MODEL_VERSION}。</p><h3>賠率表</h3><p>下表倍率 × 單線下注。單線下注 = 總下注 ÷ 20；例如下注 100，單線下注為 5。從第一軸向右連續至少 3 個相同符號得獎，每線只付最高獎，不同線相加。W 替代一般符號，也可獨立派彩，取較高者。沒有 Scatter、免費旋轉或額外獎池。</p><table><thead><tr><th>符號</th><th>3 連</th><th>4 連</th><th>5 連</th></tr></thead><tbody>${table}</tbody></table><h3>20 條固定線</h3><div class="payline-grid">${lines}</div><p>派彩不另外返還本金；淨損益 = 派彩 − 總下注。此固定輪帶最高可達 120.65 倍總下注。得獎線每 1.6 秒依序亮出，彩色實線與亮框標示得獎段，淡線標示該線後續路徑。遊戲下方顯示最近一局的中獎總得分（未扣下注），沒有中獎則留白；各線得分與完整明細可在右上角「遊玩紀錄」查看。</p><h3>內部試玩與資料</h3><p>尚未連接 Discord。籌碼僅供測試，不能購買、轉讓或兌現。大獎預覽使用實際可達的停點，但不扣籌碼、不寫紀錄，也不參與 RTP 統計；12,000 里程碑僅為演出。只有派彩大於下注才播放獲利慶祝，20 倍以上播放大獎演出。</p><p>最近 100 局保存在此瀏覽器，含停點、各線獎金與規則版本。舊展示版紀錄另標示為舊規則；重設試玩會清除餘額與紀錄。音效需手動開啟，系統減少動態效果時會簡化演出。</p><button id="reset" class="confirm-reset" ${busy||!ready?'disabled':''}>重設試玩</button>`);
+  openDialog('20 線遊戲規則',`<p>5 軸 × 3 列，20 條線全部啟用。每軸從固定輪帶獨立等機率抽取停點；理論 RTP 為 96%，代表長期平均，單次或短期結果會波動。規則版本：${MODEL_VERSION}。</p><h3>賠率表</h3><p>下表倍率 × 單線下注。單線下注 = 總下注 ÷ 20；例如下注 100，單線下注為 5。從第一軸向右連續至少 3 個相同符號得獎，每線只付最高獎，不同線相加。W 替代一般符號，也可獨立派彩，取較高者。沒有 Scatter、免費旋轉或額外獎池。</p><table><thead><tr><th>符號</th><th>3 連</th><th>4 連</th><th>5 連</th></tr></thead><tbody>${table}</tbody></table><h3>20 條固定線</h3><div class="payline-grid">${lines}</div><p>派彩不另外返還本金；淨損益 = 派彩 − 總下注。此固定輪帶最高可達 120.65 倍總下注。得獎線每 1.6 秒依序亮出，彩色實線與亮框標示得獎段，淡線標示該線後續路徑。遊戲下方顯示最近一局的中獎總得分（未扣下注），沒有中獎則留白；各線得分與完整明細可在右上角「遊玩紀錄」查看。</p><h3>內部試玩與資料</h3><p>${activityMode==='discord'?'已連接 Discord Activity；目前仍使用本機測試帳本，尚未綁定 Discord 帳號或同步其他玩家。':'目前是瀏覽器試玩模式，可透過 Discord Activity 開啟；尚未綁定 Discord 帳號。'}籌碼僅供測試，不能購買、轉讓或兌現。大獎預覽使用實際可達的停點，但不扣籌碼、不寫紀錄，也不參與 RTP 統計；12,000 里程碑僅為演出。只有派彩大於下注才播放獲利慶祝，20 倍以上播放大獎演出。</p><p>最近 100 局保存在此瀏覽器，含停點、各線獎金與規則版本。舊展示版紀錄另標示為舊規則；重設試玩會清除餘額與紀錄。空白鍵可啟動 SPIN；長按、轉動中或彈出視窗開啟時不會重複下注。音效需手動開啟，系統減少動態效果時會簡化演出。</p><button id="reset" class="confirm-reset" ${busy||!ready?'disabled':''}>重設試玩</button>`);
 }
 $('#max-bet').addEventListener('click',()=>{if(!busy)document.querySelector('[data-bet="500"]').click();});
 $('#spin').addEventListener('click',()=>spin());
+// Pointer interaction has no persistent ring; Tab navigation keeps a gold cue.
+document.addEventListener('pointerdown',()=>{document.documentElement.dataset.input='pointer';},true);
+document.addEventListener('keydown',event=>{
+  if(event.key==='Tab')document.documentElement.dataset.input='keyboard';
+  if(event.code!=='Space'&&event.key!==' ')return;
+  if(event.defaultPrevented||event.isComposing||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey||document.hidden||$('#dialog').open)return;
+  // Space is the game shortcut even after clicking a bet or toolbar button.
+  // Editable fields and dialogs retain normal typing / keyboard behavior.
+  if(event.target.closest?.('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]'))return;
+  event.preventDefault();
+  if(!event.repeat)spin();
+});
 $('#preview-win').addEventListener('click',()=>spin(true));
 document.querySelectorAll('[data-bet]').forEach(b=>b.addEventListener('click',()=>{if(busy)return;bet=Number(b.dataset.bet);document.querySelectorAll('[data-bet]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));}));
 $('#sound').addEventListener('click',async()=>{
@@ -167,8 +181,25 @@ document.addEventListener('visibilitychange',()=>{
   else {if(ready)scene.app.start();if(sound.enabled)sound.context?.resume().catch(()=>{});}
 });
 renderState();
-showPayout(state.history[0]?.payout??0);
+// History restores the wallet and reels, but a new visit has no current win.
+showPayout(0);
 setBusy(false);
-scene.init($('#canvas-host')).then(()=>{ $('#loading').remove();ready=true;scene.setStops(restoredStops(state));setBusy(false); }).catch(error=>{
-  console.error(error);$('#loading').textContent='無法啟動圖形引擎，請使用支援 WebGL 的瀏覽器，並開啟硬體加速。';result('圖形引擎尚未就緒','重新整理後再試，或更換瀏覽器。','ERROR');
-});
+async function startGame() {
+  try {
+    const activity=await connectActivity();
+    activityMode=activity.mode;
+    if(activityMode==='discord')$('.test-label').innerHTML='<i></i>Discord 試玩';
+  } catch(error) {
+    console.error(error);
+    $('#loading').textContent=error.message;
+    result('Discord 尚未連接',error.message);
+    return;
+  }
+  try {
+    await scene.init($('#canvas-host'));
+    $('#loading').remove();ready=true;scene.setStops(restoredStops(state));setBusy(false);
+  } catch(error) {
+    console.error(error);$('#loading').textContent='無法啟動圖形引擎，請使用支援 WebGL 的瀏覽器，並開啟硬體加速。';result('圖形引擎尚未就緒','重新整理後再試，或更換瀏覽器。');
+  }
+}
+startGame();

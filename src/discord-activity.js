@@ -1,0 +1,45 @@
+// Phase 1 only: establish the Activity handshake. No OAuth identity or shared wallet yet.
+export function isDiscordActivity(location) {
+  return new URLSearchParams(location.search).has('frame_id')
+    || /^\d+\.discordsays\.com$/.test(location.hostname);
+}
+
+export async function connectActivity({
+  location = window.location,
+  clientId = import.meta.env?.VITE_DISCORD_CLIENT_ID,
+  loadSdk = () => import('@discord/embedded-app-sdk'),
+  timeoutMs = 15000,
+} = {}) {
+  if (!isDiscordActivity(location)) return { mode: 'browser' };
+  if (!/^\d{17,20}$/.test(clientId || '')) {
+    throw new Error('尚未設定 Discord Application ID。請設定 VITE_DISCORD_CLIENT_ID，重新建置，再重新開啟 Activity。');
+  }
+  const params = new URLSearchParams(location.search);
+  if (!params.get('frame_id') || !params.get('instance_id') || !['desktop', 'mobile'].includes(params.get('platform'))) {
+    throw new Error('缺少 Discord 啟動資訊，請從 Discord 的應用程式啟動器開啟遊戲。');
+  }
+  const { DiscordSDK, Common } = await loadSdk();
+  const sdk = new DiscordSDK(clientId, { disableConsoleLogOverride: true });
+  let timer;
+  try {
+    await Promise.race([
+      sdk.ready(),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Discord 連線逾時。請確認 Application ID 與 URL Mapping，關閉 Activity 後重新啟動。')), timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+  // Let the available Discord window/device shape drive our responsive layout.
+  // Older clients may reject this optional command; that must not block the game.
+  if (sdk.commands?.setOrientationLockState) {
+    const unlocked = Common.OrientationLockStateTypeObject.UNLOCKED;
+    sdk.commands.setOrientationLockState({
+      lock_state: unlocked,
+      picture_in_picture_lock_state: unlocked,
+      grid_lock_state: unlocked,
+    }).catch(error => console.warn('Discord orientation remains client-controlled:', error.message));
+  }
+  return { mode: 'discord', sdk };
+}
