@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { freshState, createRound, readState } from '../src/game.js';
+import { freshState, createRound, readState, SYMBOLS } from '../src/game.js';
 
 test('each demo payout reconciles with the balance',()=>{
   for(const [roll,payout] of [[0,0],[.5,200],[.8,500],[.95,2000],[.99999,2000]]){
@@ -27,4 +27,24 @@ test('milestone is awarded once and history is bounded',()=>{
 });
 test('invalid persisted state safely resets',()=>{
   for(const raw of [null,'bad','{}',JSON.stringify({...freshState(),balance:-100}),JSON.stringify({...freshState(),history:[{}]})])assert.deepEqual(readState(raw),freshState());
+});
+
+test('all 5 by 3 outcomes display the paid symbols in the middle row',()=>{
+  for(let i=0;i<1000;i++){
+    const {round,state}=createRound(freshState(),100,i/1000,`grid-${i}`);
+    assert.equal(round.grid.length,5);
+    assert.deepEqual(round.grid.map(col=>col[1]),round.symbols);
+    for(const col of round.grid){assert.equal(col.length,3);assert.ok(col.every(s=>SYMBOLS.includes(s)));}
+    if(round.payout)assert.equal(new Set(round.symbols).size,1);
+    else assert.ok(new Set(round.symbols).size>1);
+    assert.deepEqual(readState(JSON.stringify(state)),state);
+  }
+});
+
+test('incomplete grids and mismatched central symbols cannot restore',()=>{
+  const {state}=createRound(freshState(),100,.9,'bad-grid');
+  const incomplete=structuredClone(state);incomplete.history[0].grid.pop();
+  assert.deepEqual(readState(JSON.stringify(incomplete)),freshState());
+  const wrong=structuredClone(state);wrong.history[0].grid[0][1]='ankh';
+  assert.deepEqual(readState(JSON.stringify(wrong)),freshState());
 });

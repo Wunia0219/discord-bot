@@ -16,6 +16,6 @@ export class Sound {
     osc.connect(gain); gain.connect(c.destination); osc.start(t); osc.stop(t + duration);
     osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   }
-  stop(index) { this.tone([330, 440, 554][index], .18); }
+  stop(index) { this.tone([330, 392, 440, 494, 554][index], .18); }
   win(big) { (big ? [523, 659, 784, 1047, 1318] : [523, 659, 784]).forEach((n, i) => this.tone(n, .5, i * .12, .05)); }
 }

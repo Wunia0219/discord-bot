@@ -1,7 +1,7 @@
 import './style.css';
 import { SlotScene } from './scene.js';
 import { Sound } from './audio.js';
-import { BETS, OUTCOMES, SYMBOL_NAMES, freshState, readState, createRound } from './game.js';
+import { BETS, OUTCOMES, SYMBOL_NAMES, INITIAL_GRID, makeGrid, freshState, readState, createRound } from './game.js';
 
 const $ = s => document.querySelector(s);
 const fmt = n => Math.round(n).toLocaleString('en-US');
@@ -10,28 +10,29 @@ const icon = (name) => {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.star}</svg>`;
 };
 $('#app').innerHTML = `
-  <header class="header"><a class="brand" href="#" aria-label="Luna 月光遊藝室首頁"><span class="brand-mark">${icon('moon')}</span><span>LUNA<span class="brand-sub">月光遊藝室</span></span></a><div class="header-right"><span class="test-label"><i></i>內部試玩</span><button id="sound" class="icon-button" aria-label="開啟音效" aria-pressed="false">${icon('muted')}</button><button id="help" class="icon-button" aria-label="試玩說明">${icon('info')}</button><div class="avatar" title="本機訪客">L</div></div></header>
+  <header class="header"><a class="brand" href="#" aria-label="凱美特之冠首頁"><span class="brand-mark">♜</span><span>KEMET<small>凱美特之冠</small></span></a><div class="header-right"><span class="test-label"><i></i>內部試玩</span><button id="all-history" class="utility">${icon('clock')}<span>遊戲紀錄</span></button><button id="sound" class="icon-button" aria-label="開啟音效" aria-pressed="false">${icon('muted')}</button><button id="help" class="icon-button" aria-label="試玩說明">${icon('info')}</button></div></header>
   <main>
-    <section class="intro"><div><div class="eyebrow">THE MOONLIGHT COLLECTION · 01</div><h1>讓幸運，在月光下轉動。</h1><p>一點期待，一場屬於你的星光演出。</p></div><div class="wallet"><span class="wallet-icon">${icon('coin')}</span><div><span class="muted">我的測試籌碼</span><strong id="balance">10,000</strong></div></div></section>
-    <div class="layout">
-      <section class="game-panel" aria-label="月光拉霸遊戲">
-        <div class="machine-top"><span class="tiny-stars">✦ &nbsp; ✧ &nbsp; ✦</span><div class="machine-title">MOONLIGHT</div><div class="machine-subtitle"><span></span> 月 光 拉 霸 <span></span></div><div class="machine-series">EST. 2026<br>VOL. 001</div></div>
-        <div class="game-stage"><div class="arc arc-one"></div><div class="arc arc-two"></div><div id="canvas-host"><div id="loading">正在點亮遊藝室…</div></div><div class="payline-label">中央連線 · 三個相同符號</div><div id="celebration" aria-hidden="true"><span id="celebration-kicker">MOONLIGHT JACKPOT</span><strong id="celebration-title">月光大獎</strong><b id="celebration-amount">+2,000</b><span id="celebration-note">這一刻，星光為你而亮。</span></div></div>
-        <div class="result" role="status" aria-live="polite"><span id="result-icon">${icon('star')}</span><div><strong id="result-title">今晚的第一份幸運，等你開啟。</strong><span id="result-detail">選擇下注額，開始你的月光旅程。</span></div><span class="result-tag" id="result-tag">READY</span></div>
-        <div class="controls"><div class="bet-group"><label>每次下注 <span>籌碼</span></label><div class="bets">${BETS.map(b=>`<button data-bet="${b}" aria-pressed="${b===100}">${fmt(b)}</button>`).join('')}</div></div><button id="spin" class="spin" disabled>${icon('spin')}<span>旋轉一次<small>SPIN THE MOMENT</small></span></button></div>
-        <div class="machine-footer"><span>純娛樂 · 測試籌碼無現金價值</span><button id="rules">查看試玩規則 ${icon('arrow')}</button></div>
-      </section>
-      <aside>
-        <section class="journey"><div class="section-kicker">YOUR NEXT CHAPTER</div><div class="journey-head"><h2>下一個里程碑</h2><span>${icon('moon')}</span></div><div class="medal"><div>${icon('moon')}</div><span class="medal-star">✦</span></div><h3>月光收藏家</h3><p>首次達到 12,000 測試籌碼</p><div class="progress"><span id="progress"></span></div><div class="progress-caption"><span id="progress-current">10,000</span><span>12,000</span></div><div class="journey-note" id="journey-note">收藏下一段閃耀時刻。</div></section>
-        <section class="history-panel"><div class="section-heading"><h2>${icon('clock')}最近紀錄</h2><button id="all-history">查看全部 ${icon('arrow')}</button></div><div id="history"></div><p class="history-note">僅保存在此瀏覽器 · 最近 100 局</p></section>
-      </aside>
-    </div>
-    <section class="preview-bar"><div><span class="preview-icon">${icon('star')}</span><div><strong>先看一場精彩演出</strong><span>自由預覽，不扣除或增加籌碼。</span></div></div><div class="preview-buttons"><button id="preview-win">預覽大獎 ${icon('arrow')}</button><button id="preview-milestone">預覽里程碑 ${icon('arrow')}</button></div></section>
-    <footer class="page-footer"><span>LUNA ARCADE <span>／</span> PRIVATE PREVIEW</span><span>本機動畫樣品 · 尚未連接 Discord</span><button id="reset">重設試玩</button></footer>
+    <section class="game-panel" aria-label="凱美特之冠：五軸三列老虎機">
+      <h1 class="sr-only">CROWNS OF KEMET · 凱美特之冠</h1>
+      <div class="game-stage"><div id="canvas-host"><div id="loading">正在開啟法老王的寶藏…</div></div>
+        <div id="celebration" aria-hidden="true"><span id="celebration-kicker">PHARAOH’S TREASURE</span><strong id="celebration-title">法老王的寶藏</strong><b id="celebration-amount">+2,000</b><span id="celebration-note">尼羅河畔，傳說再次閃耀。</span></div>
+      </div>
+      <div class="control-deck">
+        <div class="bet-group"><label>BET <span>每次下注</span></label><div class="bets">${BETS.map(b=>'<button data-bet="'+b+'" aria-pressed="'+(b===100)+'">'+fmt(b)+'</button>').join('')}</div></div>
+        <button id="preview-win" class="gold-button"><span>BIG WIN</span><small>大獎預覽</small></button>
+        <button id="spin" class="spin" aria-label="旋轉一次" disabled>${icon('spin')}<span>SPIN</span></button>
+        <button id="max-bet" class="gold-button"><span>MAX BET</span><small>最大下注</small></button>
+        <div class="wallet"><span>COINS <small>測試籌碼</small></span><strong id="balance">10,000</strong></div>
+      </div>
+      <div class="result" role="status" aria-live="polite"><span id="result-icon">${icon('star')}</span><div><strong id="result-title">法老王的寶藏，等待你開啟。</strong><span id="result-detail">五軸三列 · 中央連線 · 選擇下注後開始旋轉</span></div><span id="result-tag">READY</span></div>
+    </section>
+    <section class="milestone-bar"><div><span class="milestone-symbol">♜</span><div><strong>法老的眷顧 <small>12,000 籌碼里程碑</small></strong><span id="journey-note">累積你的第一份寶藏。</span></div></div><div class="progress-block"><div class="progress-caption"><span id="progress-current">10,000</span><span>12,000</span></div><div class="progress"><span id="progress"></span></div></div><button id="preview-milestone">預覽里程碑 ${icon('arrow')}</button></section>
+    <details class="recent"><summary>最近遊戲紀錄 <span>僅保存在此瀏覽器</span></summary><div id="history"></div><p class="history-note">最近 100 局 · 大獎預覽不影響籌碼與紀錄</p></details>
+    <footer class="page-footer"><span>PRIVATE PREVIEW <b>·</b> 純娛樂測試籌碼</span><span>本機動畫樣品 · 尚未連接 Discord</span><div><button id="rules">試玩規則</button><button id="reset">重設試玩</button></div></footer>
   </main>
   <dialog id="dialog"><div class="dialog-head"><h2 id="dialog-title"></h2><button id="close-dialog" class="icon-button" aria-label="關閉視窗">${icon('close')}</button></div><div id="dialog-body"></div></dialog>`;
 
-const KEY='luna-arcade-preview-v1';
+const KEY='kemet-slot-preview-v2';
 let state, storageAvailable=true;
 try { state=readState(localStorage.getItem(KEY)); } catch { state=freshState();storageAvailable=false; }
 let bet=100, busy=false, ready=false, countAnimation=0, celebrationTimer=0;
@@ -52,16 +53,17 @@ function renderState() {
   $('#balance').textContent=fmt(state.balance);
   $('#progress').style.width=`${Math.min(state.balance/12000*100,100)}%`;
   $('#progress-current').textContent=fmt(state.balance);
-  $('#journey-note').textContent=state.milestones.includes(12000)?'已收藏 · 月光收藏家':`距離下一段星光，還差 ${fmt(Math.max(0,12000-state.balance))} 籌碼。`;
+  $('#journey-note').textContent=state.milestones.includes(12000)?'已收藏 · 法老的眷顧':`距離下一份寶藏，還差 ${fmt(Math.max(0,12000-state.balance))} 籌碼。`;
   $('#history').replaceChildren(...state.history.slice(0,4).map(r=>historyRow(r)));
   if(!state.history.length)$('#history').innerHTML='<div class="empty-history"><span>每一段幸運，都值得留下。</span><small>完成第一局後，紀錄會出現在這裡。</small></div>';
   if(!storageAvailable)$('.history-note').textContent='瀏覽器儲存不可用 · 本次關閉後不保留';
 }
 function setBusy(value) {
   busy=value;
-  ['#spin','#reset','#preview-win','#preview-milestone'].forEach(s=>$(s).disabled=value||!ready);
+  ['#spin','#reset','#preview-win','#preview-milestone','#max-bet'].forEach(s=>$(s).disabled=value||!ready);
   document.querySelectorAll('[data-bet]').forEach(b=>b.disabled=value);
-  $('#spin').innerHTML=value?`${icon('spin')}<span>星光轉動中<small>THE MOMENT IS COMING</small></span>`:`${icon('spin')}<span>旋轉一次<small>SPIN THE MOMENT</small></span>`;
+  $('#spin').innerHTML=icon('spin')+'<span>'+(value?'轉動中':'SPIN')+'</span>';
+  $('#spin').setAttribute('aria-label',value?'轉動中':'旋轉一次');
   $('#spin').classList.toggle('spinning',value);
 }
 function result(title,detail,tag='READY',win=false) {
@@ -73,16 +75,17 @@ function animateBalance(from,to) {
   const start=performance.now();
   const frame=now=>{const p=Math.min((now-start)/900,1);$('#balance').textContent=fmt(from+(to-from)*(1-(1-p)**3));if(p<1)countAnimation=requestAnimationFrame(frame);};countAnimation=requestAnimationFrame(frame);
 }
-function hideCelebration(){clearTimeout(celebrationTimer);$('#celebration').classList.remove('show');$('.game-panel').classList.remove('big-win');}
+function hideCelebration(){scene.clearCelebration();clearTimeout(celebrationTimer);$('#celebration').classList.remove('show');$('.game-panel').classList.remove('big-win');}
 function celebrate(kind,amount,preview=false) {
   hideCelebration();
   const milestone=kind==='milestone';
-  $('#celebration-kicker').textContent=milestone?'A NEW CHAPTER':'MOONLIGHT JACKPOT';
-  $('#celebration-title').textContent=milestone?'月光收藏家':'月光大獎';
+  $('#celebration').classList.toggle('milestone',milestone);
+  $('#celebration-kicker').textContent=milestone?'A NEW CHAPTER':'PHARAOH’S TREASURE';
+  $('#celebration-title').textContent=milestone?'法老的眷顧':'法老王的寶藏';
   $('#celebration-amount').textContent=milestone?'12,000':`+${fmt(amount)}`;
-  $('#celebration-note').textContent=preview?'演出預覽 · 測試籌碼不變':milestone?'第一枚月光徽章，已為你收藏。':'這一刻，星光為你而亮。';
+  $('#celebration-note').textContent=preview?'演出預覽 · 測試籌碼不變':milestone?'第一枚法老徽章，已為你收藏。':'這一刻，傳說再次閃耀。';
   $('#celebration').classList.add('show');$('.game-panel').classList.add('big-win');
-  scene.celebrate(true);sound.win(true);
+  scene.celebrate(!milestone,!milestone);sound.win(true);
   celebrationTimer=setTimeout(hideCelebration,4500);
 }
 async function spin(preview=false) {
@@ -90,7 +93,7 @@ async function spin(preview=false) {
   $('.game-panel').scrollIntoView({behavior:scene.reduced?'instant':'smooth',block:'start'});
   cancelAnimationFrame(countAnimation);hideCelebration();
   let r;
-  if(preview)r={...OUTCOMES[3],payout:bet*20,bet};
+  if(preview)r={...OUTCOMES[3],grid:makeGrid(OUTCOMES[3].symbols,2),payout:bet*20,bet};
   else {
     try{
       const random=crypto.getRandomValues(new Uint32Array(1))[0]/4294967296;
@@ -99,9 +102,9 @@ async function spin(preview=false) {
   }
   setBusy(true);sound.tone(220,.2);
   if(!preview)$('#balance').textContent=fmt(r.before-bet);
-  result(preview?'為你預演一場月光大獎。':'轉輪啟動，讓星光慢慢揭曉。',preview?'此演出不影響籌碼與遊戲紀錄。':`本次下注 ${fmt(bet)} · 正在播放本局演出`,'SPINNING');
+  result(preview?'為你預演一場法老王的寶藏。':'轉輪啟動，讓寶藏慢慢揭曉。',preview?'此演出不影響籌碼與遊戲紀錄。':`本次下注 ${fmt(bet)} · 正在播放本局演出`,'SPINNING');
   try {
-    await scene.spin(r.symbols,i=>sound.stop(i));
+    await scene.spin(r.grid,i=>sound.stop(i));
     renderState();
     if(!preview)animateBalance(r.before-bet,r.after);
     const symbols=r.symbols.map(s=>SYMBOL_NAMES[s]).join(' · ');
@@ -116,10 +119,11 @@ async function spin(preview=false) {
   finally {setBusy(false);}
 }
 function openDialog(title,body) {$('#dialog-title').textContent=title;$('#dialog-body').replaceChildren();if(typeof body==='string')$('#dialog-body').innerHTML=body;else $('#dialog-body').append(body);$('#dialog').showModal();}
-function showRules(){openDialog('關於這次內部試玩',`<p>這是動畫與操作樣品，還沒有連接 Discord。所有籌碼僅供測試，不能購買、轉讓或兌現。</p><h3>試玩方式</h3><p>選擇下注額後旋轉，中央三個相同符號會派彩。大獎與里程碑預覽不影響餘額、不寫入紀錄。</p><table><thead><tr><th>結果</th><th>測試機率</th><th>派彩</th></tr></thead><tbody><tr><td>未中獎</td><td>50%</td><td>0 倍</td></tr><tr><td>三顆櫻桃</td><td>30%</td><td>2 倍</td></tr><tr><td>三顆寶石</td><td>15%</td><td>5 倍</td></tr><tr><td>三個幸運 7</td><td>5%</td><td>20 倍</td></tr></tbody></table><p>派彩含本金；淨損益 = 派彩 − 下注。以上為方便觀察演出的測試分布，理論回饋率 235%，不是正式遊戲機率。月亮、星星與皇冠目前只作轉輪裝飾。</p><h3>資料保存</h3><p>最近 100 局保存在目前瀏覽器。清除瀏覽器資料或按「重設試玩」會清除紀錄，不支援跨裝置同步。正式版將改由後端管理帳本。</p><p>音效需手動開啟。若系統設定減少動態效果，演出會自動簡化。</p>`);}
+function showRules(){openDialog('關於這次內部試玩',`<p>這是動畫與操作樣品，還沒有連接 Discord。所有籌碼僅供測試，不能購買、轉讓或兌現。</p><h3>試玩方式</h3><p>選擇下注額後旋轉，中央一列的五個相同符號會派彩；上下兩列目前僅供展示。大獎與里程碑預覽不影響餘額、不寫入紀錄。</p><table><thead><tr><th>結果</th><th>測試機率</th><th>派彩</th></tr></thead><tbody><tr><td>未中獎</td><td>50%</td><td>0 倍</td></tr><tr><td>五個生命之符</td><td>30%</td><td>2 倍</td></tr><tr><td>五個荷魯斯之眼</td><td>15%</td><td>5 倍</td></tr><tr><td>五個 WILD</td><td>5%</td><td>20 倍</td></tr></tbody></table><p>派彩含本金；淨損益 = 派彩 − 下注。以上為方便觀察演出的測試分布，理論回饋率 235%，不是正式遊戲機率。項鍊與聖甲蟲目前僅作展示，WILD 尚未啟用替代功能。目前依測試機率先選結果，再安排轉輪演出，尚未採用固定 reel strip。</p><h3>資料保存</h3><p>最近 100 局保存在目前瀏覽器。清除瀏覽器資料或按「重設試玩」會清除紀錄，不支援跨裝置同步。正式版將改由後端管理帳本。</p><p>音效需手動開啟。若系統設定減少動態效果，演出會自動簡化。</p>`);}
+$('#max-bet').addEventListener('click',()=>{if(!busy)document.querySelector('[data-bet="500"]').click();});
 $('#spin').addEventListener('click',()=>spin());
 $('#preview-win').addEventListener('click',()=>spin(true));
-$('#preview-milestone').addEventListener('click',()=>{if(busy||!ready)return;$('.game-panel').scrollIntoView({behavior:scene.reduced?'instant':'smooth',block:'start'});hideCelebration();celebrate('milestone',12000,true);result('里程碑演出預覽','月光收藏家 · 示範達成 12,000 籌碼的演出；實際籌碼不變。','PREVIEW',true);});
+$('#preview-milestone').addEventListener('click',()=>{if(busy||!ready)return;$('.game-panel').scrollIntoView({behavior:scene.reduced?'instant':'smooth',block:'start'});hideCelebration();celebrate('milestone',12000,true);result('里程碑演出預覽','法老的眷顧 · 示範達成 12,000 籌碼的演出；實際籌碼不變。','PREVIEW',true);});
 document.querySelectorAll('[data-bet]').forEach(b=>b.addEventListener('click',()=>{if(busy)return;bet=Number(b.dataset.bet);document.querySelectorAll('[data-bet]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));}));
 $('#sound').addEventListener('click',async()=>{
   if(sound.enabled)sound.enabled=false;else await sound.enable();
@@ -131,7 +135,7 @@ $('#close-dialog').addEventListener('click',()=>$('#dialog').close());
 $('#dialog').addEventListener('click',e=>{if(e.target===$('#dialog')){const r=$('#dialog').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)$('#dialog').close();}});
 $('#reset').addEventListener('click',()=>{
   openDialog('重新開始試玩', '<p>將恢復 10,000 測試籌碼，並清除這個瀏覽器中的試玩紀錄與里程碑。</p><button class="confirm-reset" id="confirm-reset">確認重設</button>');
-  $('#confirm-reset').addEventListener('click',()=>{cancelAnimationFrame(countAnimation);hideCelebration();save(freshState());renderState();scene.current=['moon','seven','gem'];scene.setStatic(scene.current);result('新的月光旅程，準備開始。','測試籌碼已恢復為 10,000。');$('#dialog').close();});
+  $('#confirm-reset').addEventListener('click',()=>{cancelAnimationFrame(countAnimation);hideCelebration();save(freshState());renderState();scene.setStatic(INITIAL_GRID);result('新的神殿旅程，準備開始。','測試籌碼已恢復為 10,000。');$('#dialog').close();});
 });
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){scene.finish();if(ready)scene.app.stop();sound.context?.suspend();}
@@ -139,6 +143,6 @@ document.addEventListener('visibilitychange',()=>{
 });
 renderState();
 setBusy(false);
-scene.init($('#canvas-host')).then(()=>{ $('#loading').remove();ready=true;setBusy(false); }).catch(error=>{
+scene.init($('#canvas-host')).then(()=>{ $('#loading').remove();ready=true;if(state.history[0])scene.setStatic(state.history[0].grid);setBusy(false); }).catch(error=>{
   console.error(error);$('#loading').textContent='無法啟動圖形引擎，請使用支援 WebGL 的瀏覽器，並開啟硬體加速。';result('圖形引擎尚未就緒','重新整理後再試，或更換瀏覽器。','ERROR');
 });
