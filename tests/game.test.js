@@ -26,24 +26,24 @@ test('20 unique five-reel paylines and immutable circular strips',()=>{
 });
 test('left-to-right only, highest award, W substitution and pure W awards',()=>{
   for(const [symbols,payout,count] of [
-    [['wild','wild','wild','scarab','scarab'],500,5],
-    [['wild','wild','wild','jack','jack'],50,3],
-    [['scarab','wild','scarab','eye','scarab'],20,3],
+    [['wild','wild','wild','scarab','scarab'],399,5],
+    [['wild','wild','wild','jack','jack'],60,5],
+    [['scarab','wild','scarab','eye','scarab'],50,3],
     [['eye','scarab','scarab','scarab','scarab'],0,0],
     [['scarab','scarab','eye','scarab','scarab'],0,0],
-    [Array(5).fill('wild'),1000,5],
-    [['wild','eye','wild','eye','jack'],75,4],
+    [Array(5).fill('wild'),2000,5],
+    [['wild','eye','wild','eye','jack'],85,4],
   ]) {const win=evaluateLine(symbols);assert.equal(win.multiplier,payout);assert.equal(win.count,count);}
 });
 test('all lines pay independently without double-paying prefixes or rounding',()=>{
   const grid=Array.from({length:5},()=>Array(3).fill('wild'));
   const result=evaluateGrid(grid,100);
-  assert.equal(result.wins.length,20);assert.equal(result.payout,100000);
+  assert.equal(result.wins.length,20);assert.equal(result.payout,200000);
   assert.throws(()=>evaluateGrid(grid,50));
   assert.throws(()=>evaluateGrid(grid.slice(1),100));
-  const stops=[15,0,8,18,15];
-  assert.equal(evaluateGrid(gridFromStops(stops),20).payout,2413);
-  assert.equal(evaluateGrid(gridFromStops(stops),500).payout,60325);
+  const stops=[13,10,6,6,13];
+  assert.equal(evaluateGrid(gridFromStops(stops),20).payout,2882);
+  assert.equal(evaluateGrid(gridFromStops(stops),500).payout,72050);
 });
 test('uniform RNG rejects overflow tail and draws all five stops independently',()=>{
   for(const [length,tail,last] of [[20,4294967280,4294967279],[25,4294967275,4294967274]]){

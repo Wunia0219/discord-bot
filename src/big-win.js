@@ -3,6 +3,9 @@ import mainUrl from '../images/main.webp';
 import atlas from '../images/main.json';
 import auraUrl from '../images/fx/big-win-aura.webp';
 import sparkUrl from '../images/fx/big-win-spark-sheet.webp';
+import superTitleUrl from '../images/fx/super-win-title.webp';
+import megaTitleUrl from '../images/fx/mega-win-title.webp';
+import { WIN_TITLES } from './win-tier.js';
 import { prepareNumberFont, setBitmapNumber } from './bitmap-number.js';
 
 function art(name, className) {
@@ -16,7 +19,9 @@ export class BigWinPresentation {
     this.element.className = 'bigwin-display'; this.element.setAttribute('aria-hidden','true');
     this.element.innerHTML = `<div class="bigwin-shade"></div><div class="bigwin-stage">
       <div class="bigwin-aura"><img src="${auraUrl}" alt="" /></div><div class="bigwin-rays"></div>
-      ${art('big_win_decor.png','bigwin-lotus')}${art('big_win.png','bigwin-title')}
+      ${art('big_win_decor.png','bigwin-lotus')}${art('big_win.png','bigwin-title bigwin-title-big')}
+      <div class="bigwin-title bigwin-title-super" hidden><img src="${superTitleUrl}" alt="" /></div>
+      <div class="bigwin-title bigwin-title-mega" hidden><img src="${megaTitleUrl}" alt="" /></div>
       <div class="bigwin-score"></div><div class="bigwin-dust" aria-hidden="true"></div>
       </div>`;
     host.append(this.element);
@@ -31,13 +36,16 @@ export class BigWinPresentation {
     }
   }
   async prepare() {
-    await Promise.all([prepareNumberFont(),...[auraUrl,sparkUrl].map(src => {const img=new Image();img.src=src;return img.decode();})]);
+    await Promise.all([prepareNumberFont(),...[auraUrl,sparkUrl,superTitleUrl,megaTitleUrl].map(src => {const img=new Image();img.src=src;return img.decode();})]);
   }
-  show(amount, reduced=false) {
+  show(amount, reduced=false, tier='big') {
     this.hide();
+    if(!Object.hasOwn(WIN_TITLES,tier))tier='big';
+    this.element.dataset.tier=tier;
+    for(const key of Object.keys(WIN_TITLES))this.element.querySelector(`.bigwin-title-${key}`).hidden=key!==tier;
     this.element.classList.toggle('reduced',reduced);
     this.element.setAttribute('aria-hidden','false');
-    this.element.setAttribute('aria-label',`BIG WIN，中獎 ${amount.toLocaleString('en-US')} 分`);
+    this.element.setAttribute('aria-label',`${WIN_TITLES[tier]}，中獎 ${amount.toLocaleString('en-US')} 分`);
     setBitmapNumber(this.score,reduced?amount.toLocaleString('en-US'):'0');
     // Restart the authored entrance even when a new preview interrupts a prior one.
     void this.element.offsetWidth;

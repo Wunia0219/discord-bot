@@ -10,6 +10,11 @@
 .bigwin-lotus img,.bigwin-title img{position:absolute;max-width:none;height:auto;display:block}
 .bigwin-lotus{width:32%;left:34%;top:9%;filter:drop-shadow(0 0 16px #35e8df70) drop-shadow(0 4px 2px #061117b3)}
 .bigwin-title{width:70%;left:15%;top:40%}
+.bigwin-title[hidden]{display:none}
+.bigwin-title-super,.bigwin-title-mega{aspect-ratio:1072/264}
+.bigwin-title-super img,.bigwin-title-mega img{width:100%;inset:0}
+.bigwin-display[data-tier="super"] .bigwin-aura,.bigwin-display[data-tier="super"] .bigwin-dust,.bigwin-display[data-tier="super"] .bigwin-rays{filter:hue-rotate(135deg)}
+.bigwin-display[data-tier="mega"] .bigwin-aura,.bigwin-display[data-tier="mega"] .bigwin-dust,.bigwin-display[data-tier="mega"] .bigwin-rays{filter:hue-rotate(185deg) saturate(1.35)}
 .bigwin-score{position:absolute;left:10%;width:80%;top:59%;text-align:center;font-size:17cqw;line-height:1;opacity:0;filter:drop-shadow(0 5px 0 #62340c77) drop-shadow(0 0 18px #ffbf4b24)}
 .bigwin-score .bitmap-number{height:1em;max-width:100%}
 .bigwin-dust{position:absolute;inset:0;pointer-events:none}

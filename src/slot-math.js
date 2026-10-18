@@ -1,4 +1,7 @@
 import { MODEL_VERSION, REEL_CODES } from './reel-strips.js';
+import { PAYOUTS, INITIAL_STOPS, TIER_PREVIEW_STOPS } from './model-config.js';
+import { winTier } from './win-tier.js';
+export { MAXIMUM_MULTIPLIER, BIG_WIN_MEAN_SPINS, TIER_PREVIEW_STOPS } from './model-config.js';
 export { MODEL_VERSION, REEL_CODES };
 export const SYMBOL_FRAMES = Object.freeze({ scarab: 'H1.png', eye: 'H2.png', ankh: 'H3.png', necklace: 'H4.png', ace: 'L1.png', king: 'L2.png', queen: 'L3.png', jack: 'L4.png', wild: 'W.png' });
 export const SYMBOLS = Object.freeze(Object.keys(SYMBOL_FRAMES));
@@ -6,10 +9,7 @@ export const SYMBOL_CODES = Object.freeze(Object.fromEntries(SYMBOLS.map(s => [s
 export const SYMBOL_NAMES = Object.freeze({ scarab: '聖甲蟲', eye: '荷魯斯之眼', ankh: '生命之符', necklace: '皇家項鍊', ace: 'A', king: 'K', queen: 'Q', jack: 'J', wild: 'WILD' });
 const fromCode = Object.fromEntries(SYMBOLS.map(s => [SYMBOL_CODES[s], s]));
 export const REEL_STRIPS = Object.freeze(REEL_CODES.map(strip => Object.freeze(strip.map(code => fromCode[code]))));
-export const PAYTABLE = Object.freeze(Object.fromEntries(SYMBOLS.map((s, i) => [s, Object.freeze([
-  [20, 100, 500], [15, 75, 250], [10, 50, 150], [8, 40, 100],
-  [5, 15, 40], [5, 12, 30], [4, 10, 25], [3, 8, 20], [50, 250, 1000],
-][i])])));
+export const PAYTABLE = Object.freeze(Object.fromEntries(SYMBOLS.map((s, i) => [s, PAYOUTS[i]])));
 // Each entry selects one row per reel: 0 = top, 1 = middle, 2 = bottom.
 export const PAYLINES = Object.freeze([
   [1,1,1,1,1], [0,0,0,0,0], [2,2,2,2,2], [0,1,2,1,0], [2,1,0,1,2],
@@ -46,7 +46,7 @@ export function evaluateGrid(grid, bet) {
   });
   const payout = wins.reduce((sum, win) => sum + win.payout, 0);
   const level = payout >= bet * 20 ? 'jackpot' : payout > bet ? 'medium' : payout > 0 ? 'small' : 'none';
-  return { wins, lineBet, payout, multiplier: payout / bet, level, label: payout ? `${wins.length} 條連線得獎` : '寶藏仍在等待' };
+  return { wins, lineBet, payout, multiplier: payout / bet, level, tier:winTier(payout,bet), label: payout ? `${wins.length} 條連線得獎` : '寶藏仍在等待' };
 }
 // Rejection sampling avoids modulo bias, including the 25-stop fifth reel.
 export function uniformStop(length, nextUint32 = () => crypto.getRandomValues(new Uint32Array(1))[0]) {
@@ -67,7 +67,7 @@ export function reelMotion(reel, from, to, laps = 1) {
   const steps = wrap(from - to, length) + laps * length;
   return { steps, names: Array.from({ length: steps + ROWS }, (_, row) => strip[wrap(to - 1 + row, length)]) };
 }
-export const INITIAL_STOPS = Object.freeze([5, 3, 8, 13, 23]);
+export { INITIAL_STOPS };
 export const INITIAL_GRID = gridFromStops(INITIAL_STOPS);
-// A real, reachable all-W middle line, used only by the labelled free preview.
-export const PREVIEW_STOPS = Object.freeze(REEL_STRIPS.map(strip => strip.indexOf('wild')));
+// A real, reachable BIG WIN outcome, used only by the labelled free preview.
+export const PREVIEW_STOPS = TIER_PREVIEW_STOPS.big;

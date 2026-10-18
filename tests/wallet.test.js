@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { WalletStore, taipeiDay } from '../server/wallet.js';
+import * as v1 from '../src/models/v1/slot-math.js';
 const guild='1441097301685698703',other='1441097301685698704',user='1561284960986599626',admin='1561284960986599627';
 function store(t,opts={}){const s=new WalletStore({guildIds:[guild,other],...opts});t.after(()=>s.close());return s;}
 test('test seed is once per wallet; guilds and users are isolated; production starts at zero',t=>{
@@ -49,4 +50,20 @@ test('wallet survives reopen and refuses to open a test DB as production',async 
  const a=new WalletStore({filename,guildIds:[guild]});a.checkin(guild,user);a.close();
  const b=new WalletStore({filename,guildIds:[guild]});assert.equal(b.state(guild,user).balance,10500);b.close();
  assert.throws(()=>new WalletStore({filename,guildIds:[guild],environment:'production'}),/mix test/);
+});
+
+test('retry of a stored v1 spin after upgrade preserves its original settlement',t=>{
+ const s=store(t),request=randomUUID(),stops=[15,0,8,18,15];
+ s.state(guild,user);
+ const grid=v1.gridFromStops(stops),outcome=v1.evaluateGrid(grid,500);
+ const old={...outcome,id:randomUUID(),bet:500,stops,grid,symbols:grid.map(c=>c[1]),rules:v1.MODEL_VERSION,time:new Date().toISOString(),before:10000,after:69825,net:59825,milestone:false};
+ s.tx(()=>{
+  s.credit(guild,user,old.net,'spin',user,'舊版下注 500／派彩 60325',request);
+  s.db.prepare('INSERT INTO rounds VALUES(?,?,?,?,?)').run(guild,user,old.id,JSON.stringify(old),Date.now());
+  s.db.prepare('INSERT INTO operations VALUES(?,?,?,?)').run(guild,`spin:${user}:${request}`,'500',JSON.stringify({round:old}));
+ });
+ const before=s.history(guild,user);
+ const replay=s.spin(guild,user,500,request);
+ assert.equal(replay.duplicate,true);assert.deepEqual(replay.round,old);
+ assert.equal(replay.state.balance,69825);assert.deepEqual(s.history(guild,user),before);
 });

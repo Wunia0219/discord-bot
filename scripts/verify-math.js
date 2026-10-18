@@ -42,8 +42,16 @@ for(let i=0;i<n;i++){
   if(i<1000)assert.equal(evaluateGrid(gridFromStops(stops),20).payout,p);
 }
 const mean=simSum/n/20,se=Math.sqrt((simSquares/n/400-mean**2)*n/(n-1)/n);
+const tails=Object.fromEntries([20,50,100].map(threshold=>{
+  const count=[...distribution].reduce((sum,[p,n])=>sum+(p>=threshold*20?n:0),0);
+  return [threshold,{count,probability:count/combinations,meanSpins:combinations/count}];
+}));
+if(MODEL_VERSION==='kemet-20-v2'){
+  assert.ok(tails[20].meanSpins>=600&&tails[20].meanSpins<=1000,'20x frequency outside approved range');
+  counts.forEach((r,i)=>{const low=r.slice(4,8).reduce((a,b)=>a+b,0)/REEL_STRIPS[i].length;assert.ok(low>=.6&&low<=.7);});
+}
 const report={model:MODEL_VERSION,sha256:createHash('sha256').update(JSON.stringify({REEL_CODES,PAYTABLE,PAYLINES})).digest('hex'),
-  lengths:REEL_STRIPS.map(r=>r.length),counts,exact:{stopCombinations:combinations,linePayoutSum:weighted.toString(),lineBet:1,totalPayoutSum:sum,totalBetSum:combinations*20,rtpFraction:'24/25',rtp:sum/combinations/20,hitRate:hits/combinations,profitableRate:profits/combinations,standardDeviationTotalBet:Math.sqrt(sumSquares/combinations/400-.96**2),maximumTotalBetMultiplier:max/20,maximumStops:maxStops},
+  lengths:REEL_STRIPS.map(r=>r.length),counts,exact:{stopCombinations:combinations,linePayoutSum:weighted.toString(),lineBet:1,totalPayoutSum:sum,totalBetSum:combinations*20,rtpFraction:'24/25',rtp:sum/combinations/20,hitRate:hits/combinations,profitableRate:profits/combinations,standardDeviationTotalBet:Math.sqrt(sumSquares/combinations/400-.96**2),maximumTotalBetMultiplier:max/20,maximumStops:maxStops,tails},
   simulation:{generator:'xorshift32 (verification only; game uses crypto)',seed:960020,rounds:n,rtp:mean,standardError:se,approximate95PercentInterval:[mean-1.96*se,mean+1.96*se]},
   payoutDistributionInLineBets:Object.fromEntries([...distribution].sort((a,b)=>a[0]-b[0]))};
 writeFileSync(new URL('../docs/math-report.json',import.meta.url),JSON.stringify(report,null,2)+'\n');

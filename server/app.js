@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { resolve, relative, extname, sep, isAbsolute } from 'node:path';
 import { validSignature, handleCommand } from './commands.js';
+import { MODEL_VERSION } from '../src/slot-math.js';
 
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.webp':'image/webp', '.png':'image/png', '.svg':'image/svg+xml', '.json':'application/json', '.woff2':'font/woff2' };
 const json = (res, status, data) => {
@@ -36,7 +37,7 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
   return createServer(async (req, res) => {
     try {
       const path = new URL(req.url, 'http://localhost').pathname;
-      if(path==='/healthz')return json(res,200,{ok:true});
+      if(path==='/healthz')return json(res,200,{ok:true,model:MODEL_VERSION});
       if(path==='/api/interactions'){
         if(req.method!=='POST')return json(res,405,{error:'請使用 POST。'});
         let size=0;const chunks=[];
