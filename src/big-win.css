@@ -1,6 +1,4 @@
 .bitmap-number{display:inline-block;max-width:100%;height:1em;object-fit:contain;vertical-align:middle;filter:drop-shadow(0 2px 2px #140a0e80)}
-.wallet strong{line-height:1.1;font-size:clamp(25px,5cqw,36px)}.payout-result{line-height:1}
-@container (min-width:900px) and (min-height:560px){.wallet strong{font-size:clamp(30px,3cqw,42px)}}
 .bigwin-display{position:fixed;inset:0;z-index:15;display:grid;place-items:center;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .3s,visibility .3s}
 .bigwin-display.show{opacity:1;visibility:visible}
 .bigwin-shade{position:absolute;inset:0;background:radial-gradient(ellipse at center,#030b1099,#03050dde 90%)}
