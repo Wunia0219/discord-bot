@@ -1,6 +1,6 @@
 # Discord Activity 私人測試接入
 
-目前已加入官方 Embedded App SDK 2.5.0，等待 Discord READY 後再開啟遊戲。一般瀏覽器模式仍可直接使用。此階段不取得使用者身分，籌碼與紀錄仍在本機儲存；SDK READY 不代表完成 OAuth 登入。
+目前已加入官方 Embedded App SDK 2.5.0，等待 Discord READY 後再開啟遊戲。本機測試版已設定後端密鑰並啟用 OAuth 基本身分登入，使用者已確認在 Discord 實際登入成功；SDK READY 不代表完成 OAuth 登入。一般瀏覽器模式仍可直接使用。籌碼與紀錄仍在本機儲存，登入也不會自動將舊帳本綁定到帳號。
 
 ## 1. 使用者準備
 
@@ -27,7 +27,7 @@ VITE_DISCORD_CLIENT_ID=你的ApplicationID
 npm run activity:serve
 ```
 
-此命令先建置，再於 `http://127.0.0.1:4188` 提供 `dist/` 內的靜態遊戲，避免把開發伺服器和原始專案經由隧道公開。原有的 `npm run dev` 使用 4187，可繼續獨立使用。
+此命令先建置，再由 Node 後端於 `http://127.0.0.1:4188` 提供 `dist/` 內的靜態遊戲與 `/api/token`，避免把開發伺服器和原始專案經由隧道公開。先依下方「基本身分登入」建立 `.env.server.local`；原有的 `npm run dev` 使用 4187，可繼續獨立使用瀏覽器模式。
 
 ## 3. 取得臨時 HTTPS 網址
 
@@ -51,7 +51,24 @@ Windows 測試工具放在 `.tools/cloudflared.exe`（不提交 Git、不安裝�
    | `/` | 上一步的主機名稱，例如 `某個名稱.trycloudflare.com`，不含 `https://` |
 
 3. **Activities → Settings** 開啟 **Enable Activities** 並儲存。官方流程會建立預設的 Launch 入口，不必先撰寫 Bot 指令。
-4. 此次只做 READY 握手，尚未呼叫 authorize/authenticate；OAuth Redirect URI 和 Client Secret 留待帳號登入階段設定。
+4. READY 握手後依下方「基本身分登入」設定 OAuth；本機測試版已完成並由使用者確認登入成功。
+
+## 基本身分登入（使用者已確認實機登入成功）
+
+1. OAuth2 → Redirects 新增 `https://127.0.0.1` 並儲存。這是官方 Activity 教學的占位網址，SDK 處理回到 Activity；使用者已完成此步。
+2. 在專案根目錄建立 `.env.server.local`（本機已建立），內容如下。只在自己的電腦填入 Client Secret，不要貼到聊天或提交 Git：
+
+   ```dotenv
+   DISCORD_CLIENT_ID=1561284960986599626
+   DISCORD_CLIENT_SECRET=
+   PORT=4188
+   ```
+
+3. 密鑰填妥後，在 `.env.local` 新增 `VITE_DISCORD_AUTH_ENABLED=true`。Client Secret 只能放後端設定檔，不可加 `VITE_` 前綴。
+4. 停止舊的 4188 靜態預覽程序，執行 `npm run activity:serve`。既有隧道仍指向 4188，可沿用目前 URL Mapping；只重建前端、卻仍使用舊 Vite preview 服務會缺少登入 API。
+5. 關閉並重新開啟 Discord Activity，同意 `identify` 基本身分授權。右上方顯示「Discord 已登入」，「遊玩介紹」會列出登入名稱與 Discord ID（手機也能查看）。取消或失敗會顯示可重試的錯誤，不會冒充登入成功。
+
+後端僅回傳 SDK 身分驗證所需的 access token，禁止快取、不記錄 token／密鑰、不回傳 refresh token；目前沒有持久化登入 Session 或伺服器錢包。前端只保留基本 user 資料；登入授權與錯誤路徑已用模擬 Discord API 測試，使用者已於 2026-10-18 確認真實 Discord 登入成功。未啟用 OAuth 時繼續原本 Activity 試玩模式。
 
 ## 5. 在 Discord 內驗證
 
@@ -87,3 +104,5 @@ Windows 測試工具放在 `.tools/cloudflared.exe`（不提交 Git、不安裝�
 舊的 `corn-acquire-lamps-detected.trycloudflare.com` DNS 回覆 NXDOMAIN，本機 4188 服務正常。已重新建立 Quick Tunnel：`stanford-glance-imposed-server.trycloudflare.com`，首頁與最新主程式 HTTP 200。使用者已將 Discord Portal 的 `/` URL Mapping Target 改成此新主機名稱，並確認重新開啟 Activity 後可正常遊玩。
 
 目前通道程序與網址資訊保存在不提交 Git 的 `.tools/activity-tunnel.json`，診斷日誌在 `test-results/activity-tunnel.stderr.log`。此為臨時網址，不能視為固定部署地址。
+
+同日已將 4188 的舊 Vite preview 替換為 Node 登入後端，沿用上述隧道。後端程序資訊保存在 `.tools/activity-server.json`；未記錄密鑰或 Token。已確認公開首頁／新版 JS 為 HTTP 200，空授權碼回傳預期的 HTTP 400，密鑰檔網址回傳 404，前端 JS 未包含後端密鑰。連線檢查後，使用者已重新開啟 Activity 並確認 Discord 身分登入成功。

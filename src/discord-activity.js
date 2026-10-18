@@ -1,4 +1,5 @@
-// Phase 1 only: establish the Activity handshake. No OAuth identity or shared wallet yet.
+import { authenticateActivity } from './discord-auth.js';
+// OAuth is activated only after the local backend credentials are configured.
 export function isDiscordActivity(location) {
   return new URLSearchParams(location.search).has('frame_id')
     || /^\d+\.discordsays\.com$/.test(location.hostname);
@@ -9,6 +10,8 @@ export async function connectActivity({
   clientId = import.meta.env?.VITE_DISCORD_CLIENT_ID,
   loadSdk = () => import('@discord/embedded-app-sdk'),
   timeoutMs = 15000,
+  authEnabled = import.meta.env?.VITE_DISCORD_AUTH_ENABLED === 'true',
+  fetchImpl = globalThis.fetch,
 } = {}) {
   if (!isDiscordActivity(location)) return { mode: 'browser' };
   if (!/^\d{17,20}$/.test(clientId || '')) {
@@ -41,5 +44,6 @@ export async function connectActivity({
       grid_lock_state: unlocked,
     }).catch(error => console.warn('Discord orientation remains client-controlled:', error.message));
   }
-  return { mode: 'discord', sdk };
+  const user = authEnabled ? await authenticateActivity(sdk, clientId, fetchImpl) : null;
+  return { mode: 'discord', sdk, user };
 }

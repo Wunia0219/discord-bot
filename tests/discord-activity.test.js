@@ -51,3 +51,18 @@ test('responsive orientation is requested after READY and unsupported clients ca
     assert.equal(warning.mock.callCount(),1);
   } finally {warning.mock.restore();}
 });
+
+test('enabled OAuth starts only after READY and exposes the authenticated identity',async()=>{
+  let ready=false;
+  class SDK {
+    async ready(){ready=true;}
+    commands={
+      authorize:async()=>{assert.equal(ready,true);return {code:'test-code'};},
+      authenticate:async()=>({user:{id:clientId,username:'tester'}}),
+    };
+  }
+  const result=await connectActivity({location,clientId,authEnabled:true,loadSdk:async()=>({DiscordSDK:SDK}),fetchImpl:async()=>Response.json({access_token:'test-token'})});
+  assert.equal(result.user.id,clientId);
+  assert.equal(result.user.username,'tester');
+  assert.equal(result.access_token,undefined);
+});

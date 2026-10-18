@@ -1,6 +1,6 @@
 # CROWNS OF KEMET 凱美特之冠 — 5×3／20 線
 
-以使用者提供的素材製作。已接入固定 reel strip、20 線算分與精確 96% 理論 RTP；已完成 Discord Activity SDK 握手，使用者已成功在 Discord 內試玩。尚未接入 OAuth 身分或正式後端。
+以使用者提供的素材製作。已接入固定 reel strip、20 線算分與精確 96% 理論 RTP；已完成 Discord Activity SDK 握手，使用者已成功在 Discord 內試玩。本機測試版已啟用 OAuth 基本身分登入與 Node 後端，使用者已確認實際 Discord 登入成功；尚未接入伺服器錢包或資料庫。
 
 ## 啟動與檢查
 
@@ -160,4 +160,4 @@ H1 在前兩軸較少，後段較多；各軸分布不必相同。W 分散排列
 - 主遊戲維持 PixiJS 8；Spine 3.8 由 `@pixi-spine/runtime-3.8`／Pixi 7 相容層在透明離屏畫布繪製，再作為 Pixi 8 紋理呈現。保留角色網格、deform、旋轉 atlas 與 additive 光效，原始素材不改版號。角色更新上限約 30 fps，跟隨遊戲 ticker 暫停；相容層按需載入。載入時複製骨架資料，移除直式符號專用的 m 裁切遮罩、背景、邊框及大片 shadow／overall_shadow，保留身體各部位陰影與火焰。原始 JSON／atlas／PNG 不變；透明離屏畫布擴為 800×1280，容納完整雙腳與 action 光效。窄畫面縮放放在左側機框，沒有佔滿整軸的角色符號。
 - 相容層依據：[Pixi Spine 3.8 runtime](https://github.com/pixijs-userland/spine)；[官方版本相容說明](https://esotericsoftware.com/spine-pixi)。目前 legacy adapter 在 Pixi 7.4 會產生一次 `rgb2hex` 棄用提示，不影響動畫；不修改第三方套件來隱藏訊息。
 
-所有籌碼純測試，不能購買、轉讓或兌現。Discord Activity 啟動、SDK、Proxy 與手機實機效能待後續整合驗證。
+所有籌碼純測試，不能購買、轉讓或兌現。Discord Activity 啟動、SDK、Proxy 與基本身分登入已完成實機驗證；手機實機效能、伺服器錢包及資料庫仍待後續驗證。
