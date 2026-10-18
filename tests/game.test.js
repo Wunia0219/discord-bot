@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { webpSize } from './helpers/webp.js';
-import { freshState, createRound, readState, SYMBOLS, SYMBOL_FRAMES, INITIAL_GRID, INITIAL_STOPS, PREVIEW_STOPS, restoredStops, REEL_STRIPS, REEL_CODES, PAYLINES, PAYTABLE, MODEL_VERSION, gridFromStops, evaluateLine, evaluateGrid, uniformStop, drawStops, reelMotion } from '../src/game.js';
+import { freshState, createRound, readState, SYMBOLS, SYMBOL_FRAMES, INITIAL_GRID, INITIAL_STOPS, PREVIEW_STOPS, TIER_PREVIEW_STOPS, restoredStops, REEL_STRIPS, REEL_CODES, PAYLINES, PAYTABLE, MODEL_VERSION, gridFromStops, evaluateLine, evaluateGrid, uniformStop, drawStops, reelMotion } from '../src/game.js';
 
 test('all nine symbols resolve to valid renamed atlas frames',()=>{
   const atlas=JSON.parse(readFileSync(new URL('../images/symbols.json',import.meta.url),'utf8'));
@@ -26,24 +26,26 @@ test('20 unique five-reel paylines and immutable circular strips',()=>{
 });
 test('left-to-right only, highest award, W substitution and pure W awards',()=>{
   for(const [symbols,payout,count] of [
-    [['wild','wild','wild','scarab','scarab'],399,5],
-    [['wild','wild','wild','jack','jack'],60,5],
-    [['scarab','wild','scarab','eye','scarab'],50,3],
+    [['wild','wild','wild','scarab','scarab'],500,5],
+    [['wild','wild','wild','jack','jack'],20,3],
+    [['scarab','wild','scarab','eye','scarab'],20,3],
     [['eye','scarab','scarab','scarab','scarab'],0,0],
     [['scarab','scarab','eye','scarab','scarab'],0,0],
-    [Array(5).fill('wild'),2000,5],
-    [['wild','eye','wild','eye','jack'],85,4],
+    [Array(5).fill('wild'),500,5],
+    [['wild','eye','wild','eye','jack'],75,4],
   ]) {const win=evaluateLine(symbols);assert.equal(win.multiplier,payout);assert.equal(win.count,count);}
 });
 test('all lines pay independently without double-paying prefixes or rounding',()=>{
   const grid=Array.from({length:5},()=>Array(3).fill('wild'));
   const result=evaluateGrid(grid,100);
-  assert.equal(result.wins.length,20);assert.equal(result.payout,200000);
+  // Synthetic all-W grid is unreachable on the strips. The scorer does not
+  // clip awards: the 200x bound comes from the reachable reel distribution.
+  assert.equal(result.wins.length,20);assert.equal(result.payout,50000);
   assert.throws(()=>evaluateGrid(grid,50));
   assert.throws(()=>evaluateGrid(grid.slice(1),100));
-  const stops=[13,10,6,6,13];
-  assert.equal(evaluateGrid(gridFromStops(stops),20).payout,2882);
-  assert.equal(evaluateGrid(gridFromStops(stops),500).payout,72050);
+  const stops=TIER_PREVIEW_STOPS.mega;
+  assert.equal(evaluateGrid(gridFromStops(stops),20).payout,4000);
+  assert.equal(evaluateGrid(gridFromStops(stops),500).payout,100000);
 });
 test('uniform RNG rejects overflow tail and draws all five stops independently',()=>{
   for(const [length,tail,last] of [[20,4294967280,4294967279],[25,4294967275,4294967274]]){
@@ -75,7 +77,7 @@ test('rounds reconcile, retain stops/wins, and duplicate settlement is idempoten
 });
 test('invalid inputs and insufficient balance cannot settle',()=>{
   for(const bet of [-1,0,50,250,NaN,1.5])assert.throws(()=>createRound(freshState(),bet,INITIAL_STOPS,'one'));
-  for(const stops of [null,[],[0,0,0,0,25],[-1,0,0,0,0],[NaN,0,0,0,0],[.5,0,0,0,0]])assert.throws(()=>createRound(freshState(),100,stops,'one'));
+  for(const stops of [null,[],[0,0,0,0,200],[-1,0,0,0,0],[NaN,0,0,0,0],[.5,0,0,0,0]])assert.throws(()=>createRound(freshState(),100,stops,'one'));
   assert.throws(()=>createRound({...freshState(),balance:19},20,INITIAL_STOPS,'one'));
 });
 test('milestone does not pay extra and triggers once; ledger retains 100 rounds',()=>{
@@ -86,7 +88,7 @@ test('milestone does not pay extra and triggers once; ledger retains 100 rounds'
 });
 test('new records reject tampered stops, payouts, grids, wins, and balances',()=>{
   const {state}=createRound(freshState(),100,PREVIEW_STOPS,'one');
-  for(const mutate of [s=>s.history[0].grid.pop(),s=>s.history[0].stops[0]=0,s=>s.history[0].wins[0].payout++,s=>s.history[0].rules='unknown',s=>s.balance++,s=>s.history[0].payout++]){
+  for(const mutate of [s=>s.history[0].grid.pop(),s=>s.history[0].stops[0]=(s.history[0].stops[0]+1)%REEL_STRIPS[0].length,s=>s.history[0].wins[0].payout++,s=>s.history[0].rules='unknown',s=>s.balance++,s=>s.history[0].payout++]){
     const invalid=structuredClone(state);mutate(invalid);assert.deepEqual(readState(JSON.stringify(invalid)),freshState());
   }
   for(const raw of [null,'bad','{}',JSON.stringify({...freshState(),balance:-1})])assert.deepEqual(readState(raw),freshState());

@@ -9,7 +9,7 @@ import { winTier, WIN_TITLES } from './win-tier.js';
 import { setBitmapNumber } from './bitmap-number.js';
 import { installResponsiveLayout } from './responsive-layout.js';
 import { createWalletClient } from './wallet-client.js';
-import { BETS, SYMBOL_NAMES, SYMBOL_CODES, SYMBOLS, PAYTABLE, PAYLINES, MODEL_VERSION, INITIAL_STOPS, PREVIEW_STOPS, TIER_PREVIEW_STOPS, MAXIMUM_MULTIPLIER, BIG_WIN_MEAN_SPINS, drawStops, roundFromStops, restoredStops, freshState, readState, createRound } from './game.js';
+import { BETS, SYMBOL_NAMES, SYMBOL_CODES, SYMBOLS, PAYTABLE, PAYLINES, REEL_STRIPS, MODEL_VERSION, INITIAL_STOPS, PREVIEW_STOPS, TIER_PREVIEW_STOPS, MAXIMUM_MULTIPLIER, BIG_WIN_MEAN_SPINS, drawStops, roundFromStops, restoredStops, freshState, readState, createRound } from './game.js';
 
 const $ = s => document.querySelector(s);
 const fmt = n => Math.round(n).toLocaleString('en-US');
@@ -60,7 +60,7 @@ function historyRow(r,full=false) {
   const caption=document.createElement('small');caption.textContent=`${new Date(r.time).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})} · 下注 ${fmt(r.bet)}`;
   content.append(title,caption);
   if(full){const detail=document.createElement('small');detail.textContent=`${r.symbols.map(s=>SYMBOL_NAMES[s]).join(' / ')} · 餘額 ${fmt(r.after)} · 局號 ${r.id.slice(0,8)}`;content.append(detail);
-    const rules=document.createElement('small');rules.textContent=[MODEL_VERSION,'kemet-20-v1'].includes(r.rules) ? `${r.rules===MODEL_VERSION?'目前規則':'舊版 96% 規則'} · ${r.rules} · 停點（從 0 起）${r.stops.join(' / ')} · 單線下注 ${fmt(r.lineBet)}` : '舊展示規則 · 非 96% RTP 模型';content.append(rules);
+    const rules=document.createElement('small');rules.textContent=[MODEL_VERSION,'kemet-20-v1','kemet-20-v2','circus-20-v3','circus-20-v4'].includes(r.rules) ? `${r.rules===MODEL_VERSION?'目前規則':'舊版 96% 規則'} · ${r.rules} · 停點（從 0 起）${r.stops.join(' / ')} · 單線下注 ${fmt(r.lineBet)}` : '舊展示規則 · 非 96% RTP 模型';content.append(rules);
     if(r.wins?.length){const lines=document.createElement('small');lines.textContent=r.wins.map(w=>`第 ${w.line} 線：${SYMBOL_CODES[w.symbol]} ${w.count} 連 ×${w.multiplier} = ${fmt(w.payout)}`).join('；');content.append(lines);}
   }
   const net=document.createElement('b');net.className=r.net>0?'positive':'neutral';net.textContent=signed(r.net);row.append(mark,content,net);return row;
@@ -166,10 +166,15 @@ async function spin(preview=false,previewTier='big') {
   finally {setBusy(false);}
 }
 function openDialog(title,body) {$('#dialog-title').textContent=title;$('#dialog-body').replaceChildren();if(typeof body==='string')$('#dialog-body').innerHTML=body;else $('#dialog-body').append(body);if(!$('#dialog').open)$('#dialog').showModal();$('#dialog-body').scrollTop=0;}
+function reelSummary(){
+  const shares=symbols=>{const values=REEL_STRIPS.map(r=>r.filter(s=>symbols.includes(s)).length/r.length*100);return `${Number(Math.min(...values).toFixed(2))}～${Number(Math.max(...values).toFixed(2))}%`;};
+  const lengths=REEL_STRIPS.map(r=>r.length),size=new Set(lengths).size===1?`五軸各 ${lengths[0]} 格`:`五軸長度 ${lengths.join('／')} 格`;
+  return `${size}，低分圖標占 ${shares(SYMBOLS.slice(4,8))}；高分圖標占 ${shares(SYMBOLS.slice(0,4))}，WILD 占 ${shares(['wild'])}`;
+}
 function showRules(){
   const table=SYMBOLS.map(s=>'<tr><td>'+SYMBOL_CODES[s]+' · '+SYMBOL_NAMES[s]+'</td>'+PAYTABLE[s].map(p=>'<td>'+fmt(p)+'×</td>').join('')+'</tr>').join('');
   const lines=PAYLINES.map((rows,i)=>'<div class="payline-card"><b>'+String(i+1).padStart(2,'0')+'</b><svg viewBox="0 0 100 60" role="img" aria-label="第 '+(i+1)+' 線，列序 '+rows.map(r=>r+1).join('、')+'"><path d="M0 20H100M0 40H100M20 0V60M40 0V60M60 0V60M80 0V60" stroke="#765067" stroke-width="1"/><polyline points="'+rows.map((r,c)=>(c*20+10)+','+(r*20+10)).join(' ')+'" fill="none" stroke="#ffd57d" stroke-width="3"/>'+rows.map((r,c)=>'<circle cx="'+(c*20+10)+'" cy="'+(r*20+10)+'" r="4" fill="#ffd57d"/>').join('')+'</svg></div>').join('');
-  openDialog('20 線遊戲規則',`<p>5 軸 × 3 列，20 條線全部啟用。每軸從固定輪帶獨立等機率抽取停點；理論 RTP 為 96%，代表長期平均，單次或短期結果會波動。規則版本：${MODEL_VERSION}。</p><h3>賠率表</h3><p>下表倍率 × 單線下注。單線下注 = 總下注 ÷ 20；例如下注 100，單線下注為 5。從第一軸向右連續至少 3 個相同符號得獎，每線只付最高獎，不同線相加。W 替代一般符號，也可獨立派彩，取較高者。沒有 Scatter、免費旋轉或額外獎池。</p><table><thead><tr><th>符號</th><th>3 連</th><th>4 連</th><th>5 連</th></tr></thead><tbody>${table}</tbody></table><h3>20 條固定線</h3><div class="payline-grid">${lines}</div><p>派彩不另外返還本金；淨損益 = 派彩 − 總下注。此固定輪帶最高可達 ${MAXIMUM_MULTIPLIER} 倍總下注。得獎線每 1.6 秒依序亮出，彩色實線與亮框標示得獎段，淡線標示該線後續路徑。控制框正上方顯示最近一局的中獎總得分（未扣下注），沒有中獎則留白；各線得分與完整明細可在右上角「遊玩紀錄」查看。</p><h3>內部試玩與資料</h3><p>${walletClient?'已連接本伺服器的帳號錢包，餘額及紀錄由後端保存。':activityMode==='discord'?'已連接 Discord Activity，目前使用本機試玩帳本。':'目前是獨立瀏覽器展示模式，不影響 Discord 帳號餘額。'}籌碼僅供測試，不能購買、轉讓或兌現。大獎預覽使用實際可達的停點，但不扣籌碼、不寫紀錄，也不參與 RTP 統計；12,000 里程碑僅為演出。只有派彩大於下注才播放獲利慶祝，20～不足 50 倍播放 BIG WIN、50～不足 100 倍播放 SUPER WIN、100 倍以上播放 MEGA WIN。新版各軸低分圖標占 64～65%；20 倍以上派彩長期平均約 ${Math.round(BIG_WIN_MEAN_SPINS)} 局一次，並非固定間隔。</p><p>${walletClient?'顯示最近 100 局，後端保留完整帳本及停點、各線獎金與規則版本。':'最近 100 局保存在此瀏覽器，含停點、各線獎金與規則版本。舊展示版紀錄另標示為舊規則；重設試玩會清除餘額與紀錄。'}空白鍵可啟動 SPIN；長按、轉動中或彈出視窗開啟時不會重複下注。音效需手動開啟，系統減少動態效果時會簡化演出。</p><button id="reset" class="confirm-reset" ${busy||!ready?'disabled':''}>重設試玩</button>`);
+  openDialog('20 線遊戲規則',`<p>5 軸 × 3 列，20 條線全部啟用。每軸從固定輪帶獨立等機率抽取停點；理論 RTP 為 96%，代表長期平均，單次或短期結果會波動。規則版本：${MODEL_VERSION}。</p><h3>賠率表</h3><p>下表倍率 × 單線下注。單線下注 = 總下注 ÷ 20；例如下注 100，單線下注為 5。從第一軸向右連續至少 3 個相同符號得獎，每線只付最高獎，不同線相加。W 替代一般符號，也可獨立派彩，取較高者。沒有 Scatter、免費旋轉或額外獎池。</p><table><thead><tr><th>符號</th><th>3 連</th><th>4 連</th><th>5 連</th></tr></thead><tbody>${table}</tbody></table><h3>20 條固定線</h3><div class="payline-grid">${lines}</div><p>派彩不另外返還本金；淨損益 = 派彩 − 總下注。此固定輪帶最高可達 ${MAXIMUM_MULTIPLIER} 倍總下注。得獎線每 1.6 秒依序亮出，彩色實線與亮框標示得獎段，淡線標示該線後續路徑。控制框正上方顯示最近一局的中獎總得分（未扣下注），沒有中獎則留白；各線得分與完整明細可在右上角「遊玩紀錄」查看。</p><h3>內部試玩與資料</h3><p>${walletClient?'已連接本伺服器的帳號錢包，餘額及紀錄由後端保存。':activityMode==='discord'?'已連接 Discord Activity，目前使用本機試玩帳本。':'目前是獨立瀏覽器展示模式，不影響 Discord 帳號餘額。'}籌碼僅供測試，不能購買、轉讓或兌現。大獎預覽使用實際可達的停點，但不扣籌碼、不寫紀錄，也不參與 RTP 統計；12,000 里程碑僅為演出。只有派彩大於下注才播放獲利慶祝，20～不足 50 倍播放 BIG WIN、50～不足 200 倍播放 SUPER WIN、恰好 200 倍播放 MEGA WIN。新版${reelSummary()}；20 倍以上派彩長期平均約 ${Math.round(BIG_WIN_MEAN_SPINS)} 局一次，並非固定間隔。</p><p>${walletClient?'顯示最近 100 局，後端保留完整帳本及停點、各線獎金與規則版本。':'最近 100 局保存在此瀏覽器，含停點、各線獎金與規則版本。舊展示版紀錄另標示為舊規則；重設試玩會清除餘額與紀錄。'}空白鍵可啟動 SPIN；長按、轉動中或彈出視窗開啟時不會重複下注。音效需手動開啟，系統減少動態效果時會簡化演出。</p><button id="reset" class="confirm-reset" ${busy||!ready?'disabled':''}>重設試玩</button>`);
   if(activityUser){
     const identity=document.createElement('p');
     identity.textContent=`已登入 Discord：${activityUser.global_name || activityUser.username}（${activityUser.id}）。${walletClient?`目前使用本伺服器的${state.environment==='test'?'測試':'正式'}錢包，跨裝置同步。`:'籌碼與紀錄仍為此瀏覽器的測試資料，尚未同步到帳號。'}`;

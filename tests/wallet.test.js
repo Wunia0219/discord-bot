@@ -6,8 +6,39 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { WalletStore, taipeiDay } from '../server/wallet.js';
 import * as v1 from '../src/models/v1/slot-math.js';
+import * as v2 from '../src/models/v2/slot-math.js';
+import * as v4 from '../src/models/v4/slot-math.js';
+import { MODEL_VERSION, REEL_STRIPS } from '../src/slot-math.js';
 const guild='1441097301685698703',other='1441097301685698704',user='1561284960986599626',admin='1561284960986599627';
 function store(t,opts={}){const s=new WalletStore({guildIds:[guild,other],...opts});t.after(()=>s.close());return s;}
+
+test('v4 wallet retries preserve settled 200-stop results while current rounds use verified reels',t=>{
+ const s=store(t,{spinDelay:0}),request=randomUUID(),stops=[91,51,41,31,151];s.state(guild,user);
+ const grid=v4.gridFromStops(stops),outcome=v4.evaluateGrid(grid,100);
+ const old={...outcome,id:randomUUID(),bet:100,stops,grid,symbols:grid.map(c=>c[1]),rules:v4.MODEL_VERSION,time:new Date().toISOString(),before:10000,after:29900,net:19900,milestone:false};
+ s.tx(()=>{
+  s.credit(guild,user,old.net,'spin',user,'v4 settlement',request);
+  s.db.prepare('INSERT INTO rounds VALUES(?,?,?,?,?)').run(guild,user,old.id,JSON.stringify(old),Date.now());
+  s.db.prepare('INSERT INTO operations VALUES(?,?,?,?)').run(guild,`spin:${user}:${request}`,'100',JSON.stringify({round:old}));
+ });
+ const replay=s.spin(guild,user,100,request);assert.equal(replay.duplicate,true);assert.deepEqual(replay.round,old);assert.equal(replay.state.balance,29900);
+ const next=s.spin(guild,user,20,randomUUID());assert.equal(next.round.rules,MODEL_VERSION);
+ assert.ok(next.round.stops.every((stop,i)=>stop>=0&&stop<REEL_STRIPS[i].length));
+ assert.ok(REEL_STRIPS.every(r=>r.length===80));assert.equal(s.history(guild,user).filter(e=>e.kind==='spin').length,2);
+});
+
+test('stored v2 wallet spin survives v3 upgrade and replay without another ledger entry',t=>{
+ const s=store(t),request=randomUUID(),stops=[13,10,6,6,13];s.state(guild,user);
+ const grid=v2.gridFromStops(stops),outcome=v2.evaluateGrid(grid,500);
+ const old={...outcome,id:randomUUID(),bet:500,stops,grid,symbols:grid.map(c=>c[1]),rules:v2.MODEL_VERSION,time:new Date().toISOString(),before:10000,after:81550,net:71550,milestone:false};
+ s.tx(()=>{
+  s.credit(guild,user,old.net,'spin',user,'v2 settlement',request);
+  s.db.prepare('INSERT INTO rounds VALUES(?,?,?,?,?)').run(guild,user,old.id,JSON.stringify(old),Date.now());
+  s.db.prepare('INSERT INTO operations VALUES(?,?,?,?)').run(guild,`spin:${user}:${request}`,'500',JSON.stringify({round:old}));
+ });
+ const before=s.history(guild,user),replay=s.spin(guild,user,500,request);
+ assert.equal(replay.duplicate,true);assert.deepEqual(replay.round,old);assert.equal(replay.state.balance,81550);assert.deepEqual(s.history(guild,user),before);
+});
 test('test seed is once per wallet; guilds and users are isolated; production starts at zero',t=>{
  const s=store(t);assert.equal(s.state(guild,user).balance,10000);assert.equal(s.state(guild,user).balance,10000);
  s.checkin(guild,user);assert.equal(s.state(other,user).balance,10000);assert.equal(s.state(guild,admin).balance,10000);

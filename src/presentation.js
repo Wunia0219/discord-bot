@@ -1,6 +1,21 @@
 export const LINE_HOLD_MS = 1600;
-export const BOUNCE_MS = 190;
+export const REEL_SETTLE_MS = 160;
+const REEL_CELL_MS = 60;
 export const SYMBOL_POP_MS = 960;
+
+// Keep presentation speed independent of the length of the payout model's reels.
+// Prepare every cell before spinning; the starting and landing windows, including
+// their guard cells, come from the actual strip and never change while visible.
+export function reelAnimation(strip, from, to, reel, reduced = false) {
+  const steps = reduced ? 4 + reel : 20 + reel * 4;
+  const wrap = n => ((n % strip.length) + strip.length) % strip.length;
+  const names = Array.from({ length: steps + 5 }, (_, row) => {
+    const stop = row >= steps ? from - steps : to;
+    return strip[wrap(stop + row - 2)];
+  });
+  const stopAt = steps * REEL_CELL_MS + (reduced ? 0 : REEL_SETTLE_MS / 2);
+  return { steps, names, stopAt };
+}
 
 // Restart the double-pop whenever a payline is displayed, including loop repeats.
 export class WinSymbolPop {
@@ -16,12 +31,15 @@ export class WinSymbolPop {
     return 1 + amplitude * Math.sin(Math.PI * (this.elapsed % half) / half) ** 2;
   }
 }
-export function reelOffset(distance, elapsed, stopAt, cellHeight, reduced = false) {
-  if (elapsed < stopAt) return -distance * (1 - Math.max(0, elapsed) / stopAt);
-  if (reduced || elapsed >= stopAt + BOUNCE_MS) return 0;
-  const p = (elapsed - stopAt) / BOUNCE_MS;
-  // Short downward overshoot, smaller upward rebound, then exact alignment.
-  return cellHeight * .17 * Math.sin(p * Math.PI * 2) * (1 - p) ** 2;
+export function reelOffset(distance, elapsed, stopAt, reduced = false) {
+  if (elapsed >= stopAt) return 0;
+  const settle = reduced ? 0 : Math.min(REEL_SETTLE_MS, stopAt);
+  const cruiseUntil = stopAt - settle;
+  const speed = distance / (stopAt - settle / 2);
+  if (elapsed <= cruiseUntil) return -distance + speed * Math.max(0, elapsed);
+  // Slow down into alignment while continuing downward, without an upward kick.
+  const remaining = (stopAt - elapsed) / settle;
+  return -speed * settle / 2 * remaining ** 2;
 }
 
 // Owned by the render loop: pausing the scene also pauses line presentation.

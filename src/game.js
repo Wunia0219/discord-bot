@@ -1,5 +1,8 @@
 import { SYMBOLS, COLS, ROWS, MODEL_VERSION, INITIAL_STOPS, gridFromStops, evaluateGrid, validateStops } from './slot-math.js';
 import * as v1 from './models/v1/slot-math.js';
+import * as v2 from './models/v2/slot-math.js';
+import * as v3 from './models/v3/slot-math.js';
+import * as v4 from './models/v4/slot-math.js';
 export * from './slot-math.js';
 export const INITIAL_BALANCE = 10000;
 export const BETS = [20, 100, 200, 500];
@@ -30,7 +33,7 @@ export function readState(raw) {
       if (!r || typeof r.id !== 'string' || !(legacy ? [50,100,250,500] : BETS).includes(r.bet) || !Number.isSafeInteger(r.payout) || r.payout < 0 || !Number.isSafeInteger(r.before) || r.before < r.bet || !Number.isSafeInteger(r.after) || r.after !== r.before - r.bet + r.payout || r.net !== r.payout - r.bet || !Number.isFinite(Date.parse(r.time))) return freshState();
       if (!Array.isArray(r.symbols) || r.symbols.length !== COLS || !Array.isArray(r.grid) || r.grid.length !== COLS || r.grid.some((col, i) => !Array.isArray(col) || col.length !== ROWS || col[1] !== r.symbols[i] || col.some(s => !SYMBOLS.includes(s)))) return freshState();
       if (!legacy) {
-        const math=r.rules===MODEL_VERSION?{validateStops,gridFromStops,evaluateGrid}:r.rules===v1.MODEL_VERSION?v1:null;
+        const math=r.rules===MODEL_VERSION?{validateStops,gridFromStops,evaluateGrid}:r.rules===v1.MODEL_VERSION?v1:r.rules===v2.MODEL_VERSION?v2:r.rules===v3.MODEL_VERSION?v3:r.rules===v4.MODEL_VERSION?v4:null;
         if(!math)return freshState();
         math.validateStops(r.stops);
         const grid=math.gridFromStops(r.stops);

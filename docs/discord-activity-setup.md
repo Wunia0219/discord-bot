@@ -1,5 +1,29 @@
 # Discord Activity 私人測試接入
 
+## 最新測試環境：2026-10-18 v5
+
+前後端已更新為 `circus-20-v5`：參考使用者提供的 243 路輪帶頻率，沿用現有賠率與 20 條固定線，五軸各 80 格；高分圖標占 27.5%～40%、WILD 占 2.5%～6.25%。精確 RTP 96%、自然最高派彩 200 倍。完整數量、原表差異、可重現驗證見 [v5 模型](model-v5.md)，完整五軸陣列在 [reels.json](../output/reel-design-v5/reels.json)。
+
+62 項自動測試通過；完整加權枚舉涵蓋全部 3,276,800,000 組停點，再跑 100 萬局交叉核對。更新前已備份 `backups/test-2026-10-18T15-23-56-344Z.sqlite`，本機與既有公開通道 `/healthz` 均確認為 v5。舊 v1～v4 回合保留原始規則、停點、派彩與餘額；後端重送相同請求不重複扣款。
+
+關閉並重新開啟 Discord Activity 登入，在遊玩介紹確認 `circus-20-v5` 與「五軸各 80 格」。Portal 的網址設定沿用既有通道。瀏覽器已核對新版賠率表、80 格與圖標比例；Discord 內體驗仍需使用者確認。
+
+## 歷史更新：2026-10-18 v4
+
+目前後端及前端已更新為 `circus-20-v4`。套用 V1 賠率、WILD 與 H1 同為單線 20／100／500 倍；五軸各 200 格，高分占 10%～10.5%、WILD 占 2%～2.5%，精確 RTP 96%，自然最高派彩仍為總下注 200 倍。完整數學與實際演出機率見 [v4 模型](model-v4.md)。
+
+58 項自動測試通過，另完成涵蓋全部 320,000,000,000 組停點的加權枚舉。更新前已備份至 `backups/test-2026-10-18T15-01-16-053Z.sqlite`，再重啟試玩後端；本機及既有公開通道 `/healthz` 都確認為 v4，首頁及新版 JS HTTP 200。舊錢包帳本保留。關閉並重新開啟 Discord Activity 登入，在遊玩介紹確認 `circus-20-v4`；Portal 的兩個網址設定不需更改。Discord 內新版體驗仍需使用者試玩確認。
+
+瀏覽器已核對 v4 規則與完整賠率表，最高獎真實盤面預覽在下注 100 時顯示派彩 20,000、8 條得獎線，籌碼前後維持 10,000。驗證畫面保存在 `test-results/v4-paytable-preview.png`。
+
+## 歷史更新：2026-10-18 v3
+
+目前通道為 `sounds-pound-reg-dean.trycloudflare.com`，Activity `/` Mapping 使用此主機；Interactions Endpoint 為 `https://sounds-pound-reg-dean.trycloudflare.com/api/interactions`。下方舊通道名稱屬歷史修復紀錄。
+
+已將試玩後端更新為 `circus-20-v3`：BIG 20、SUPER 50、MEGA 200 倍，自然最高派彩 200 倍、精確 RTP 96%。本機及公開 `/healthz` 均已確認為 v3，公開首頁與新版 JS HTTP 200。更新前已用 VACUUM INTO 備份 SQLite，舊錢包與紀錄保留；關閉並重新開啟 Activity 登入即可，無需再次修改 Portal 網址。
+
+57 項自動測試通過，含 v1／v2 舊回合與重送保存。瀏覽器實際檢查 BIG／SUPER／MEGA 預覽：下注 100，派彩分別 2,300／15,165／20,000，預覽後餘額保持 10,000。Discord 內的新版體驗留待使用者試玩確認。數學與機率見 [v3 模型](model-v3.md)。
+
 目前已加入官方 Embedded App SDK 2.5.0，等待 Discord READY 後再開啟遊戲。本機測試版已設定後端密鑰並啟用 OAuth 基本身分登入，使用者已確認在 Discord 實際登入成功；SDK READY 不代表完成 OAuth 登入。一般瀏覽器模式仍可直接使用。已新增伺服器錢包，測試版不匯入舊瀏覽器餘額；設定與驗收方式見 [錢包與正式交付](wallet-and-release.md)。
 
 ## 1. 使用者準備

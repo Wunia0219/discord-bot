@@ -1,0 +1,180 @@
+{
+  "model": "circus-20-v4",
+  "sha256": "2654e769e2fc63bf9f3b45f6b5dbdce78f2b492ec86287a0353be01e103ea298",
+  "bands": [
+    {
+      "range": "0",
+      "probability": 0.472052625,
+      "meanInterval": 2.1184078787825826,
+      "rtpContribution": 0
+    },
+    {
+      "range": "0 < x < 1",
+      "probability": 0.235794211653125,
+      "meanInterval": 4.24098620992059,
+      "rtpContribution": 0.12670021746875
+    },
+    {
+      "range": "1 <= x < 2",
+      "probability": 0.1425867497875,
+      "meanInterval": 7.013274385525449,
+      "rtpContribution": 0.18839693685203127
+    },
+    {
+      "range": "2 <= x < 5",
+      "probability": 0.10885593160625,
+      "meanInterval": 9.186453923495563,
+      "rtpContribution": 0.3301832361060936
+    },
+    {
+      "range": "5 <= x < 10",
+      "probability": 0.03152984221875,
+      "meanInterval": 31.715984909221184,
+      "rtpContribution": 0.2131998000114062
+    },
+    {
+      "range": "10 <= x < 20",
+      "probability": 0.009116201434375,
+      "meanInterval": 109.69481172599377,
+      "rtpContribution": 0.0999915362240625
+    },
+    {
+      "range": "20 <= x < 40",
+      "probability": 0.00006172683125,
+      "meanInterval": 16200.410417147406,
+      "rtpContribution": 0.001357360678125
+    },
+    {
+      "range": "40 <= x < 80",
+      "probability": 0.000002308775,
+      "meanInterval": 433130.12311723747,
+      "rtpContribution": 0.00012854204546874998
+    },
+    {
+      "range": "80 <= x < Infinity",
+      "probability": 4.0269375e-7,
+      "meanInterval": 2483276.683583989,
+      "rtpContribution": 0.0000423706140625
+    }
+  ],
+  "tails": [
+    {
+      "threshold": 5,
+      "probability": 0.040710481953125,
+      "meanInterval": 24.56369838980102,
+      "rtpContribution": 0.314719609573125
+    },
+    {
+      "threshold": 10,
+      "probability": 0.009180639734375,
+      "meanInterval": 108.92487113460162,
+      "rtpContribution": 0.10151980956171874
+    },
+    {
+      "threshold": 20,
+      "probability": 0.0000644383,
+      "meanInterval": 15518.721009089315,
+      "rtpContribution": 0.0015282733376562499
+    },
+    {
+      "threshold": 30,
+      "probability": 0.000005744090625,
+      "meanInterval": 174091.96081407578,
+      "rtpContribution": 0.0002675825468750001
+    },
+    {
+      "threshold": 40,
+      "probability": 0.00000271146875,
+      "meanInterval": 368803.80789931654,
+      "rtpContribution": 0.00017091265953125
+    },
+    {
+      "threshold": 50,
+      "probability": 0.000001962375,
+      "meanInterval": 509586.597872476,
+      "rtpContribution": 0.00013943114328124996
+    },
+    {
+      "threshold": 80,
+      "probability": 4.0269375e-7,
+      "meanInterval": 2483276.683583989,
+      "rtpContribution": 0.0000423706140625
+    },
+    {
+      "threshold": 100,
+      "probability": 2.273625e-7,
+      "meanInterval": 4398262.686238935,
+      "rtpContribution": 0.0000273636646875
+    }
+  ],
+  "caps": [
+    {
+      "cap": 40,
+      "removedRtp": 0.00006245390953125002
+    },
+    {
+      "cap": 60,
+      "removedRtp": 0.000028200860937500007
+    },
+    {
+      "cap": 80,
+      "removedRtp": 0.0000101551140625
+    },
+    {
+      "cap": 100,
+      "removedRtp": 0.0000046274146875
+    }
+  ],
+  "sessionStudy": {
+    "generator": "xorshift32 with rejection sampling of exact integer histogram; research only",
+    "seed": 20261018,
+    "sessions": 100000,
+    "rounds": 500,
+    "initialBalanceInBets": 100,
+    "policy": "Always draw 500 outcomes; mark inability to fund a next bet before drawing it. Unfunded paths continue analytically with no added capital; not a real playable wallet.",
+    "aggregateRtp": 0.9601117299990028,
+    "rtpQuantiles": {
+      "0.05": 0.833,
+      "0.25": 0.9055,
+      "0.5": 0.9582,
+      "0.75": 1.0124000000000002,
+      "0.95": 1.0946
+    },
+    "maxDrawdownInBetsQuantiles": {
+      "0.05": 26.44999999999996,
+      "0.25": 39.04999999999998,
+      "0.5": 52.69999999999999,
+      "0.75": 70.1,
+      "0.95": 98.64999999999999
+    },
+    "maxNetLossStreakQuantiles": {
+      "0.05": 11,
+      "0.25": 13,
+      "0.5": 15,
+      "0.75": 17,
+      "0.95": 23
+    },
+    "unableToCompleteFraction": 0.03014,
+    "endingAboveInitialFraction": 0.30172,
+    "rtpWithin1PercentagePointOf96": 0.09919,
+    "rtpWithin5PercentagePointsOf96": 0.47083
+  },
+  "convergenceApproximation": [
+    {
+      "rounds": 500,
+      "normalApprox95HalfWidth": 0.15531065287900758
+    },
+    {
+      "rounds": 10000,
+      "normalApprox95HalfWidth": 0.03472851774673344
+    },
+    {
+      "rounds": 100000,
+      "normalApprox95HalfWidth": 0.010982121584125624
+    },
+    {
+      "rounds": 1000000,
+      "normalApprox95HalfWidth": 0.0034728517746733436
+    }
+  ]
+}

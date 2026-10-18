@@ -1,0 +1,180 @@
+{
+  "model": "circus-20-v3",
+  "sha256": "ec4a81444d346e1ab7577654f0ab40ce0bd1eefa396055de4384f9796fb8c3da",
+  "bands": [
+    {
+      "range": "0",
+      "probability": 0.406125,
+      "meanInterval": 2.4622960911049554,
+      "rtpContribution": 0
+    },
+    {
+      "range": "0 < x < 1",
+      "probability": 0.33595625,
+      "meanInterval": 2.976578051457593,
+      "rtpContribution": 0.13951
+    },
+    {
+      "range": "1 <= x < 2",
+      "probability": 0.13159,
+      "meanInterval": 7.599361653621095,
+      "rtpContribution": 0.179681625
+    },
+    {
+      "range": "2 <= x < 5",
+      "probability": 0.08803,
+      "meanInterval": 11.359763716914689,
+      "rtpContribution": 0.2634457125000001
+    },
+    {
+      "range": "5 <= x < 10",
+      "probability": 0.0297655,
+      "meanInterval": 33.59594161025348,
+      "rtpContribution": 0.200669675
+    },
+    {
+      "range": "10 <= x < 20",
+      "probability": 0.005261,
+      "meanInterval": 190.07793195210036,
+      "rtpContribution": 0.06947808750000002
+    },
+    {
+      "range": "20 <= x < 40",
+      "probability": 0.00289975,
+      "meanInterval": 344.8573152858005,
+      "rtpContribution": 0.08335513750000002
+    },
+    {
+      "range": "40 <= x < 80",
+      "probability": 0.000343,
+      "meanInterval": 2915.451895043732,
+      "rtpContribution": 0.019395237500000002
+    },
+    {
+      "range": "80 <= x < Infinity",
+      "probability": 0.0000295,
+      "meanInterval": 33898.30508474576,
+      "rtpContribution": 0.004464525
+    }
+  ],
+  "tails": [
+    {
+      "threshold": 5,
+      "probability": 0.03829875,
+      "meanInterval": 26.110512745194033,
+      "rtpContribution": 0.37736266249999995
+    },
+    {
+      "threshold": 10,
+      "probability": 0.00853325,
+      "meanInterval": 117.18864442035567,
+      "rtpContribution": 0.17669298749999993
+    },
+    {
+      "threshold": 20,
+      "probability": 0.00327225,
+      "meanInterval": 305.6001222400489,
+      "rtpContribution": 0.1072149000000001
+    },
+    {
+      "threshold": 30,
+      "probability": 0.0018335,
+      "meanInterval": 545.404963185165,
+      "rtpContribution": 0.07216061249999992
+    },
+    {
+      "threshold": 40,
+      "probability": 0.0003725,
+      "meanInterval": 2684.5637583892617,
+      "rtpContribution": 0.023859762500000017
+    },
+    {
+      "threshold": 50,
+      "probability": 0.0002565,
+      "meanInterval": 3898.635477582846,
+      "rtpContribution": 0.0187012375
+    },
+    {
+      "threshold": 80,
+      "probability": 0.0000295,
+      "meanInterval": 33898.30508474576,
+      "rtpContribution": 0.004464525
+    },
+    {
+      "threshold": 100,
+      "probability": 0.000029,
+      "meanInterval": 34482.75862068965,
+      "rtpContribution": 0.004421374999999999
+    }
+  ],
+  "caps": [
+    {
+      "cap": 40,
+      "removedRtp": 0.0089597625
+    },
+    {
+      "cap": 60,
+      "removedRtp": 0.0034642249999999996
+    },
+    {
+      "cap": 80,
+      "removedRtp": 0.002104525
+    },
+    {
+      "cap": 100,
+      "removedRtp": 0.001521375
+    }
+  ],
+  "sessionStudy": {
+    "generator": "xorshift32 with rejection sampling of exact integer histogram; research only",
+    "seed": 20261018,
+    "sessions": 100000,
+    "rounds": 500,
+    "initialBalanceInBets": 100,
+    "policy": "Always draw 500 outcomes; mark inability to fund a next bet before drawing it. Unfunded paths continue analytically with no added capital; not a real playable wallet.",
+    "aggregateRtp": 0.9604132170148523,
+    "rtpQuantiles": {
+      "0.05": 0.7877000000000002,
+      "0.25": 0.8786000000000003,
+      "0.5": 0.9499000000000003,
+      "0.75": 1.0303000000000002,
+      "0.95": 1.1683
+    },
+    "maxDrawdownInBetsQuantiles": {
+      "0.05": 34.00000000000014,
+      "0.25": 50.25000000000013,
+      "0.5": 67.19999999999982,
+      "0.75": 88.24999999999994,
+      "0.95": 121.8
+    },
+    "maxNetLossStreakQuantiles": {
+      "0.05": 12,
+      "0.25": 15,
+      "0.5": 17,
+      "0.75": 20,
+      "0.95": 26
+    },
+    "unableToCompleteFraction": 0.10574,
+    "endingAboveInitialFraction": 0.3334,
+    "rtpWithin1PercentagePointOf96": 0.06868,
+    "rtpWithin5PercentagePointsOf96": 0.33901
+  },
+  "convergenceApproximation": [
+    {
+      "rounds": 500,
+      "normalApprox95HalfWidth": 0.22984029180955196
+    },
+    {
+      "rounds": 10000,
+      "normalApprox95HalfWidth": 0.05139385164545463
+    },
+    {
+      "rounds": 100000,
+      "normalApprox95HalfWidth": 0.016252162892842908
+    },
+    {
+      "rounds": 1000000,
+      "normalApprox95HalfWidth": 0.005139385164545463
+    }
+  ]
+}

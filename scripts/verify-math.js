@@ -1,7 +1,17 @@
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { MODEL_VERSION, REEL_CODES, REEL_STRIPS, SYMBOLS, PAYTABLE, PAYLINES, evaluateLine, evaluateGrid, gridFromStops, drawStops } from '../src/slot-math.js';
+const candidate=process.argv.includes('--candidate');
+const { MODEL_VERSION, REEL_CODES, REEL_STRIPS, SYMBOLS, PAYTABLE, PAYLINES, evaluateLine, evaluateGrid, gridFromStops, drawStops } = await import(candidate?'../src/models/v3/slot-math.js':'../src/slot-math.js');
+if(MODEL_VERSION==='circus-20-v6'){
+  process.argv.push('--current');await import('./verify-v6.js');process.exit(0);
+}
+if(MODEL_VERSION==='circus-20-v5'){
+  process.argv.push('--current');await import('./verify-v5.js');process.exit(0);
+}
+if(MODEL_VERSION==='circus-20-v4'){
+  process.argv.push('--current');await import('./verify-v4.js');process.exit(0);
+}
 // Independent prefix-based scorer: considers all 3/4/5-symbol prefixes, including
 // an all-W prefix, instead of the runtime scorer's longest-run-per-symbol loop.
 function oracle(a) {
@@ -42,7 +52,7 @@ for(let i=0;i<n;i++){
   if(i<1000)assert.equal(evaluateGrid(gridFromStops(stops),20).payout,p);
 }
 const mean=simSum/n/20,se=Math.sqrt((simSquares/n/400-mean**2)*n/(n-1)/n);
-const tails=Object.fromEntries([20,50,100].map(threshold=>{
+const tails=Object.fromEntries([20,50,100,200].map(threshold=>{
   const count=[...distribution].reduce((sum,[p,n])=>sum+(p>=threshold*20?n:0),0);
   return [threshold,{count,probability:count/combinations,meanSpins:combinations/count}];
 }));
@@ -50,9 +60,15 @@ if(MODEL_VERSION==='kemet-20-v2'){
   assert.ok(tails[20].meanSpins>=600&&tails[20].meanSpins<=1000,'20x frequency outside approved range');
   counts.forEach((r,i)=>{const low=r.slice(4,8).reduce((a,b)=>a+b,0)/REEL_STRIPS[i].length;assert.ok(low>=.6&&low<=.7);});
 }
+const tierCounts={big:tails[20].count-tails[50].count,super:tails[50].count-tails[200].count,mega:tails[200].count};
+if(MODEL_VERSION==='circus-20-v3'){
+  assert.equal(max,4000,'Natural maximum must be exactly 200x total bet');
+  for(const count of Object.values(tierCounts))assert.ok(count>0,'Every WIN tier must be reachable');
+  counts.forEach((r,i)=>{const low=r.slice(4,8).reduce((a,b)=>a+b,0)/REEL_STRIPS[i].length;assert.ok(low>=.6&&low<=.7);});
+}
 const report={model:MODEL_VERSION,sha256:createHash('sha256').update(JSON.stringify({REEL_CODES,PAYTABLE,PAYLINES})).digest('hex'),
-  lengths:REEL_STRIPS.map(r=>r.length),counts,exact:{stopCombinations:combinations,linePayoutSum:weighted.toString(),lineBet:1,totalPayoutSum:sum,totalBetSum:combinations*20,rtpFraction:'24/25',rtp:sum/combinations/20,hitRate:hits/combinations,profitableRate:profits/combinations,standardDeviationTotalBet:Math.sqrt(sumSquares/combinations/400-.96**2),maximumTotalBetMultiplier:max/20,maximumStops:maxStops,tails},
+  lengths:REEL_STRIPS.map(r=>r.length),counts,exact:{stopCombinations:combinations,linePayoutSum:weighted.toString(),lineBet:1,totalPayoutSum:sum,totalBetSum:combinations*20,rtpFraction:'24/25',rtp:sum/combinations/20,hitRate:hits/combinations,profitableRate:profits/combinations,standardDeviationTotalBet:Math.sqrt(sumSquares/combinations/400-.96**2),maximumTotalBetMultiplier:max/20,maximumStops:maxStops,tails,...(MODEL_VERSION==='circus-20-v3'?{tierCounts}:{})},
   simulation:{generator:'xorshift32 (verification only; game uses crypto)',seed:960020,rounds:n,rtp:mean,standardError:se,approximate95PercentInterval:[mean-1.96*se,mean+1.96*se]},
   payoutDistributionInLineBets:Object.fromEntries([...distribution].sort((a,b)=>a[0]-b[0]))};
-writeFileSync(new URL('../docs/math-report.json',import.meta.url),JSON.stringify(report,null,2)+'\n');
+writeFileSync(new URL(candidate?'../docs/math-report-v3.json':'../docs/math-report.json',import.meta.url),JSON.stringify(report,null,2)+'\n');
 console.log(JSON.stringify({...report,payoutDistributionInLineBets:undefined},null,2));

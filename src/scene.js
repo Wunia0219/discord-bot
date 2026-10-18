@@ -1,6 +1,6 @@
 import { Application, Assets, Container, Graphics, Sprite, Texture, Rectangle } from 'pixi.js';
-import { SYMBOLS, SYMBOL_FRAMES, INITIAL_STOPS, REEL_STRIPS, gridFromStops, reelMotion, PAYLINES } from './game.js';
-import { BOUNCE_MS, reelOffset, WinLineCycle, WinSymbolPop } from './presentation.js';
+import { SYMBOLS, SYMBOL_FRAMES, INITIAL_STOPS, REEL_STRIPS, gridFromStops, PAYLINES } from './game.js';
+import { reelAnimation, reelOffset, WinLineCycle, WinSymbolPop } from './presentation.js';
 import mainAtlas from '../images/main.json';
 import symbolAtlas from '../images/symbols.json';
 import mainUrl from '../images/main.webp';
@@ -172,14 +172,10 @@ export class SlotScene {
     return new Promise(resolve => {
       this.active = { time: 0, resolve, onStop, stops };
       this.reels.forEach((r, i) => {
-        const { steps, names } = reelMotion(i, this.currentStops[i], stops[i]);
-        r.steps = steps; r.stopAt = this.reduced ? 240 + i * 70 : 1200 + i * 230;
-        r.reduced = this.reduced; r.stopped = false; r.impacted = false;
-        const strip = REEL_STRIPS[i], length = strip.length;
-        // Guard cells above/below keep the mask filled during both bounce directions.
-        const before = strip[(stops[i] - 2 + length) % length];
-        const after = strip[(stops[i] + steps + 2) % length];
-        this.populate(r, [before, ...names, after], -1);
+        const { steps, names, stopAt } = reelAnimation(REEL_STRIPS[i], this.currentStops[i], stops[i], i, this.reduced);
+        r.steps = steps; r.stopAt = stopAt;
+        r.reduced = this.reduced; r.stopped = false;
+        this.populate(r, names, -1);
         r.strip.y = -r.steps * CH;
       });
     });
@@ -211,9 +207,8 @@ export class SlotScene {
       const a = this.active; a.time += t.deltaMS;
       this.reels.forEach((r, i) => {
         if (r.stopped) return;
-        r.strip.y = reelOffset(r.steps * CH, a.time, r.stopAt, CH, r.reduced);
-        if (!r.impacted && a.time >= r.stopAt) { r.impacted = true; a.onStop(i); }
-        if (a.time >= r.stopAt + (r.reduced ? 0 : BOUNCE_MS)) r.stopped = true;
+        r.strip.y = reelOffset(r.steps * CH, a.time, r.stopAt, r.reduced);
+        if (a.time >= r.stopAt) { r.stopped = true; a.onStop(i); }
       });
       if (this.reels.every(r => r.stopped)) { this.active = null; this.setStops(a.stops); a.resolve(); }
     }
