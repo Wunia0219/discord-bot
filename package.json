@@ -11,6 +11,9 @@
     "verify:math": "node scripts/verify-math.js"
   },
   "dependencies": {
+    "@pixi-spine/base": "4.0.6",
+    "@pixi-spine/runtime-3.8": "4.0.6",
+    "@pixi/core": "7.4.3",
     "pixi.js": "^8.22.0",
     "vite": "^7.3.7"
   }

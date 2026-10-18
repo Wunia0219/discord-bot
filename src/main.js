@@ -10,7 +10,7 @@ const icon = (name) => {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.star}</svg>`;
 };
 $('#app').innerHTML = `
-  <header class="header"><a class="brand" href="#" aria-label="凱美特之冠首頁"><span class="brand-mark">♜</span><span>KEMET<small>凱美特之冠</small></span></a><div class="header-right"><span class="test-label"><i></i>內部試玩</span><button id="all-history" class="utility">${icon('clock')}<span>遊戲紀錄</span></button><button id="sound" class="icon-button" aria-label="開啟音效" aria-pressed="false">${icon('muted')}</button><button id="help" class="icon-button" aria-label="試玩說明">${icon('info')}</button></div></header>
+  <header class="header"><a class="brand" href="#" aria-label="凱美特之冠首頁"><span class="brand-mark">♜</span><span>KEMET<small>凱美特之冠</small></span></a><div class="header-right"><span class="test-label"><i></i>內部試玩</span><button id="all-history" class="utility" aria-haspopup="dialog">${icon('clock')}<span>遊玩紀錄</span></button><button id="sound" class="icon-button" aria-label="開啟音效" aria-pressed="false">${icon('muted')}</button><button id="help" class="utility" aria-haspopup="dialog">${icon('info')}<span>遊玩介紹</span></button></div></header>
   <main>
     <section class="game-panel" aria-label="凱美特之冠：五軸三列老虎機">
       <h1 class="sr-only">CROWNS OF KEMET · 凱美特之冠</h1>
@@ -24,23 +24,16 @@ $('#app').innerHTML = `
         <button id="max-bet" class="gold-button"><span>MAX BET</span><small>最大下注</small></button>
         <div class="wallet"><span>COINS <small>測試籌碼</small></span><strong id="balance">10,000</strong></div>
       </div>
-      <div class="result" role="status" aria-live="polite"><span id="result-icon">${icon('star')}</span><div><strong id="result-title">法老王的寶藏，等待你開啟。</strong><span id="result-detail">20 條線全部啟用 · 理論 RTP 96% · 選擇下注後開始旋轉</span></div><span id="result-tag">READY</span></div>
-      <div id="line-readout" class="line-readout" role="region" aria-label="逐線得獎明細" hidden>
-        <span id="line-badge" class="line-badge"></span>
-        <div class="line-description"><strong id="line-symbol"></strong><small id="line-calculation"></small></div>
-        <div class="line-award"><small>本線得分</small><strong id="line-score"></strong></div>
-      </div>
+      <output id="payout-result" class="payout-result" aria-live="polite" aria-label="本局中獎得分"></output>
+      <div id="game-status" class="sr-only" role="status" aria-live="polite"></div>
     </section>
-    <section class="milestone-bar"><div><span class="milestone-symbol">♜</span><div><strong>法老的眷顧 <small>12,000 籌碼里程碑</small></strong><span id="journey-note">累積你的第一份寶藏。</span></div></div><div class="progress-block"><div class="progress-caption"><span id="progress-current">10,000</span><span>12,000</span></div><div class="progress"><span id="progress"></span></div></div><button id="preview-milestone">預覽里程碑 ${icon('arrow')}</button></section>
-    <details class="recent"><summary>最近遊戲紀錄 <span>僅保存在此瀏覽器</span></summary><div id="history"></div><p class="history-note">最近 100 局 · 大獎預覽不影響籌碼與紀錄</p></details>
-    <footer class="page-footer"><span>PRIVATE PREVIEW <b>·</b> 純娛樂測試籌碼</span><span>本機動畫樣品 · 尚未連接 Discord</span><div><button id="rules">試玩規則</button><button id="reset">重設試玩</button></div></footer>
   </main>
-  <dialog id="dialog"><div class="dialog-head"><h2 id="dialog-title"></h2><button id="close-dialog" class="icon-button" aria-label="關閉視窗">${icon('close')}</button></div><div id="dialog-body"></div></dialog>`;
+  <dialog id="dialog" aria-labelledby="dialog-title"><div class="dialog-head"><h2 id="dialog-title"></h2><button id="close-dialog" class="icon-button" aria-label="關閉視窗">${icon('close')}</button></div><div id="dialog-body"></div></dialog>`;
 
 const KEY='kemet-slot-preview-v2';
 let state, storageAvailable=true;
 try { state=readState(localStorage.getItem(KEY)); } catch { state=freshState();storageAvailable=false; }
-let bet=100, busy=false, ready=false, countAnimation=0, celebrationTimer=0;
+let bet=100, busy=false, ready=false, countAnimation=0, payoutAnimation=0, celebrationTimer=0;
 const scene=new SlotScene(), sound=new Sound();
 const motion=matchMedia('(prefers-reduced-motion: reduce)');scene.reduced=motion.matches;motion.addEventListener('change',()=>scene.reduced=motion.matches);
 const signed=n=>(n>0?'+':'')+fmt(n);
@@ -59,23 +52,39 @@ function historyRow(r,full=false) {
 }
 function renderState() {
   $('#balance').textContent=fmt(state.balance);
-  $('#progress').style.width=`${Math.min(state.balance/12000*100,100)}%`;
-  $('#progress-current').textContent=fmt(state.balance);
-  $('#journey-note').textContent=state.milestones.includes(12000)?'已收藏 · 法老的眷顧':`距離下一份寶藏，還差 ${fmt(Math.max(0,12000-state.balance))} 籌碼。`;
-  $('#history').replaceChildren(...state.history.slice(0,4).map(r=>historyRow(r)));
-  if(!state.history.length)$('#history').innerHTML='<div class="empty-history"><span>每一段幸運，都值得留下。</span><small>完成第一局後，紀錄會出現在這裡。</small></div>';
-  if(!storageAvailable)$('.history-note').textContent='瀏覽器儲存不可用 · 本次關閉後不保留';
+
 }
 function setBusy(value) {
   busy=value;
-  ['#spin','#reset','#preview-win','#preview-milestone','#max-bet'].forEach(s=>$(s).disabled=value||!ready);
+  ['#spin','#preview-win','#max-bet'].forEach(s=>$(s).disabled=value||!ready);
+  if($('#reset'))$('#reset').disabled=value||!ready;
   document.querySelectorAll('[data-bet]').forEach(b=>b.disabled=value);
   $('#spin').innerHTML=icon('spin')+'<span>'+(value?'轉動中':'SPIN')+'</span>';
   $('#spin').setAttribute('aria-label',value?'轉動中':'旋轉一次');
   $('#spin').classList.toggle('spinning',value);
 }
-function result(title,detail,tag='READY',win=false) {
-  $('#result-title').textContent=title;$('#result-detail').textContent=detail;$('#result-tag').textContent=tag;$('.result').classList.toggle('winning',win);
+function result(title,detail) {
+  $('#game-status').textContent=`${title} ${detail}`;
+}
+function showPayout(payout, animate=false) {
+  cancelAnimationFrame(payoutAnimation);
+  payoutAnimation=0;
+  const output=$('#payout-result');
+  output.setAttribute('aria-busy','false');
+  output.setAttribute('aria-label',`本局中獎得分 ${fmt(payout)}`);
+  if(payout<=0){output.textContent='';return;}
+  if(!animate||scene.reduced){output.textContent=signed(payout);return;}
+  output.setAttribute('aria-busy','true');
+  output.textContent='+0';
+  const start=performance.now();
+  const frame=now=>{
+    const progress=scene.reduced?1:Math.min(Math.max((now-start)/1200,0),1);
+    const value=progress===1?payout:Math.floor(payout*(1-(1-progress)**3));
+    output.textContent=`+${fmt(value)}`;
+    if(progress<1)payoutAnimation=requestAnimationFrame(frame);
+    else {payoutAnimation=0;output.setAttribute('aria-busy','false');}
+  };
+  payoutAnimation=requestAnimationFrame(frame);
 }
 function animateBalance(from,to) {
   cancelAnimationFrame(countAnimation);
@@ -84,17 +93,8 @@ function animateBalance(from,to) {
   const frame=now=>{const p=Math.min((now-start)/900,1);$('#balance').textContent=fmt(from+(to-from)*(1-(1-p)**3));if(p<1)countAnimation=requestAnimationFrame(frame);};countAnimation=requestAnimationFrame(frame);
 }
 function hideCelebration(){scene.clearCelebration();clearTimeout(celebrationTimer);$('#celebration').classList.remove('show');$('.game-panel').classList.remove('big-win');}
-function clearLineReadout(){scene.clearWins();$('#line-readout').hidden=true;}
-function presentLines(round){
-  scene.showWins(round.wins,(win,index,total,color)=>{
-    $('#line-readout').hidden=false;
-    $('#line-readout').style.setProperty('--line-color',color);
-    $('#line-badge').textContent=`LINE ${String(win.line).padStart(2,'0')}`;
-    $('#line-symbol').textContent=`${SYMBOL_NAMES[win.symbol]} · ${win.count} 連線`;
-    $('#line-calculation').textContent=`${index+1} / ${total} 條 · ${fmt(round.lineBet)} × ${fmt(win.multiplier)}${round.before===undefined?' · 預覽':''}`;
-    $('#line-score').textContent=`+${fmt(win.payout)}`;
-  });
-}
+function clearLineReadout(){scene.clearWins();}
+function presentLines(round){scene.showWins(round.wins);}
 function celebrate(kind,amount,preview=false) {
   hideCelebration();
   const milestone=kind==='milestone';
@@ -109,7 +109,7 @@ function celebrate(kind,amount,preview=false) {
 }
 async function spin(preview=false) {
   if(busy||!ready)return;
-  $('.game-panel').scrollIntoView({behavior:scene.reduced?'instant':'smooth',block:'start'});
+  showPayout(0);
   cancelAnimationFrame(countAnimation);hideCelebration();clearLineReadout();
   let r;
   if(preview)r={...roundFromStops(bet,PREVIEW_STOPS),bet};
@@ -117,7 +117,7 @@ async function spin(preview=false) {
     try{
       const stops=drawStops();
       const update=createRound(state,bet,stops,crypto.randomUUID());r=update.round;save(update.state);
-    }catch(error){result(error.message,'可以使用「重設試玩」補回測試籌碼。','NOTICE');return;}
+    }catch(error){openDialog('無法開始本局','<p>測試籌碼不足，請降低下注，或到「遊玩介紹」重設試玩。</p>');return;}
   }
   setBusy(true);sound.tone(220,.2);
   if(!preview)$('#balance').textContent=fmt(r.before-bet);
@@ -127,6 +127,7 @@ async function spin(preview=false) {
     renderState();
     if(!preview)animateBalance(r.before-bet,r.after);
     presentLines(r);
+    showPayout(r.payout,true);
     const symbols=r.wins.length ? `線號 ${r.wins.map(w=>w.line).join('、')}` : '20 條線未形成得獎組合';
     result(r.label,preview?`${symbols}｜預覽派彩 ${fmt(r.payout)}，籌碼不變`:`${symbols}｜派彩 ${fmt(r.payout)} · 淨損益 ${signed(r.net)}`,preview?'PREVIEW':r.net>0?'WIN':'FINISHED',r.payout>r.bet);
     if(r.level==='jackpot')celebrate('jackpot',r.payout,preview);
@@ -135,37 +136,38 @@ async function spin(preview=false) {
       clearTimeout(celebrationTimer);
       celebrationTimer=setTimeout(()=>celebrate('milestone',12000),r.level==='jackpot'?4500:1800);
     }
-  } catch { renderState(); result('本局已保存','演出暫時中斷，可在紀錄中查看結果。','SAVED'); }
+  } catch { renderState();if(!preview)showPayout(r.payout);openDialog('本局演出中斷',preview?'<p>請再試一次大獎預覽。</p>':'<p>本局已保存，可在遊玩紀錄中查看結果。</p>'); }
   finally {setBusy(false);}
 }
-function openDialog(title,body) {$('#dialog-title').textContent=title;$('#dialog-body').replaceChildren();if(typeof body==='string')$('#dialog-body').innerHTML=body;else $('#dialog-body').append(body);$('#dialog').showModal();}
+function openDialog(title,body) {$('#dialog-title').textContent=title;$('#dialog-body').replaceChildren();if(typeof body==='string')$('#dialog-body').innerHTML=body;else $('#dialog-body').append(body);if(!$('#dialog').open)$('#dialog').showModal();$('#dialog-body').scrollTop=0;}
 function showRules(){
   const table=SYMBOLS.map(s=>'<tr><td>'+SYMBOL_CODES[s]+' · '+SYMBOL_NAMES[s]+'</td>'+PAYTABLE[s].map(p=>'<td>'+fmt(p)+'×</td>').join('')+'</tr>').join('');
   const lines=PAYLINES.map((rows,i)=>'<div class="payline-card"><b>'+String(i+1).padStart(2,'0')+'</b><svg viewBox="0 0 100 60" role="img" aria-label="第 '+(i+1)+' 線，列序 '+rows.map(r=>r+1).join('、')+'"><path d="M0 20H100M0 40H100M20 0V60M40 0V60M60 0V60M80 0V60" stroke="#765067" stroke-width="1"/><polyline points="'+rows.map((r,c)=>(c*20+10)+','+(r*20+10)).join(' ')+'" fill="none" stroke="#ffd57d" stroke-width="3"/>'+rows.map((r,c)=>'<circle cx="'+(c*20+10)+'" cy="'+(r*20+10)+'" r="4" fill="#ffd57d"/>').join('')+'</svg></div>').join('');
-  openDialog('20 線遊戲規則',`<p>5 軸 × 3 列，20 條線全部啟用。每軸從固定輪帶獨立等機率抽取停點；理論 RTP 為 96%，代表長期平均，單次或短期結果會波動。規則版本：${MODEL_VERSION}。</p><h3>賠率表</h3><p>下表倍率 × 單線下注。單線下注 = 總下注 ÷ 20；例如下注 100，單線下注為 5。從第一軸向右連續至少 3 個相同符號得獎，每線只付最高獎，不同線相加。W 替代一般符號，也可獨立派彩，取較高者。沒有 Scatter、免費旋轉或額外獎池。</p><table><thead><tr><th>符號</th><th>3 連</th><th>4 連</th><th>5 連</th></tr></thead><tbody>${table}</tbody></table><h3>20 條固定線</h3><div class="payline-grid">${lines}</div><p>派彩不另外返還本金；淨損益 = 派彩 − 總下注。此固定輪帶最高可達 120.65 倍總下注。得獎線每 1.6 秒依序亮出，彩色實線與亮框標示得獎段，淡線標示該線後續路徑。下方顯示本線得分，各線完整明細也可在遊戲紀錄查看。</p><h3>內部試玩與資料</h3><p>尚未連接 Discord。籌碼僅供測試，不能購買、轉讓或兌現。大獎預覽使用實際可達的停點，但不扣籌碼、不寫紀錄，也不參與 RTP 統計；12,000 里程碑僅為演出。只有派彩大於下注才播放獲利慶祝，20 倍以上播放大獎演出。</p><p>最近 100 局保存在此瀏覽器，含停點、各線獎金與規則版本。舊展示版紀錄另標示為舊規則；重設試玩會清除餘額與紀錄。音效需手動開啟，系統減少動態效果時會簡化演出。</p>`);
+  openDialog('20 線遊戲規則',`<p>5 軸 × 3 列，20 條線全部啟用。每軸從固定輪帶獨立等機率抽取停點；理論 RTP 為 96%，代表長期平均，單次或短期結果會波動。規則版本：${MODEL_VERSION}。</p><h3>賠率表</h3><p>下表倍率 × 單線下注。單線下注 = 總下注 ÷ 20；例如下注 100，單線下注為 5。從第一軸向右連續至少 3 個相同符號得獎，每線只付最高獎，不同線相加。W 替代一般符號，也可獨立派彩，取較高者。沒有 Scatter、免費旋轉或額外獎池。</p><table><thead><tr><th>符號</th><th>3 連</th><th>4 連</th><th>5 連</th></tr></thead><tbody>${table}</tbody></table><h3>20 條固定線</h3><div class="payline-grid">${lines}</div><p>派彩不另外返還本金；淨損益 = 派彩 − 總下注。此固定輪帶最高可達 120.65 倍總下注。得獎線每 1.6 秒依序亮出，彩色實線與亮框標示得獎段，淡線標示該線後續路徑。遊戲下方顯示最近一局的中獎總得分（未扣下注），沒有中獎則留白；各線得分與完整明細可在右上角「遊玩紀錄」查看。</p><h3>內部試玩與資料</h3><p>尚未連接 Discord。籌碼僅供測試，不能購買、轉讓或兌現。大獎預覽使用實際可達的停點，但不扣籌碼、不寫紀錄，也不參與 RTP 統計；12,000 里程碑僅為演出。只有派彩大於下注才播放獲利慶祝，20 倍以上播放大獎演出。</p><p>最近 100 局保存在此瀏覽器，含停點、各線獎金與規則版本。舊展示版紀錄另標示為舊規則；重設試玩會清除餘額與紀錄。音效需手動開啟，系統減少動態效果時會簡化演出。</p><button id="reset" class="confirm-reset" ${busy||!ready?'disabled':''}>重設試玩</button>`);
 }
 $('#max-bet').addEventListener('click',()=>{if(!busy)document.querySelector('[data-bet="500"]').click();});
 $('#spin').addEventListener('click',()=>spin());
 $('#preview-win').addEventListener('click',()=>spin(true));
-$('#preview-milestone').addEventListener('click',()=>{if(busy||!ready)return;$('.game-panel').scrollIntoView({behavior:scene.reduced?'instant':'smooth',block:'start'});hideCelebration();celebrate('milestone',12000,true);result('里程碑演出預覽','法老的眷顧 · 示範達成 12,000 籌碼的演出；實際籌碼不變。','PREVIEW',true);});
 document.querySelectorAll('[data-bet]').forEach(b=>b.addEventListener('click',()=>{if(busy)return;bet=Number(b.dataset.bet);document.querySelectorAll('[data-bet]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));}));
 $('#sound').addEventListener('click',async()=>{
   if(sound.enabled)sound.enabled=false;else await sound.enable();
   $('#sound').innerHTML=icon(sound.enabled?'sound':'muted');$('#sound').setAttribute('aria-pressed',String(sound.enabled));$('#sound').setAttribute('aria-label',sound.enabled?'關閉音效':'開啟音效');if(sound.enabled)sound.tone(659,.2);
 });
-$('#rules').addEventListener('click',showRules);$('#help').addEventListener('click',showRules);
-$('#all-history').addEventListener('click',()=>{const body=document.createElement('div');if(state.history.length)state.history.forEach(r=>body.append(historyRow(r,true)));else body.textContent='還沒有紀錄。完成第一局後再來看看。';openDialog('我的試玩紀錄',body);});
+$('#help').addEventListener('click',showRules);
+$('#all-history').addEventListener('click',()=>{const body=document.createElement('div');if(state.history.length)state.history.forEach(r=>body.append(historyRow(r,true)));else body.textContent='還沒有紀錄。完成第一局後再來看看。';const note=document.createElement('p');note.className='history-note';note.textContent=storageAvailable?'最近 100 局 · 僅保存在此瀏覽器 · 大獎預覽不影響籌碼與紀錄':'瀏覽器儲存不可用 · 本次關閉後不保留';body.prepend(note);openDialog('遊玩紀錄',body);});
 $('#close-dialog').addEventListener('click',()=>$('#dialog').close());
 $('#dialog').addEventListener('click',e=>{if(e.target===$('#dialog')){const r=$('#dialog').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)$('#dialog').close();}});
-$('#reset').addEventListener('click',()=>{
+$('#dialog-body').addEventListener('click',e=>{
+  if(!e.target.closest('#reset')||busy||!ready)return;
   openDialog('重新開始試玩', '<p>將恢復 10,000 測試籌碼，並清除這個瀏覽器中的試玩紀錄與里程碑。</p><button class="confirm-reset" id="confirm-reset">確認重設</button>');
-  $('#confirm-reset').addEventListener('click',()=>{cancelAnimationFrame(countAnimation);hideCelebration();clearLineReadout();save(freshState());renderState();scene.setStops(INITIAL_STOPS);result('新的神殿旅程，準備開始。','測試籌碼已恢復為 10,000。');$('#dialog').close();});
+  $('#confirm-reset').addEventListener('click',()=>{cancelAnimationFrame(countAnimation);hideCelebration();clearLineReadout();scene.guardian.idle();save(freshState());renderState();showPayout(0);scene.setStops(INITIAL_STOPS);result('新的神殿旅程，準備開始。','測試籌碼已恢復為 10,000。');$('#dialog').close();});
 });
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){scene.finish();if(ready)scene.app.stop();sound.context?.suspend();}
   else {if(ready)scene.app.start();if(sound.enabled)sound.context?.resume().catch(()=>{});}
 });
 renderState();
+showPayout(state.history[0]?.payout??0);
 setBusy(false);
 scene.init($('#canvas-host')).then(()=>{ $('#loading').remove();ready=true;scene.setStops(restoredStops(state));setBusy(false); }).catch(error=>{
   console.error(error);$('#loading').textContent='無法啟動圖形引擎，請使用支援 WebGL 的瀏覽器，並開啟硬體加速。';result('圖形引擎尚未就緒','重新整理後再試，或更換瀏覽器。','ERROR');

@@ -68,8 +68,11 @@ export class SlotScene {
     this.app.stage.addChild(this.line);
     this.app.stage.addChild(new Graphics().poly([238, 425, 250, 432, 238, 439]).fill(GOLD).poly([962, 425, 950, 432, 962, 439]).fill(GOLD));
     this.addArt('logo_long.png', 225, 38, 750);
-    this.guardian = this.addArt('anubis.png', 11, 265, 160);
-    this.resizeObserver = new ResizeObserver(() => { this.guardian.visible = host.clientWidth >= 800; });
+    const { Anubis } = await import('./anubis.js');
+    this.guardian = await Anubis.create();
+    this.app.stage.addChild(this.guardian);
+    this.guardian.layout(host.clientWidth < 800);
+    this.resizeObserver = new ResizeObserver(() => this.guardian.layout(host.clientWidth < 800));
     this.resizeObserver.observe(host);
     this.effects = new Container(); this.app.stage.addChild(this.effects);
     this.winArt = new Container();
@@ -97,6 +100,7 @@ export class SlotScene {
   }
   showWins(wins, onLine = () => {}) {
     this.clearWins();
+    this.guardian.react(wins);
     this.lineCycle.start(wins, (win, index, total) => {
       const color = this.drawWin(win);
       onLine(win, index, total, `#${color.toString(16).padStart(6, '0')}`);
@@ -159,6 +163,7 @@ export class SlotScene {
   }
   tick(t) {
     const dt = Math.min(t.elapsedMS, 50) / 1000;
+    this.guardian.advance(dt);
     if (this.active) {
       const a = this.active; a.time += t.deltaMS;
       this.reels.forEach((r, i) => {
