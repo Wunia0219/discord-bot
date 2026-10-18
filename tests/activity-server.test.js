@@ -4,6 +4,8 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createActivityServer } from '../server/app.js';
+import { WalletStore } from '../server/wallet.js';
+import { WalletService } from '../server/wallet-service.js';
 
 const id='1561284960986599626';
 async function fixture(t, options={}) {
@@ -51,4 +53,20 @@ test('static server serves the built entry but blocks dotfiles, source paths, an
     assert.equal((await request(path)).status,404,path);
   }
   const head=await request('/',{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
+});
+
+test('wallet HTTP routes require verified sessions, isolate callers and settle concurrent retries once',async t=>{
+ const guild='1441097301685698703',store=new WalletStore({guildIds:[guild]});t.after(()=>store.close());
+ const service=new WalletService(store,{fetchImpl:async url=>Response.json(url.endsWith('/users/@me')?{id}:{user:{id}})});
+ const request=await fixture(t,{wallet:{store,service,adminRoles:[]},fetchImpl:async()=>Response.json({access_token:'provider-token',expires_in:3600,scope:'identify guilds.members.read'})});
+ assert.equal((await request('/api/wallet')).status,401);
+ const login=await (await request('/api/token',post({code:'code',guildId:guild,userId:'not-trusted'}))).json();
+ assert.equal(login.session.userId,id);
+ const headers={'Content-Type':'application/json',Authorization:'Bearer '+login.session.token};
+ const requests=await Promise.all(Array.from({length:40},()=>request('/api/checkin',{method:'POST',headers,body:'{}'})));
+ assert.ok(requests.every(r=>r.status===200));assert.equal(store.state(guild,id).balance,10500);
+ const spins=await Promise.all(Array.from({length:20},()=>request('/api/spin',{method:'POST',headers,body:JSON.stringify({bet:100,requestId:'11111111-2222-3333-4444-555555555555',userId:'fake',guildId:'fake',stops:[0,0,0,0,0],payout:9999999})}).then(r=>r.json())));
+ assert.ok(spins.every(r=>r.round.id===spins[0].round.id));assert.equal(store.history(guild,id).filter(e=>e.kind==='spin').length,1);
+ assert.equal(store.history(guild,id).filter(e=>e.kind==='checkin').length,1);
+ assert.equal((await request('/api/interactions',post({type:2}))).status,401);
 });

@@ -12,6 +12,7 @@ export async function connectActivity({
   timeoutMs = 15000,
   authEnabled = import.meta.env?.VITE_DISCORD_AUTH_ENABLED === 'true',
   fetchImpl = globalThis.fetch,
+  walletEnabled = import.meta.env?.VITE_DISCORD_WALLET_ENABLED === 'true',
 } = {}) {
   if (!isDiscordActivity(location)) return { mode: 'browser' };
   if (!/^\d{17,20}$/.test(clientId || '')) {
@@ -44,6 +45,6 @@ export async function connectActivity({
       grid_lock_state: unlocked,
     }).catch(error => console.warn('Discord orientation remains client-controlled:', error.message));
   }
-  const user = authEnabled ? await authenticateActivity(sdk, clientId, fetchImpl) : null;
-  return { mode: 'discord', sdk, user };
+  const identity = authEnabled ? await authenticateActivity(sdk, clientId, fetchImpl,walletEnabled) : null;
+  return { mode: 'discord', sdk, user:walletEnabled?identity?.user:identity,session:walletEnabled?identity?.session:null };
 }

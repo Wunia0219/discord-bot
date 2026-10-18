@@ -26,3 +26,10 @@ test('backend failures cannot proceed to SDK authenticate or leak response detai
 test('SDK must return a valid identity before login is accepted', async () => {
   await assert.rejects(authenticateActivity({commands:{authorize:async()=>({code:'test'}),authenticate:async()=>null}},id,async()=>Response.json({access_token:'token'})),/身分驗證失敗/);
 });
+
+test('wallet login requests membership scope and rejects a session for a different identity',async()=>{
+ const guild='1441097301685698703';
+ const sdk={guildId:guild,commands:{authorize:async args=>{assert.deepEqual(args.scope,['identify','guilds.members.read']);return {code:'test'};},authenticate:async()=>({user:{id,username:'tester'}})}};
+ await assert.rejects(authenticateActivity(sdk,id,async(url,opts)=>{assert.equal(JSON.parse(opts.body).guildId,guild);return Response.json({access_token:'token',session:{token:'session',userId:'different',guildId:guild}});},true),/身分驗證失敗/);
+ await assert.rejects(authenticateActivity({commands:{}},id,()=>assert.fail(),true),/伺服器頻道/);
+});

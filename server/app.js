@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { resolve, relative, extname, sep, isAbsolute } from 'node:path';
+import { validSignature, handleCommand } from './commands.js';
 
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.webp':'image/webp', '.png':'image/png', '.svg':'image/svg+xml', '.json':'application/json', '.woff2':'font/woff2' };
 const json = (res, status, data) => {
@@ -13,7 +14,7 @@ const inside = (root, path) => {
   return !isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`);
 };
 
-async function readCode(req) {
+async function readJson(req) {
   if (req.headers['content-type']?.split(';')[0].trim() !== 'application/json') throw fail(415, '需要 JSON 格式。');
   let size = 0;
   const chunks = [];
@@ -25,17 +26,29 @@ async function readCode(req) {
   let body;
   try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
   catch { throw fail(400, '登入請求格式錯誤。'); }
-  if (typeof body?.code !== 'string' || !/^[A-Za-z0-9_-]{1,512}$/.test(body.code)) throw fail(400, '缺少有效的 Discord 授權碼。');
-  return body.code;
+  return body;
 }
 
 // Only built game files are served. Project sources and .env files are never exposed.
-export function createActivityServer({ clientId, clientSecret, distDir = resolve('dist'), fetchImpl = fetch } = {}) {
+export function createActivityServer({ clientId, clientSecret, publicKey, wallet=null, distDir = resolve('dist'), fetchImpl = fetch } = {}) {
   let activeExchanges = 0;
   const allowedOrigins = new Set([`https://${clientId}.discordsays.com`, 'http://127.0.0.1:4187', 'http://127.0.0.1:4188']);
   return createServer(async (req, res) => {
     try {
       const path = new URL(req.url, 'http://localhost').pathname;
+      if(path==='/healthz')return json(res,200,{ok:true});
+      if(path==='/api/interactions'){
+        if(req.method!=='POST')return json(res,405,{error:'請使用 POST。'});
+        let size=0;const chunks=[];
+        for await(const chunk of req){size+=chunk.length;if(size>65536)return json(res,413,{error:'請求過大。'});chunks.push(chunk);}
+        const raw=Buffer.concat(chunks);
+        if(!validSignature(publicKey,req.headers,raw))return json(res,401,{error:'無效的 Discord 簽章。'});
+        let interaction;try{interaction=JSON.parse(raw.toString('utf8'));}catch{return json(res,400,{error:'無效的請求。'});}
+        if(interaction.type===1)return json(res,200,{type:1});
+        if(interaction.application_id!==clientId)return json(res,403,{error:'應用程式不符。'});
+        if(!wallet)return json(res,200,{type:4,data:{content:'籌碼服務尚未開啟。',flags:64}});
+        return json(res,200,handleCommand(interaction,wallet.store,wallet.adminRoles));
+      }
       if (path === '/api/token') {
         if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return json(res, 405, { error:'請使用 POST。' }); }
         // JSON-only + no CORS prevents third-party browser forms from using this route.
@@ -45,7 +58,10 @@ export function createActivityServer({ clientId, clientSecret, distDir = resolve
         if (activeExchanges >= 8) return json(res, 429, { error:'登入忙碌中，請稍後重試。' });
         activeExchanges++;
         try {
-          const code = await readCode(req);
+          const body = await readJson(req);
+          const code=body?.code;
+          if(typeof code!=='string'||!/^[A-Za-z0-9_-]{1,512}$/.test(code))throw fail(400,'缺少有效的 Discord 授權碼。');
+          if(wallet)wallet.store.assertGuild(body.guildId);
           const upstream = await fetchImpl('https://discord.com/api/oauth2/token', {
             method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
             body:new URLSearchParams({ client_id:clientId, client_secret:clientSecret, grant_type:'authorization_code', code }),
@@ -57,8 +73,22 @@ export function createActivityServer({ clientId, clientSecret, distDir = resolve
             return json(res, 502, { error:'Discord 未提供有效的身分授權。' });
           }
           // Access token exists only for the SDK authentication step; never log or persist it.
-          return json(res, 200, { access_token:token.access_token });
+          const session=wallet?await wallet.service.create(token,body.guildId):null;
+          return json(res, 200, { access_token:token.access_token,...(session?{session}:{}) });
         } finally { activeExchanges--; }
+      }
+      if(['/api/wallet','/api/spin','/api/checkin','/api/ledger'].includes(path)){
+        if(!wallet)return json(res,503,{error:'帳號籌碼尚未開啟。'});
+        if(req.headers.origin&&!allowedOrigins.has(req.headers.origin))return json(res,403,{error:'不允許的來源。'});
+        const write=path==='/api/spin'||path==='/api/checkin';
+        if(req.method!==(write?'POST':'GET'))return json(res,405,{error:'不支援此操作。'});
+        const session=await wallet.service.authorize(req.headers.authorization);
+        const {guild,user}=session;
+        if(path==='/api/wallet')return json(res,200,{state:wallet.store.state(guild,user)});
+        if(path==='/api/ledger')return json(res,200,{entries:wallet.store.history(guild,user,Number(new URL(req.url,'http://localhost').searchParams.get('before')||Number.MAX_SAFE_INTEGER))});
+        const body=await readJson(req);
+        if(path==='/api/checkin')return json(res,200,wallet.store.checkin(guild,user));
+        return json(res,200,wallet.store.spin(guild,user,body?.bet,body?.requestId));
       }
       if (path.startsWith('/api/')) return json(res, 404, { error:'找不到此功能。' });
       if (!['GET', 'HEAD'].includes(req.method)) return json(res, 405, { error:'不支援此操作。' });

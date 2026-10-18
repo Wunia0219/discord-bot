@@ -1,0 +1,52 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { WalletStore, taipeiDay } from '../server/wallet.js';
+const guild='1441097301685698703',other='1441097301685698704',user='1561284960986599626',admin='1561284960986599627';
+function store(t,opts={}){const s=new WalletStore({guildIds:[guild,other],...opts});t.after(()=>s.close());return s;}
+test('test seed is once per wallet; guilds and users are isolated; production starts at zero',t=>{
+ const s=store(t);assert.equal(s.state(guild,user).balance,10000);assert.equal(s.state(guild,user).balance,10000);
+ s.checkin(guild,user);assert.equal(s.state(other,user).balance,10000);assert.equal(s.state(guild,admin).balance,10000);
+ const prod=store(t,{environment:'production'});assert.equal(prod.state(guild,user).balance,0);assert.equal(prod.history(guild,user).length,0);
+ assert.throws(()=>s.state('123456789012345678',user),/尚未開放/);
+});
+test('Taipei checkin is atomic once per calendar day across devices and survives midnight',t=>{
+ let now=Date.parse('2026-10-18T15:59:59Z');const s=store(t,{clock:()=>now});
+ assert.equal(taipeiDay(now),'2026-10-18');s.checkin(guild,user);
+ for(let i=0;i<20;i++)assert.equal(s.checkin(guild,user).duplicate,true);
+ assert.equal(s.state(guild,user).balance,10500);now+=2000;
+ assert.equal(s.checkin(guild,user).state.balance,11000);assert.equal(s.history(guild,user).filter(e=>e.kind==='checkin').length,2);
+});
+test('server spins are replayable forever with original stops and cannot alter a reused request',t=>{
+ let now=Date.now();const s=store(t,{clock:()=>now});const key=randomUUID();const r=s.spin(guild,user,100,key);
+ for(let i=0;i<5;i++){const retry=s.spin(guild,user,100,key);assert.deepEqual(retry.round,r.round);assert.equal(retry.state.balance,r.state.balance);}
+ assert.throws(()=>s.spin(guild,user,200,key),/請求編號/);
+ assert.throws(()=>s.spin(guild,user,100,randomUUID()),/尚未就緒/);
+ assert.equal(s.history(guild,user).filter(e=>e.kind==='spin').length,1);
+ now+=2100;s.spin(guild,user,20,randomUUID());
+ const entries=s.history(guild,user);assert.equal(entries.reduce((n,e)=>n+e.delta,0),s.state(guild,user).balance);
+});
+test('insufficient balance, illegal bets and failed grants roll back without changing ledger',t=>{
+ const s=store(t,{environment:'production'});assert.throws(()=>s.spin(guild,user,20,randomUUID()),/籌碼不足/);
+ assert.throws(()=>s.spin(guild,user,7,randomUUID()),/無效/);assert.equal(s.state(guild,user).balance,0);
+ assert.throws(()=>s.grant(guild,admin,user,-1,'bad',randomUUID()),/發放限/);assert.equal(s.history(guild,user).length,0);
+});
+test('admin grant caps, duplicate delivery, and compensating reversal preserve an append-only audit',t=>{
+ const s=store(t,{environment:'production',grantMax:1000,grantDaily:1500});const id=randomUUID();
+ const r=s.grant(guild,admin,user,1000,'活動獎勵',id);assert.equal(s.grant(guild,admin,user,1000,'活動獎勵',id).duplicate,true);
+ assert.throws(()=>s.grant(guild,admin,user,600,'超額',randomUUID()),/額度/);
+ const reversal=s.reverse(guild,admin,r.entry.id,'誤發更正',randomUUID());assert.equal(reversal.entry.after,0);
+ assert.throws(()=>s.reverse(guild,admin,r.entry.id,'再扣一次',randomUUID()),/更正過/);
+ assert.throws(()=>s.grant(guild,admin,user,600,'撤銷不重置額度',randomUUID()),/額度/);
+ assert.equal(s.history(guild,user).length,2);
+ assert.throws(()=>s.db.prepare('DELETE FROM ledger').run(),/append only/);
+});
+test('wallet survives reopen and refuses to open a test DB as production',async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'kemet-wallet-'));t.after(()=>rm(dir,{recursive:true,force:true}));const filename=join(dir,'wallet.sqlite');
+ const a=new WalletStore({filename,guildIds:[guild]});a.checkin(guild,user);a.close();
+ const b=new WalletStore({filename,guildIds:[guild]});assert.equal(b.state(guild,user).balance,10500);b.close();
+ assert.throws(()=>new WalletStore({filename,guildIds:[guild],environment:'production'}),/mix test/);
+});

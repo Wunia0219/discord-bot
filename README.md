@@ -1,15 +1,21 @@
 # CROWNS OF KEMET 凱美特之冠 — 5×3／20 線
 
-以使用者提供的素材製作。已接入固定 reel strip、20 線算分與精確 96% 理論 RTP；已完成 Discord Activity SDK 握手，使用者已成功在 Discord 內試玩。本機測試版已啟用 OAuth 基本身分登入與 Node 後端，使用者已確認實際 Discord 登入成功；尚未接入伺服器錢包或資料庫。
+以使用者提供的素材製作。已接入固定 reel strip、20 線算分與精確 96% 理論 RTP；已完成 Discord Activity SDK 握手，使用者已成功在 Discord 內試玩。本機測試版已啟用 OAuth 基本身分登入與 Node 後端，使用者已確認實際 Discord 登入成功；已實作伺服器錢包、每日簽到、管理員指令與後端結算，進入測試伺服器驗收；尚未部署朋友正式環境。
 
 ## 啟動與檢查
 
-Node.js 22.12+。執行 `npm install`、`npm run dev`，開啟 http://127.0.0.1:4187/ 。服務僅綁定本機。
+Node.js 24（伺服器錢包使用內建 SQLite）。執行 `npm install`、`npm run dev`，開啟 http://127.0.0.1:4187/ 。服務僅綁定本機。
 
 - `npm test`：算分、Wild、亂數邊界、動畫輪帶一致性、帳本與舊紀錄遷移、精確 RTP。
 - `npm run verify:math`：獨立算分器交叉核對 59,049 種單線符號組合，完整枚舉 400 萬種盤面，再跑 100 萬局模擬，產生 [數學報告](docs/math-report.json)。
 - `npm run build`：建立靜態版本至 dist/。
 - `npm run activity:serve`：建置並在 4188 提供 Discord 測試用靜態遊戲。設定方式見 [Discord Activity 私人測試接入](docs/discord-activity-setup.md)。
+
+## 帳號錢包與正式交付
+
+已實作伺服器獨立錢包、每日 500 簽到、管理員發放與更正、後端固定輪帶結算、持久化及重複請求保護。測試環境首次 10,000；正式環境從 0 起，兩者資料庫隔離。
+
+指令、權限、測試步驟、Docker 與持久磁碟部署及備份方式見 [錢包與正式交付](docs/wallet-and-release.md)。目前只在自己的測試伺服器驗收，未發布到朋友伺服器。
 
 ## 圖片壓縮
 

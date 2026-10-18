@@ -1,6 +1,6 @@
 # Discord Activity 私人測試接入
 
-目前已加入官方 Embedded App SDK 2.5.0，等待 Discord READY 後再開啟遊戲。本機測試版已設定後端密鑰並啟用 OAuth 基本身分登入，使用者已確認在 Discord 實際登入成功；SDK READY 不代表完成 OAuth 登入。一般瀏覽器模式仍可直接使用。籌碼與紀錄仍在本機儲存，登入也不會自動將舊帳本綁定到帳號。
+目前已加入官方 Embedded App SDK 2.5.0，等待 Discord READY 後再開啟遊戲。本機測試版已設定後端密鑰並啟用 OAuth 基本身分登入，使用者已確認在 Discord 實際登入成功；SDK READY 不代表完成 OAuth 登入。一般瀏覽器模式仍可直接使用。已新增伺服器錢包，測試版不匯入舊瀏覽器餘額；設定與驗收方式見 [錢包與正式交付](wallet-and-release.md)。
 
 ## 1. 使用者準備
 
@@ -68,7 +68,7 @@ Windows 測試工具放在 `.tools/cloudflared.exe`（不提交 Git、不安裝�
 4. 停止舊的 4188 靜態預覽程序，執行 `npm run activity:serve`。既有隧道仍指向 4188，可沿用目前 URL Mapping；只重建前端、卻仍使用舊 Vite preview 服務會缺少登入 API。
 5. 關閉並重新開啟 Discord Activity，同意 `identify` 基本身分授權。右上方顯示「Discord 已登入」，「遊玩介紹」會列出登入名稱與 Discord ID（手機也能查看）。取消或失敗會顯示可重試的錯誤，不會冒充登入成功。
 
-後端僅回傳 SDK 身分驗證所需的 access token，禁止快取、不記錄 token／密鑰、不回傳 refresh token；目前沒有持久化登入 Session 或伺服器錢包。前端只保留基本 user 資料；登入授權與錯誤路徑已用模擬 Discord API 測試，使用者已於 2026-10-18 確認真實 Discord 登入成功。未啟用 OAuth 時繼續原本 Activity 試玩模式。
+後端僅回傳 SDK 身分驗證所需的 access token，禁止快取、不記錄 token／密鑰、不回傳 refresh token；伺服器錢包新增最多 1 小時的記憶體 Session，後端重啟需重新登入，SQLite 帳本則持久保存。前端只保留基本 user 資料；登入授權與錯誤路徑已用模擬 Discord API 測試，使用者已於 2026-10-18 確認真實 Discord 登入成功。未啟用 OAuth 時繼續原本 Activity 試玩模式。
 
 ## 5. 在 Discord 內驗證
 

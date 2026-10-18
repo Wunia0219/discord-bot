@@ -27,6 +27,7 @@ h1,h2,h3,p{margin:0}
 main{width:100%;flex:1;min-height:0;container-type:size;padding:0 8px 8px}
 .game-panel{--scene-width:970;--scene-height:700;--scene-x:115;--stage-width:min(100cqw,calc((100cqh - 246px)*970/700),880px);position:relative;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .game-composition{display:contents}
+.wallet-actions{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0 20px}
 .game-stage{position:relative;isolation:isolate;flex:none;width:var(--stage-width)}
 #canvas-host{width:100%;aspect-ratio:var(--scene-width)/var(--scene-height);position:relative;filter:drop-shadow(0 8px 14px #16061d55)}
 .control-deck{position:relative;z-index:2;flex:none;display:grid;grid-template-columns:1fr 92px 1fr;grid-template-rows:88px 82px;align-items:center;align-content:center;gap:16px 10px;width:min(100cqw,600px);height:246px;margin:0 auto;padding:24px 16px;border:1px solid #e2b76b;border-radius:12px 12px 24px 24px;background:linear-gradient(180deg,#75452f,#36202e 9%,#301b2b 88%,#5d322a);box-shadow:0 3px 0 #281421,0 6px 0 #ac7c4390,0 12px 25px #11091b80,inset 0 1px 0 #ffe6a780}

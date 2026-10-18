@@ -6,6 +6,7 @@ import { createLoadingScreen } from './loading.js';
 import { BigWinPresentation } from './big-win.js';
 import { setBitmapNumber } from './bitmap-number.js';
 import { installResponsiveLayout } from './responsive-layout.js';
+import { createWalletClient } from './wallet-client.js';
 import { BETS, SYMBOL_NAMES, SYMBOL_CODES, SYMBOLS, PAYTABLE, PAYLINES, MODEL_VERSION, INITIAL_STOPS, PREVIEW_STOPS, drawStops, roundFromStops, restoredStops, freshState, readState, createRound } from './game.js';
 
 const $ = s => document.querySelector(s);
@@ -44,10 +45,12 @@ try { state=readState(localStorage.getItem(KEY)); } catch { state=freshState();s
 let bet=100, busy=false, ready=false, countAnimation=0, payoutAnimation=0, celebrationTimer=0;
 const scene=new SlotScene(), sound=new Sound();
 const bigWin=new BigWinPresentation($('#app'));
-let activityMode='browser', activityUser=null;
+let activityMode='browser', activityUser=null, walletClient=null;
 const motion=matchMedia('(prefers-reduced-motion: reduce)');scene.reduced=motion.matches;motion.addEventListener('change',()=>scene.reduced=motion.matches);
 const signed=n=>(n>0?'+':'')+fmt(n);
-function save(next) { state=next;try{localStorage.setItem(KEY,JSON.stringify(state));}catch{storageAvailable=false;} }
+function save(next) { if(walletClient){if((next.revision||0)>=(state.revision||0))state=next;return;}state=next;try{localStorage.setItem(KEY,JSON.stringify(state));}catch{storageAvailable=false;} }
+function showError(title,message){const p=document.createElement('p');p.textContent=message;openDialog(title,p);}
+async function refreshWallet(){if(!walletClient||busy||!ready)return;try{const update=await walletClient.state();if(!busy){save(update.state);renderState();}}catch(error){if(error.status===401){ready=false;setBusy(false);showError('請重新登入',error.message);}}}
 function historyRow(r,full=false) {
   const row=document.createElement('div');row.className='history-row';
   const mark=document.createElement('span');mark.className=`history-mark ${r.payout>0?'won':''}`;mark.innerHTML=icon(r.payout>0?'star':'moon');
@@ -128,20 +131,20 @@ async function spin(preview=false) {
   showPayout(0);
   cancelAnimationFrame(countAnimation);hideCelebration();clearLineReadout();
   let r;
+  setBusy(true);
   if(preview)r={...roundFromStops(bet,PREVIEW_STOPS),bet};
   else {
     try{
-      const stops=drawStops();
-      const update=createRound(state,bet,stops,crypto.randomUUID());r=update.round;save(update.state);
-    }catch(error){openDialog('無法開始本局','<p>測試籌碼不足，請降低下注，或到「遊玩介紹」重設試玩。</p>');return;}
+      const update=walletClient?await walletClient.spin(bet):createRound(state,bet,drawStops(),crypto.randomUUID());r=update.round;save(update.state);
+    }catch(error){setBusy(false);showError('無法開始本局',walletClient?error.message:'測試籌碼不足，請降低下注，或到「遊玩介紹」重設試玩。');return;}
   }
   setBusy(true);sound.tone(220,.2);
-  if(!preview)setBitmapNumber($('#balance'),fmt(r.before-bet));
-  result(preview?'為你預演一場法老王的寶藏。':'轉輪啟動，讓寶藏慢慢揭曉。',preview?'此演出不影響籌碼與遊戲紀錄。':`本次下注 ${fmt(bet)} · 正在播放本局演出`,'SPINNING');
+  if(!preview)setBitmapNumber($('#balance'),fmt(r.before-r.bet));
+  result(preview?'為你預演一場法老王的寶藏。':'轉輪啟動，讓寶藏慢慢揭曉。',preview?'此演出不影響籌碼與遊戲紀錄。':`本次下注 ${fmt(r.bet)} · 正在播放本局演出`,'SPINNING');
   try {
     await scene.spin(r.stops,i=>sound.stop(i));
     renderState();
-    if(!preview)animateBalance(r.before-bet,r.after);
+    if(!preview)animateBalance(r.before-r.bet,state.balance);
     presentLines(r);
     showPayout(r.payout,true);
     const symbols=r.wins.length ? `線號 ${r.wins.map(w=>w.line).join('、')}` : '20 條線未形成得獎組合';
@@ -159,11 +162,20 @@ function openDialog(title,body) {$('#dialog-title').textContent=title;$('#dialog
 function showRules(){
   const table=SYMBOLS.map(s=>'<tr><td>'+SYMBOL_CODES[s]+' · '+SYMBOL_NAMES[s]+'</td>'+PAYTABLE[s].map(p=>'<td>'+fmt(p)+'×</td>').join('')+'</tr>').join('');
   const lines=PAYLINES.map((rows,i)=>'<div class="payline-card"><b>'+String(i+1).padStart(2,'0')+'</b><svg viewBox="0 0 100 60" role="img" aria-label="第 '+(i+1)+' 線，列序 '+rows.map(r=>r+1).join('、')+'"><path d="M0 20H100M0 40H100M20 0V60M40 0V60M60 0V60M80 0V60" stroke="#765067" stroke-width="1"/><polyline points="'+rows.map((r,c)=>(c*20+10)+','+(r*20+10)).join(' ')+'" fill="none" stroke="#ffd57d" stroke-width="3"/>'+rows.map((r,c)=>'<circle cx="'+(c*20+10)+'" cy="'+(r*20+10)+'" r="4" fill="#ffd57d"/>').join('')+'</svg></div>').join('');
-  openDialog('20 線遊戲規則',`<p>5 軸 × 3 列，20 條線全部啟用。每軸從固定輪帶獨立等機率抽取停點；理論 RTP 為 96%，代表長期平均，單次或短期結果會波動。規則版本：${MODEL_VERSION}。</p><h3>賠率表</h3><p>下表倍率 × 單線下注。單線下注 = 總下注 ÷ 20；例如下注 100，單線下注為 5。從第一軸向右連續至少 3 個相同符號得獎，每線只付最高獎，不同線相加。W 替代一般符號，也可獨立派彩，取較高者。沒有 Scatter、免費旋轉或額外獎池。</p><table><thead><tr><th>符號</th><th>3 連</th><th>4 連</th><th>5 連</th></tr></thead><tbody>${table}</tbody></table><h3>20 條固定線</h3><div class="payline-grid">${lines}</div><p>派彩不另外返還本金；淨損益 = 派彩 − 總下注。此固定輪帶最高可達 120.65 倍總下注。得獎線每 1.6 秒依序亮出，彩色實線與亮框標示得獎段，淡線標示該線後續路徑。控制框正上方顯示最近一局的中獎總得分（未扣下注），沒有中獎則留白；各線得分與完整明細可在右上角「遊玩紀錄」查看。</p><h3>內部試玩與資料</h3><p>${activityMode==='discord'?'已連接 Discord Activity；目前仍使用本機測試帳本，尚未綁定 Discord 帳號或同步其他玩家。':'目前是瀏覽器試玩模式，可透過 Discord Activity 開啟；尚未綁定 Discord 帳號。'}籌碼僅供測試，不能購買、轉讓或兌現。大獎預覽使用實際可達的停點，但不扣籌碼、不寫紀錄，也不參與 RTP 統計；12,000 里程碑僅為演出。只有派彩大於下注才播放獲利慶祝，20 倍以上播放大獎演出。</p><p>最近 100 局保存在此瀏覽器，含停點、各線獎金與規則版本。舊展示版紀錄另標示為舊規則；重設試玩會清除餘額與紀錄。空白鍵可啟動 SPIN；長按、轉動中或彈出視窗開啟時不會重複下注。音效需手動開啟，系統減少動態效果時會簡化演出。</p><button id="reset" class="confirm-reset" ${busy||!ready?'disabled':''}>重設試玩</button>`);
+  openDialog('20 線遊戲規則',`<p>5 軸 × 3 列，20 條線全部啟用。每軸從固定輪帶獨立等機率抽取停點；理論 RTP 為 96%，代表長期平均，單次或短期結果會波動。規則版本：${MODEL_VERSION}。</p><h3>賠率表</h3><p>下表倍率 × 單線下注。單線下注 = 總下注 ÷ 20；例如下注 100，單線下注為 5。從第一軸向右連續至少 3 個相同符號得獎，每線只付最高獎，不同線相加。W 替代一般符號，也可獨立派彩，取較高者。沒有 Scatter、免費旋轉或額外獎池。</p><table><thead><tr><th>符號</th><th>3 連</th><th>4 連</th><th>5 連</th></tr></thead><tbody>${table}</tbody></table><h3>20 條固定線</h3><div class="payline-grid">${lines}</div><p>派彩不另外返還本金；淨損益 = 派彩 − 總下注。此固定輪帶最高可達 120.65 倍總下注。得獎線每 1.6 秒依序亮出，彩色實線與亮框標示得獎段，淡線標示該線後續路徑。控制框正上方顯示最近一局的中獎總得分（未扣下注），沒有中獎則留白；各線得分與完整明細可在右上角「遊玩紀錄」查看。</p><h3>內部試玩與資料</h3><p>${walletClient?'已連接本伺服器的帳號錢包，餘額及紀錄由後端保存。':activityMode==='discord'?'已連接 Discord Activity，目前使用本機試玩帳本。':'目前是獨立瀏覽器展示模式，不影響 Discord 帳號餘額。'}籌碼僅供測試，不能購買、轉讓或兌現。大獎預覽使用實際可達的停點，但不扣籌碼、不寫紀錄，也不參與 RTP 統計；12,000 里程碑僅為演出。只有派彩大於下注才播放獲利慶祝，20 倍以上播放大獎演出。</p><p>${walletClient?'顯示最近 100 局，後端保留完整帳本及停點、各線獎金與規則版本。':'最近 100 局保存在此瀏覽器，含停點、各線獎金與規則版本。舊展示版紀錄另標示為舊規則；重設試玩會清除餘額與紀錄。'}空白鍵可啟動 SPIN；長按、轉動中或彈出視窗開啟時不會重複下注。音效需手動開啟，系統減少動態效果時會簡化演出。</p><button id="reset" class="confirm-reset" ${busy||!ready?'disabled':''}>重設試玩</button>`);
   if(activityUser){
     const identity=document.createElement('p');
-    identity.textContent=`已登入 Discord：${activityUser.global_name || activityUser.username}（${activityUser.id}）。籌碼與紀錄仍為此瀏覽器的測試資料，尚未同步到帳號。`;
+    identity.textContent=`已登入 Discord：${activityUser.global_name || activityUser.username}（${activityUser.id}）。${walletClient?`目前使用本伺服器的${state.environment==='test'?'測試':'正式'}錢包，跨裝置同步。`:'籌碼與紀錄仍為此瀏覽器的測試資料，尚未同步到帳號。'}`;
     $('#dialog-body').prepend(identity);
+  }
+  if(walletClient){
+    $('#reset')?.remove();
+    const info=document.createElement('p');info.textContent=`每日簽到 ${state.daily} 籌碼，台灣時間 00:00 換日。也可在 Discord 使用 /簽到、/籌碼。帳號餘額不可自行重設。`;
+    const check=document.createElement('button');check.className='confirm-reset';check.textContent=state.claimed?'今日已簽到':'領取今日簽到';check.disabled=busy||state.claimed;
+    check.addEventListener('click',async()=>{check.disabled=true;try{const r=await walletClient.checkin();save(r.state);renderState();check.textContent='今日已簽到';}catch(error){check.disabled=false;showError('簽到未完成',error.message);}});
+    const log=document.createElement('button');log.className='confirm-reset';log.textContent='籌碼收支';
+    log.addEventListener('click',async()=>{try{const {entries}=await walletClient.ledger();const body=document.createElement('div');for(const e of entries){const p=document.createElement('p');p.textContent=`#${e.id} ${new Date(e.time).toLocaleString('zh-TW')}｜${signed(e.delta)}｜${e.before} → ${e.after}｜${e.reason}`;body.append(p);}if(!entries.length)body.textContent='尚無收支紀錄。';openDialog('最近 50 筆籌碼收支',body);}catch(error){showError('無法取得收支',error.message);}});
+    const account=document.createElement('section'),actions=document.createElement('div');actions.className='wallet-actions';actions.append(check,log);account.append(info,actions);$('#dialog-body').insertBefore(account,$('#dialog-body').children[1]||null);
   }
 }
 $('#max-bet').addEventListener('click',()=>{if(!busy)document.querySelector('[data-bet="500"]').click();});
@@ -187,17 +199,17 @@ $('#sound').addEventListener('click',async()=>{
   $('#sound').innerHTML=icon(sound.enabled?'sound':'muted');$('#sound').setAttribute('aria-pressed',String(sound.enabled));$('#sound').setAttribute('aria-label',sound.enabled?'關閉音效':'開啟音效');if(sound.enabled)sound.tone(659,.2);
 });
 $('#help').addEventListener('click',showRules);
-$('#all-history').addEventListener('click',()=>{const body=document.createElement('div');if(state.history.length)state.history.forEach(r=>body.append(historyRow(r,true)));else body.textContent='還沒有紀錄。完成第一局後再來看看。';const note=document.createElement('p');note.className='history-note';note.textContent=storageAvailable?'最近 100 局 · 僅保存在此瀏覽器 · 大獎預覽不影響籌碼與紀錄':'瀏覽器儲存不可用 · 本次關閉後不保留';body.prepend(note);openDialog('遊玩紀錄',body);});
+$('#all-history').addEventListener('click',()=>{const body=document.createElement('div');if(state.history.length)state.history.forEach(r=>body.append(historyRow(r,true)));else body.textContent='還沒有紀錄。完成第一局後再來看看。';const note=document.createElement('p');note.className='history-note';note.textContent=walletClient?'本伺服器最近 100 局 · 帳號同步 · 大獎預覽不入帳':storageAvailable?'最近 100 局 · 僅保存在此瀏覽器 · 大獎預覽不影響籌碼與紀錄':'瀏覽器儲存不可用 · 本次關閉後不保留';body.prepend(note);openDialog('遊玩紀錄',body);});
 $('#close-dialog').addEventListener('click',()=>$('#dialog').close());
 $('#dialog').addEventListener('click',e=>{if(e.target===$('#dialog')){const r=$('#dialog').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)$('#dialog').close();}});
 $('#dialog-body').addEventListener('click',e=>{
-  if(!e.target.closest('#reset')||busy||!ready)return;
+  if(!e.target.closest('#reset')||busy||!ready||walletClient)return;
   openDialog('重新開始試玩', '<p>將恢復 10,000 測試籌碼，並清除這個瀏覽器中的試玩紀錄與里程碑。</p><button class="confirm-reset" id="confirm-reset">確認重設</button>');
   $('#confirm-reset').addEventListener('click',()=>{cancelAnimationFrame(countAnimation);hideCelebration();clearLineReadout();scene.guardian.idle();save(freshState());renderState();showPayout(0);scene.setStops(INITIAL_STOPS);result('新的神殿旅程，準備開始。','測試籌碼已恢復為 10,000。');$('#dialog').close();});
 });
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){scene.finish();if(ready)scene.app.stop();sound.context?.suspend();}
-  else {if(ready)scene.app.start();if(sound.enabled)sound.context?.resume().catch(()=>{});}
+  else {if(ready)scene.app.start();if(sound.enabled)sound.context?.resume().catch(()=>{});refreshWallet();}
 });
 renderState();
 // History restores the wallet and reels, but a new visit has no current win.
@@ -210,6 +222,8 @@ async function startGame() {
     const activity=await connectActivity();
     activityMode=activity.mode;
     activityUser=activity.user || null;
+    if(activity.session){walletClient=createWalletClient(activity.session);state=(await walletClient.state()).state;renderState();}
+    if(activityMode==='discord'&&import.meta.env.VITE_DISCORD_WALLET_ENABLED==='true'&&!walletClient)throw new Error('帳號錢包尚未連接，請重新開啟活動。');
     if(activityMode==='discord'){
       const label=$('.test-label');
       label.replaceChildren(document.createElement('i'),document.createTextNode(activityUser?'Discord 已登入':'Discord 試玩'));
@@ -234,3 +248,4 @@ async function startGame() {
   }
 }
 startGame();
+setInterval(()=>{if(!document.hidden)refreshWallet();},15000);
