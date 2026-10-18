@@ -1,11 +1,12 @@
 import { Application, Assets, Container, Graphics, Sprite, Texture, Rectangle } from 'pixi.js';
 import { SYMBOLS, SYMBOL_FRAMES, INITIAL_STOPS, REEL_STRIPS, gridFromStops, reelMotion, PAYLINES } from './game.js';
-import { BOUNCE_MS, reelOffset, WinLineCycle } from './presentation.js';
+import { BOUNCE_MS, reelOffset, WinLineCycle, WinSymbolPop } from './presentation.js';
 import mainAtlas from '../images/main.json';
 import symbolAtlas from '../images/symbols.json';
 import mainUrl from '../images/main.png';
 import symbolsUrl from '../images/symbols.png';
 import backgroundUrl from '../images/background.png';
+import winFrameUrl from '../images/fx/win-symbol-frame-thin.png';
 
 const W = 1200, H = 760;
 const GRID = { x: 255, y: 228, w: 690, h: 408 };
@@ -28,6 +29,8 @@ export class SlotScene {
   currentStops = INITIAL_STOPS;
   reduced = false;
   lineCycle = new WinLineCycle();
+  symbolPop = new WinSymbolPop();
+  winningSymbols = [];
   presentationPaused = false;
   async init(host, onProgress = () => {}) {
     await this.app.init({ width: W, height: H, backgroundAlpha: 0, antialias: true, preference: 'webgl', resolution: Math.min(devicePixelRatio || 1, 2), autoDensity: true });
@@ -39,7 +42,8 @@ export class SlotScene {
     const background = new Image(); background.src = backgroundUrl;
     let completed = 0;
     const loaded = value => { onProgress(28 + (++completed * 14), '正在收藏古埃及的寶藏'); return value; };
-    const [main, symbols] = await Promise.all([Assets.load(mainUrl).then(loaded), Assets.load(symbolsUrl).then(loaded), background.decode().then(loaded)]);
+    const [main, symbols, winFrame] = await Promise.all([Assets.load(mainUrl).then(loaded), Assets.load(symbolsUrl).then(loaded), Assets.load(winFrameUrl), background.decode().then(loaded)]);
+    this.winFrameTexture = winFrame;
     this.art = textures(main, mainAtlas);
     const sheet = textures(symbols, symbolAtlas, true);
     this.textures = Object.fromEntries(SYMBOLS.map(s => {
@@ -70,6 +74,12 @@ export class SlotScene {
     this.app.stage.addChild(shade);
     this.line = new Graphics();
     this.line.alpha = 0;
+    this.winShade = new Graphics();
+    this.app.stage.addChild(this.winShade);
+    // Unmasked overlay lets a winning symbol protrude beyond its reel cell.
+    this.winVisuals = new Container();
+    this.app.stage.addChild(this.winVisuals);
+    // Keep the payline above popped symbols; dimming belongs underneath them.
     this.app.stage.addChild(this.line);
     this.app.stage.addChild(new Graphics().poly([238, 425, 250, 432, 238, 439]).fill(GOLD).poly([962, 425, 950, 432, 962, 439]).fill(GOLD));
     this.addArt('logo_long.png', 225, 38, 750);
@@ -109,8 +119,16 @@ export class SlotScene {
   }
   setStops(stops) { const grid = gridFromStops(stops); this.currentStops = [...stops]; this.reels.forEach((r, i) => this.populate(r, grid[i])); }
   clearWins() {
+    this.clearWinVisuals();
+    this.symbolPop.clear();
     this.lineCycle.clear();
     this.line.clear(); this.line.alpha = 0;
+    this.winShade.clear(); this.winShade.alpha = 0;
+  }
+  clearWinVisuals() {
+    this.winningSymbols.forEach(({ original }) => { original.visible = true; });
+    this.winningSymbols = [];
+    this.winVisuals.removeChildren().forEach(child => child.destroy());
   }
   showWins(wins, onLine = () => {}) {
     this.clearWins();
@@ -121,14 +139,25 @@ export class SlotScene {
     });
   }
   drawWin(win) {
+    this.clearWinVisuals();
+    this.symbolPop.start(this.reduced);
     this.line.clear();
+    this.winShade.clear();
     const rows = PAYLINES[win.line - 1];
     const color = [GOLD, 0x80f0e5, 0xe9a7ff, 0xffb58e, 0xa4eaa0][(win.line - 1) % 5];
     for (let col = 0; col < 5; col++) for (let row = 0; row < 3; row++) {
       const x = GRID.x + col * CW, y = GRID.y + row * CH;
       if (col < win.count && row === rows[col]) {
-        this.line.roundRect(x + 4, y + 3, CW - 8, CH - 6, 10).fill({ color, alpha: .1 }).stroke({ color, width: 3 });
-      } else this.line.rect(x, y, CW, CH).fill({ color: 0x140c20, alpha: .52 });
+        const original = this.reels[col].strip.children[row];
+        original.visible = false;
+        const frame = new Sprite(this.winFrameTexture);
+        frame.anchor.set(.5); frame.position.set(x + CW / 2, y + CH / 2);
+        frame.width = 148; frame.height = 148;
+        const symbol = new Sprite(original.texture);
+        symbol.anchor.set(.5); symbol.position.copyFrom(original.position); symbol.scale.set(132 / 256);
+        this.winVisuals.addChild(frame, symbol);
+        this.winningSymbols.push({ original, symbol });
+      } else this.winShade.rect(x, y, CW, CH).fill({ color: 0x140c20, alpha: .52 });
     }
     const path = (count, width, alpha) => {
       this.line.moveTo(GRID.x - 10, GRID.y + (rows[0] + .5) * CH);
@@ -138,6 +167,7 @@ export class SlotScene {
     path(5, 2, .35); path(win.count, 11, .25); path(win.count, 3, 1);
     for (let col = 0; col < win.count; col++) this.line.circle(GRID.x + (col + .5) * CW, GRID.y + (rows[col] + .5) * CH, 5).fill(color);
     this.line.alpha = 1;
+    this.winShade.alpha = 1;
     return color;
   }
   spin(stops, onStop) {
@@ -161,6 +191,9 @@ export class SlotScene {
   celebrate(big = false, showLine = true) {
     this.presentationPaused = big || !showLine;
     this.line.alpha = this.presentationPaused ? 0 : 1;
+    this.winShade.alpha = this.line.alpha;
+    this.winVisuals.visible = !this.presentationPaused;
+    this.winningSymbols.forEach(({ original }) => { original.visible = this.presentationPaused; });
     if (this.reduced || big) return;
     for (let i = 0; i < (big ? 100 : 30); i++) {
       const g = new Graphics();
@@ -172,7 +205,9 @@ export class SlotScene {
   }
   clearCelebration() {
     this.presentationPaused = false;
-    if (this.lineCycle.index >= 0) this.line.alpha = 1;
+    this.winVisuals.visible = true;
+    this.winningSymbols.forEach(({ original }) => { original.visible = false; });
+    if (this.lineCycle.index >= 0) { this.line.alpha = 1; this.winShade.alpha = 1; }
   }
   tick(t) {
     const dt = Math.min(t.elapsedMS, 50) / 1000;
@@ -188,6 +223,8 @@ export class SlotScene {
       if (this.reels.every(r => r.stopped)) { this.active = null; this.setStops(a.stops); a.resolve(); }
     }
     this.lineCycle.tick(t.deltaMS, this.presentationPaused || !!this.active);
+    const popScale = this.symbolPop.tick(dt * 1000, this.presentationPaused || !!this.active, this.reduced);
+    this.winningSymbols.forEach(({ symbol }) => symbol.scale.set(132 / 256 * popScale));
     this.particles = this.particles.filter(p => {
       p.age += dt; p.vy += 330 * dt; p.g.x += p.vx * dt; p.g.y += p.vy * dt; p.g.rotation += p.spin * dt; p.g.alpha = Math.max(0, 1 - p.age / p.life);
       if (p.age >= p.life) { p.g.destroy(); return false; } return true;

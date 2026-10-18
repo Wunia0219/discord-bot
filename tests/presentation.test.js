@@ -1,6 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { reelOffset, BOUNCE_MS, LINE_HOLD_MS, WinLineCycle } from '../src/presentation.js';
+import { WinSymbolPop, SYMBOL_POP_MS } from '../src/presentation.js';
+
+test('winning symbols pop twice, settle, and restart on every line display',()=>{
+  const pop = new WinSymbolPop();
+  pop.start();
+  assert.equal(pop.tick(0),1);
+  assert.ok(pop.tick(240)>1.15);
+  assert.equal(pop.tick(240),1);
+  assert.ok(pop.tick(240)>1.10);
+  assert.equal(pop.tick(240),1);
+  pop.start();assert.ok(pop.tick(240)>1.15);
+  pop.start();assert.ok(pop.tick(240)>1.15);
+  pop.clear();pop.start();assert.ok(pop.tick(240)>1.15);
+});
+
+test('symbol pop pauses with celebrations and skips motion for reduced-motion users',()=>{
+  const pop = new WinSymbolPop();pop.start();
+  assert.equal(pop.tick(SYMBOL_POP_MS,true),1);
+  assert.ok(pop.tick(240)>1);
+  assert.equal(pop.tick(0,false,true),1);
+  pop.start(true);assert.equal(pop.tick(240),1);
+  pop.clear();assert.equal(pop.tick(240),1);
+});
 
 test('reels maintain speed up to impact, overshoot down, rebound up, and align exactly',()=>{
   const distance=4000,stopAt=1200,cell=136;
