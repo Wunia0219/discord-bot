@@ -75,7 +75,7 @@ Windows 測試工具放在 `.tools/cloudflared.exe`（不提交 Git、不安裝�
 使用 Application 擁有者帳號進入測試伺服器的頻道，在應用程式啟動器搜尋應用程式名稱並啟動。
 
 - 遊戲完成載入；桌面寬畫面右上角標示「Discord 試玩」，窄畫面可由「遊玩介紹」確認模式。
-- 阿努比斯 idle 正常；SPIN 後仍能停輪、顯示贏線、播放 action 與跳分。
+- 馬戲團素材載入正常；SPIN 後仍能停輪、顯示贏線、播放 WIN 與跳分。
 - 音效按鈕可手動開啟；縮放 Activity 不產生主頁捲動或遮住操作。
 - 切離與重新進入不會白屏。不同網址或裝置的本機帳本不保證共享，這不是 Discord 帳號錢包。
 - 再測 Discord 手機端的載入、音效與版面；先在 Activities → Settings → Supported Platforms 啟用需要的 iOS／Android 平台。

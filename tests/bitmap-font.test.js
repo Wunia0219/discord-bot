@@ -4,9 +4,9 @@ import { readFileSync } from 'node:fs';
 import { webpSize } from './helpers/webp.js';
 
 test('gold BMFont covers HUD punctuation and all digits inside its WebP page',()=>{
-  const text=readFileSync(new URL('../images/fonts/kemet-gold.fnt',import.meta.url),'utf8');
-  assert.ok(text.includes('file="kemet-gold.webp"'));
-  const [width,height]=webpSize(new URL('../images/fonts/kemet-gold.webp',import.meta.url));
+  const text=readFileSync(new URL('../images/fonts/circus-gold.fnt',import.meta.url),'utf8');
+  assert.ok(text.includes('file="circus-gold.webp"'));
+  const [width,height]=webpSize(new URL('../images/fonts/circus-gold.webp',import.meta.url));
   const fields=line=>Object.fromEntries([...line.matchAll(/(\w+)=(-?\d+)/g)].map(([,key,value])=>[key,Number(value)]));
   const common=fields(text.split('\n').find(line=>line.startsWith('common ')));
   assert.equal(common.scaleW,width);assert.equal(common.scaleH,height);

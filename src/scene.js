@@ -5,8 +5,8 @@ import mainAtlas from '../images/main.json';
 import symbolAtlas from '../images/symbols.json';
 import mainUrl from '../images/main.webp';
 import symbolsUrl from '../images/symbols.webp';
-import backgroundUrl from '../images/background.webp';
-import winFrameUrl from '../images/fx/win-symbol-frame-thin.webp';
+import backgroundUrl from '../images/jokers-circus/circus-background.webp';
+import winFrameUrl from '../images/fx/circus-win-frame.webp';
 
 const W = 1200, H = 760;
 const GRID = { x: 255, y: 228, w: 690, h: 408 };
@@ -34,14 +34,14 @@ export class SlotScene {
   presentationPaused = false;
   async init(host, onProgress = () => {}) {
     await this.app.init({ width: W, height: H, backgroundAlpha: 0, antialias: true, preference: 'webgl', resolution: Math.min(devicePixelRatio || 1, 2), autoDensity: true });
-    onProgress(28, '正在點亮神殿');
+    onProgress(28, '正在點亮馬戲團');
     host.append(this.app.canvas);
     this.app.canvas.setAttribute('aria-hidden', 'true');
     Object.assign(this.app.canvas.style, { width: '100%', height: 'auto', display: 'block' });
     this.app.ticker.maxFPS = 60;
     const background = new Image(); background.src = backgroundUrl;
     let completed = 0;
-    const loaded = value => { onProgress(28 + (++completed * 14), '正在收藏古埃及的寶藏'); return value; };
+    const loaded = value => { onProgress(28 + (++completed * 14), '正在準備馬戲團道具'); return value; };
     const [main, symbols, winFrame] = await Promise.all([Assets.load(mainUrl).then(loaded), Assets.load(symbolsUrl).then(loaded), Assets.load(winFrameUrl), background.decode().then(loaded)]);
     this.winFrameTexture = winFrame;
     this.art = textures(main, mainAtlas);
@@ -51,7 +51,9 @@ export class SlotScene {
       if (!texture) throw new Error(`圖集缺少符號：${SYMBOL_FRAMES[s]}`);
       return [s, texture];
     }));
-    this.addArt('reel_frame_filled.png', 140, 104, 920);
+    this.app.stage.addChild(new Graphics().rect(GRID.x, GRID.y, GRID.w, GRID.h).fill(0x10172d));
+    const frame = this.addArt('circus-reel-frame.png', GRID.x - 80 * GRID.w / 607, GRID.y - 90 * GRID.h / 335, 768 * GRID.w / 607);
+    frame.height = 483 * GRID.h / 335;
     const ornament = new Graphics();
     for (let col = 0; col < 5; col++) {
       const x = GRID.x + col * CW;
@@ -82,12 +84,8 @@ export class SlotScene {
     // Keep the payline above popped symbols; dimming belongs underneath them.
     this.app.stage.addChild(this.line);
     this.app.stage.addChild(new Graphics().poly([238, 425, 250, 432, 238, 439]).fill(GOLD).poly([962, 425, 950, 432, 962, 439]).fill(GOLD));
-    this.addArt('logo_long.png', 225, 38, 750);
-    const { Anubis } = await import('./anubis.js');
-    onProgress(78, '正在喚醒阿努比斯');
-    this.guardian = await Anubis.create();
-    onProgress(92, '守護者已就位');
-    this.app.stage.addChild(this.guardian);
+    this.addArt('logo-long.png', 350, 0, 500);
+    onProgress(92, '馬戲團舞台已就位');
     this.effects = new Container(); this.app.stage.addChild(this.effects);
     // Reframe the same game coordinates; never stretch symbols or restart animation.
     const fitViewport = () => {
@@ -98,13 +96,12 @@ export class SlotScene {
       this.app.renderer.resize(width, height);
       this.app.stage.position.set(-x, 0);
       Object.assign(this.app.canvas.style, { width: '100%', height: 'auto' });
-      this.guardian.layout(width < 1000);
     };
     this.resizeObserver = new ResizeObserver(fitViewport);
     this.resizeObserver.observe(host);
     fitViewport();
     this.app.ticker.add(t => this.tick(t));
-    onProgress(96, '即將進入神殿');
+    onProgress(96, '即將進入馬戲團');
   }
   addArt(name, x, y, width) {
     const s = new Sprite(this.art[name]); s.position.set(x, y); s.scale.set(width / s.texture.width); this.app.stage.addChild(s); return s;
@@ -132,7 +129,6 @@ export class SlotScene {
   }
   showWins(wins, onLine = () => {}) {
     this.clearWins();
-    this.guardian.react(wins);
     this.lineCycle.start(wins, (win, index, total) => {
       const color = this.drawWin(win);
       onLine(win, index, total, `#${color.toString(16).padStart(6, '0')}`);
@@ -211,7 +207,6 @@ export class SlotScene {
   }
   tick(t) {
     const dt = Math.min(t.elapsedMS, 50) / 1000;
-    this.guardian.advance(dt);
     if (this.active) {
       const a = this.active; a.time += t.deltaMS;
       this.reels.forEach((r, i) => {

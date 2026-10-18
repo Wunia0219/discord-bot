@@ -1,3 +1,4 @@
+import { mainArt } from './main-art.js';
 import './style.css';
 import { SlotScene } from './scene.js';
 import { Sound } from './audio.js';
@@ -19,17 +20,17 @@ const icon = (name) => {
 $('#app').innerHTML = `
   <header class="header"><nav class="header-right" aria-label="遊戲工具"><span class="test-label"><i></i>內部試玩</span><button id="all-history" class="utility" aria-label="遊玩紀錄" title="遊玩紀錄" aria-haspopup="dialog">${icon('clock')}<span>遊玩紀錄</span></button><button id="sound" class="icon-button" aria-label="開啟音效" aria-pressed="false">${icon('muted')}</button><button id="help" class="utility" aria-label="遊玩介紹" title="遊玩介紹" aria-haspopup="dialog">${icon('info')}<span>遊玩介紹</span></button></nav></header>
   <main>
-    <section class="game-panel" aria-label="凱美特之冠：五軸三列老虎機">
-      <h1 class="sr-only">CROWNS OF KEMET · 凱美特之冠</h1>
+    <section class="game-panel" aria-label="Joker’s Circus：五軸三列老虎機">
+      <h1 class="sr-only">Joker’s Circus</h1>
       <div class="game-composition">
       <div class="game-stage"><div id="canvas-host"></div>
-        <div id="celebration" aria-hidden="true"><span id="celebration-kicker">PHARAOH’S TREASURE</span><strong id="celebration-title">法老王的寶藏</strong><b id="celebration-amount">+2,000</b><span id="celebration-note">尼羅河畔，傳說再次閃耀。</span></div>
+        <div id="celebration" aria-hidden="true"><span id="celebration-kicker">JOKER’S CIRCUS</span><strong id="celebration-title">馬戲團大獎</strong><b id="celebration-amount">+2,000</b><span id="celebration-note">聚光燈下，精彩即將揭曉。</span></div>
       </div>
       <div class="control-deck">
       <output id="payout-result" class="payout-result" aria-live="polite" aria-label="本局中獎得分"></output>
         <div class="bet-group"><label>BET <span>每次下注</span></label><div class="bets">${BETS.map(b=>'<button data-bet="'+b+'" aria-pressed="'+(b===100)+'">'+fmt(b)+'</button>').join('')}</div></div>
         <button id="preview-win" class="gold-button"><span>WIN SHOW</span><small>大獎預覽</small></button>
-        <button id="spin" class="spin" aria-label="旋轉一次" aria-keyshortcuts="Space" title="旋轉一次（空白鍵）" disabled>${icon('spin')}<span>SPIN</span></button>
+        <button id="spin" class="spin" aria-label="旋轉一次" aria-keyshortcuts="Space" title="旋轉一次（空白鍵）" disabled>${mainArt('spin-button.png','spin-art')}</button>
         <button id="max-bet" class="gold-button"><span>MAX BET</span><small>最大下注</small></button>
         <div class="wallet"><span>COINS <small>測試籌碼</small></span><strong id="balance">10,000</strong></div>
       </div>
@@ -73,7 +74,6 @@ function setBusy(value) {
   ['#spin','#preview-win','#max-bet'].forEach(s=>$(s).disabled=value||!ready);
   if($('#reset'))$('#reset').disabled=value||!ready;
   document.querySelectorAll('[data-bet]').forEach(b=>b.disabled=value);
-  $('#spin').innerHTML=icon('spin')+'<span>'+(value?'轉動中':'SPIN')+'</span>';
   $('#spin').setAttribute('aria-label',value?'轉動中':'旋轉一次');
   $('#spin').classList.toggle('spinning',value);
 }
@@ -119,10 +119,10 @@ function celebrate(kind,amount,preview=false) {
     return;
   }
   $('#celebration').classList.toggle('milestone',milestone);
-  $('#celebration-kicker').textContent=milestone?'A NEW CHAPTER':'PHARAOH’S TREASURE';
-  $('#celebration-title').textContent=milestone?'法老的眷顧':'法老王的寶藏';
+  $('#celebration-kicker').textContent=milestone?'A NEW CHAPTER':'JOKER’S CIRCUS';
+  $('#celebration-title').textContent=milestone?'馬戲團里程碑':'馬戲團大獎';
   $('#celebration-amount').textContent=milestone?'12,000':`+${fmt(amount)}`;
-  $('#celebration-note').textContent=preview?'演出預覽 · 測試籌碼不變':milestone?'第一枚法老徽章，已為你收藏。':'這一刻，傳說再次閃耀。';
+  $('#celebration-note').textContent=preview?'演出預覽 · 測試籌碼不變':milestone?'第一枚馬戲團徽章，已為你收藏。':'這一刻，傳說再次閃耀。';
   $('#celebration').classList.add('show');$('.game-panel').classList.add('big-win');
   scene.celebrate(!milestone,!milestone);sound.win(true);
   celebrationTimer=setTimeout(hideCelebration,4500);
@@ -146,7 +146,7 @@ async function spin(preview=false,previewTier='big') {
     return;
   }
   if(!preview)setBitmapNumber($('#balance'),fmt(r.before-r.bet));
-  result(preview?'為你預演一場法老王的寶藏。':'轉輪啟動，讓寶藏慢慢揭曉。',preview?'此演出不影響籌碼與遊戲紀錄。':`本次下注 ${fmt(r.bet)} · 正在播放本局演出`,'SPINNING');
+  result(preview?'為你預演一場馬戲團大獎。':'轉輪啟動，讓寶藏慢慢揭曉。',preview?'此演出不影響籌碼與遊戲紀錄。':`本次下注 ${fmt(r.bet)} · 正在播放本局演出`,'SPINNING');
   try {
     await scene.spin(r.stops,i=>sound.stop(i));
     renderState();
@@ -215,7 +215,7 @@ $('#dialog').addEventListener('click',e=>{if(e.target===$('#dialog')){const r=$(
 $('#dialog-body').addEventListener('click',e=>{
   if(!e.target.closest('#reset')||busy||!ready||walletClient)return;
   openDialog('重新開始試玩', '<p>將恢復 10,000 測試籌碼，並清除這個瀏覽器中的試玩紀錄與里程碑。</p><button class="confirm-reset" id="confirm-reset">確認重設</button>');
-  $('#confirm-reset').addEventListener('click',()=>{cancelAnimationFrame(countAnimation);hideCelebration();clearLineReadout();scene.guardian.idle();save(freshState());renderState();showPayout(0);scene.setStops(INITIAL_STOPS);result('新的神殿旅程，準備開始。','測試籌碼已恢復為 10,000。');$('#dialog').close();});
+  $('#confirm-reset').addEventListener('click',()=>{cancelAnimationFrame(countAnimation);hideCelebration();clearLineReadout();save(freshState());renderState();showPayout(0);scene.setStops(INITIAL_STOPS);result('新的馬戲團旅程，準備開始。','測試籌碼已恢復為 10,000。');$('#dialog').close();});
 });
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){scene.finish();if(ready)scene.app.stop();sound.context?.suspend();}
@@ -227,7 +227,7 @@ showPayout(0);
 setBusy(false);
 async function startGame() {
   const loading = createLoadingScreen();
-  loading.update(8, '正在喚醒神殿');
+  loading.update(8, '正在喚醒馬戲團');
   try {
     const activity=await connectActivity();
     activityMode=activity.mode;
@@ -239,7 +239,7 @@ async function startGame() {
       label.replaceChildren(document.createElement('i'),document.createTextNode(activityUser?'Discord 已登入':'Discord 試玩'));
       if(activityUser)label.title=`${activityUser.global_name || activityUser.username} · ${activityUser.id}`;
     }
-    loading.update(20, '正在展開尼羅河的風景');
+    loading.update(20, '正在展開馬戲團的舞台');
   } catch(error) {
     console.error(error);
     loading.fail(error.message);

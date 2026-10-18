@@ -10,16 +10,20 @@ from PIL import Image, ImageChops, ImageStat, features
 
 ROOT = Path(__file__).resolve().parents[1]
 assert features.check('webp'), 'Pillow must include WebP support'
-LOSSLESS = {'symbols.png', 'fonts/kemet-gold.png', 'fx/big-win-spark-sheet.png'}
-QUALITY = {'background.png': 90, 'main.png': 94, 'symbols.png': 96,
-           'spine/anubis/character_anubis.png': 95}
+# Only runtime assets are encoded; archived art and source exports stay untouched.
+ASSETS = {
+    'main.png': (True, 100),
+    'symbols.png': (True, 100),
+    'fonts/circus-gold.png': (True, 100),
+    'fx/circus-win-frame.png': (True, 100),
+    'jokers-circus/circus-background.png': (False, 90),
+}
 records = []
-for source in sorted((ROOT / 'images').rglob('*.png')):
+for asset, (lossless, quality) in ASSETS.items():
+    source = ROOT / 'images' / asset
     name = source.relative_to(ROOT / 'images').as_posix()
     target = source.with_suffix('.webp')
     original = Image.open(source).convert('RGBA')
-    lossless = name in LOSSLESS
-    quality = QUALITY.get(name, 96)
     original.save(target, format='WEBP', lossless=lossless, quality=quality,
                   alpha_quality=100, method=6, exact=True)
     with Image.open(target) as decoded:

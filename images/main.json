@@ -1,60 +1,84 @@
 {"frames": {
 
-"anubis.png":
+"big-win.png":
 {
-	"frame": {"x":1561,"y":620,"w":420,"h":1183},
+	"frame": {"x":1,"y":924,"w":1023,"h":305},
 	"rotated": false,
 	"trimmed": true,
-	"spriteSourceSize": {"x":141,"y":33,"w":420,"h":1183},
-	"sourceSize": {"w":667,"h":1250}
+	"spriteSourceSize": {"x":32,"y":46,"w":1023,"h":305},
+	"sourceSize": {"w":1086,"h":362}
 },
-"big_win.png":
+"celebration-coin.png":
 {
-	"frame": {"x":1,"y":246,"w":1072,"h":264},
+	"frame": {"x":1132,"y":1115,"w":465,"h":479},
 	"rotated": false,
 	"trimmed": true,
-	"spriteSourceSize": {"x":58,"y":53,"w":1072,"h":264},
-	"sourceSize": {"w":1197,"h":342}
+	"spriteSourceSize": {"x":79,"y":70,"w":465,"h":479},
+	"sourceSize": {"w":627,"h":627}
 },
-"big_win_decor.png":
+"circus-reel-frame.png":
 {
-	"frame": {"x":1,"y":620,"w":636,"h":453},
+	"frame": {"x":1070,"y":1,"w":768,"h":483},
 	"rotated": false,
 	"trimmed": true,
-	"spriteSourceSize": {"x":12,"y":29,"w":636,"h":453},
-	"sourceSize": {"w":655,"h":512}
+	"spriteSourceSize": {"x":0,"y":0,"w":768,"h":483},
+	"sourceSize": {"w":768,"h":512}
 },
-"logo_long.png":
+"logo-long.png":
 {
-	"frame": {"x":1,"y":1,"w":1210,"h":243},
+	"frame": {"x":1,"y":294,"w":1064,"h":336},
 	"rotated": false,
 	"trimmed": true,
-	"spriteSourceSize": {"x":27,"y":28,"w":1210,"h":243},
-	"sourceSize": {"w":1250,"h":350}
+	"spriteSourceSize": {"x":14,"y":3,"w":1064,"h":336},
+	"sourceSize": {"w":1085,"h":363}
 },
-"logo_short.png":
+"logo-short.png":
 {
-	"frame": {"x":1075,"y":246,"w":784,"h":372},
+	"frame": {"x":1,"y":1231,"w":574,"h":581},
 	"rotated": false,
 	"trimmed": true,
-	"spriteSourceSize": {"x":39,"y":14,"w":784,"h":372},
-	"sourceSize": {"w":848,"h":440}
+	"spriteSourceSize": {"x":24,"y":16,"w":574,"h":581},
+	"sourceSize": {"w":627,"h":627}
 },
-"reel_frame_filled.png":
+"mega-win.png":
 {
-	"frame": {"x":639,"y":620,"w":920,"h":637},
+	"frame": {"x":1,"y":1,"w":1067,"h":291},
 	"rotated": false,
 	"trimmed": true,
-	"spriteSourceSize": {"x":47,"y":18,"w":920,"h":637},
-	"sourceSize": {"w":1000,"h":675}
+	"spriteSourceSize": {"x":8,"y":51,"w":1067,"h":291},
+	"sourceSize": {"w":1086,"h":362}
+},
+"spin-button.png":
+{
+	"frame": {"x":577,"y":1231,"w":553,"h":548},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":37,"y":39,"w":553,"h":548},
+	"sourceSize": {"w":627,"h":627}
+},
+"super-win.png":
+{
+	"frame": {"x":1,"y":632,"w":1045,"h":290},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":19,"y":57,"w":1045,"h":290},
+	"sourceSize": {"w":1086,"h":362}
+},
+"win-aura.png":
+{
+	"frame": {"x":1067,"y":486,"w":627,"h":627},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":627,"h":627},
+	"sourceSize": {"w":627,"h":627}
 }},
 "meta": {
 	"app": "https://www.codeandweb.com/texturepacker",
 	"version": "1.0",
 	"image": "main.webp",
 	"format": "RGBA8888",
-	"size": {"w":1982,"h":1804},
+	"size": {"w":2048,"h":2048},
 	"scale": "0.5",
-	"smartupdate": "$TexturePacker:SmartUpdate:b0c440c726d2ca9a32492e5bb1a2dd01:5369cbc9df821000e02e2b83f86a2980:03f91ab73e0f4667800419161e658c40$"
+	"smartupdate": "$TexturePacker:SmartUpdate:0fcb5dd75a5b628666266680c2351cd7:ebd0c28c0f77f08d186b7c34da2ed570:03f91ab73e0f4667800419161e658c40$"
 }
 }

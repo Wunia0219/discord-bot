@@ -1,12 +1,11 @@
 .loading-screen{position:fixed;inset:0;z-index:100;display:grid;place-items:center;overflow:hidden;box-sizing:border-box;min-height:100%;padding:max(24px,var(--discord-safe-area-inset-top,env(safe-area-inset-top,0px))) max(24px,var(--discord-safe-area-inset-right,env(safe-area-inset-right,0px))) max(24px,var(--discord-safe-area-inset-bottom,env(safe-area-inset-bottom,0px))) max(24px,var(--discord-safe-area-inset-left,env(safe-area-inset-left,0px)));color:#edcf90;background:radial-gradient(ellipse at 50% 44%,#193c4b66,transparent 48%),radial-gradient(ellipse at 50% 105%,#73512838,transparent 65%),#0b1020;font-family:'Noto Sans TC',sans-serif;transition:opacity .45s ease,visibility .45s}
 .loading-content{position:relative;z-index:1;display:flex;align-items:center;flex-direction:column;width:min(620px,100%);padding:24px 0}
-/* TexturePacker logo_short.png: frame (1075,246,784,372), atlas 1982×1804.
-   Display the existing atlas region without generating a second image. */
-.loading-logo{position:relative;width:min(510px,90%);aspect-ratio:784/372;overflow:hidden;filter:drop-shadow(0 14px 30px #0008);animation:loading-arrive .75s ease-out both}
-.loading-logo img{position:absolute;width:252.80612245%;max-width:none;height:auto;left:-137.11734694%;top:-66.12903226%;display:block}
+.atlas-art{position:relative;overflow:hidden}.atlas-art>img{position:absolute;max-width:none;height:auto;display:block}
+.loading-logo{width:min(310px,60vh,85%);filter:drop-shadow(0 14px 30px #0008);animation:loading-arrive .75s ease-out both}
+.loading-logo-art{width:100%}
 .loading-meter{width:min(420px,86%);margin-top:52px}
 .loading-track{height:12px;padding:2px;border:1px solid #d6ac5860;border-radius:20px;background:#060b16;box-shadow:inset 0 2px 5px #0009,0 0 20px #dba54c0a;box-sizing:border-box}
-.loading-fill{height:100%;width:0;position:relative;overflow:hidden;border-radius:12px;background:linear-gradient(100deg,#447f78,#82c5ac 32%,#dfb763 66%,#fff0b0);background-size:220% 100%;box-shadow:0 0 12px #e9bd6d77;animation:loading-flow 3s linear infinite}
+.loading-fill{height:100%;width:0;position:relative;overflow:hidden;border-radius:12px;background:linear-gradient(100deg,#841e37,#c44b60 32%,#dfb763 66%,#fff0b0);background-size:220% 100%;box-shadow:0 0 12px #e9bd6d77;animation:loading-flow 3s linear infinite}
 .loading-current{position:absolute;inset:0;background:linear-gradient(110deg,transparent 25%,#fff8cf80 48%,transparent 70%);transform:translateX(-100%);animation:loading-shimmer 2s ease-in-out infinite}
 .loading-fill::after{content:'';position:absolute;right:0;top:0;width:10px;height:100%;background:#fff3c9;box-shadow:0 0 10px 4px #ffe6a3;border-radius:50%}
 .loading-fill i{position:absolute;width:4px;height:4px;border-radius:50%;background:#fff9d9b3;top:1px;left:15%;animation:loading-mote 2.4s ease-in-out infinite}
@@ -25,5 +24,5 @@
 
 .loading-status{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .loading-retry svg{width:22px;height:22px;display:block}
-@media(max-width:600px){.loading-logo{width:100%}.loading-meter{width:92%;margin-top:40px}}
-@media(max-height:520px){.loading-content{padding:12px 0}.loading-logo{width:min(380px,80vh)}.loading-meter{margin-top:26px}}
+@media(max-width:600px){.loading-logo{width:min(270px,55vh,85%)}.loading-meter{width:92%;margin-top:40px}}
+@media(max-height:520px){.loading-content{padding:12px 0}.loading-logo{width:min(240px,55vh)}.loading-meter{margin-top:26px}}

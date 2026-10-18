@@ -1,5 +1,5 @@
-import descriptor from '../images/fonts/kemet-gold.fnt?raw';
-import atlasUrl from '../images/fonts/kemet-gold.webp';
+import descriptor from '../images/fonts/circus-gold.fnt?raw';
+import atlasUrl from '../images/fonts/circus-gold.webp';
 
 const glyphs = new Map(descriptor.split('\n').filter(line => line.startsWith('char ')).map(line => {
   const glyph = Object.fromEntries([...line.matchAll(/(\w+)=(-?\d+)/g)].map(([,key,value]) => [key,Number(value)]));

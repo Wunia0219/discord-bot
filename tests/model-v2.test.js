@@ -4,7 +4,6 @@ import {readFileSync} from 'node:fs';
 import { winTier } from '../src/win-tier.js';
 import { roundFromStops,readState,createRound,restoredStops,INITIAL_STOPS,TIER_PREVIEW_STOPS,REEL_STRIPS,PAYLINES,MODEL_VERSION } from '../src/game.js';
 import * as v1 from '../src/models/v1/slot-math.js';
-import {webpSize} from './helpers/webp.js';
 
 test('v2 has 60–70% low symbols, exact agreed tail frequency and reachable tier previews',()=>{
  const report=JSON.parse(readFileSync(new URL('../docs/math-report.json',import.meta.url)));
@@ -35,13 +34,4 @@ test('v1 history keeps original results and balance while new v2 rounds append s
  assert.deepEqual(next.state.history[1],record);
  const tampered=structuredClone(old);tampered.history[0].wins[0].payout++;
  assert.equal(readState(JSON.stringify(tampered)).history.length,0);
-});
-test('new title exports use identical slots and safe alpha bounds',()=>{
- const manifest=JSON.parse(readFileSync(new URL('../images/fx/win-titles.json',import.meta.url)));
- assert.deepEqual(manifest.size,[1072,264]);
- for(const tier of ['super','mega']){
-  assert.deepEqual(webpSize(new URL(`../images/fx/${tier}-win-title.webp`,import.meta.url)),[1072,264]);
-  const [x,y,right,bottom]=manifest.titles[tier].bounds;
-  assert.ok(x>=16&&y>=12&&right<=1056&&bottom<=252);
- }
 });

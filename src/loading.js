@@ -1,5 +1,7 @@
+import { mainArt } from './main-art.js';
 export function createLoadingScreen() {
   const screen = document.querySelector('#loading');
+  screen.querySelector('.loading-logo').innerHTML = mainArt('logo-short.png', 'loading-logo-art');
   const track = screen.querySelector('#loading-track');
   const status = screen.querySelector('#loading-status');
   const started = performance.now();
@@ -25,7 +27,7 @@ export function createLoadingScreen() {
   return {
     update,
     async finish() {
-      update(100, '神殿已開啟');
+      update(100, '馬戲團已開啟');
       // Let the final fill settle; avoid flashing the screen on a cached visit.
       await wait(reduced ? 0 : Math.max(600, 1400 - (performance.now() - started)));
       screen.classList.add('is-leaving');
@@ -38,7 +40,7 @@ export function createLoadingScreen() {
       cancelAnimationFrame(frame);
       screen.classList.add('has-error');
       screen.setAttribute('aria-busy', 'false');
-      status.textContent = `暫時無法開啟神殿。${message}`;
+      status.textContent = `暫時無法開啟馬戲團。${message}`;
       screen.querySelector('#loading-retry').title = `${message} 點此重新載入`;
       screen.querySelector('#loading-retry').hidden = false;
     },

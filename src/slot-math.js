@@ -3,10 +3,11 @@ import { PAYOUTS, INITIAL_STOPS, TIER_PREVIEW_STOPS } from './model-config.js';
 import { winTier } from './win-tier.js';
 export { MAXIMUM_MULTIPLIER, BIG_WIN_MEAN_SPINS, TIER_PREVIEW_STOPS } from './model-config.js';
 export { MODEL_VERSION, REEL_CODES };
-export const SYMBOL_FRAMES = Object.freeze({ scarab: 'H1.png', eye: 'H2.png', ankh: 'H3.png', necklace: 'H4.png', ace: 'L1.png', king: 'L2.png', queen: 'L3.png', jack: 'L4.png', wild: 'W.png' });
+export const SYMBOL_FRAMES = Object.freeze({ scarab: 'H1.png', eye: 'H2.png', ankh: 'H3.png', necklace: 'H4.png', ace: 'L1.png', king: 'L2.png', queen: 'L3.png', jack: 'L4.png', wild: 'WILD.png' });
 export const SYMBOLS = Object.freeze(Object.keys(SYMBOL_FRAMES));
-export const SYMBOL_CODES = Object.freeze(Object.fromEntries(SYMBOLS.map(s => [s, SYMBOL_FRAMES[s].replace('.png', '')])));
-export const SYMBOL_NAMES = Object.freeze({ scarab: '聖甲蟲', eye: '荷魯斯之眼', ankh: '生命之符', necklace: '皇家項鍊', ace: 'A', king: 'K', queen: 'Q', jack: 'J', wild: 'WILD' });
+// Math/replay codes stay stable when artwork filenames change.
+export const SYMBOL_CODES = Object.freeze({ scarab: 'H1', eye: 'H2', ankh: 'H3', necklace: 'H4', ace: 'L1', king: 'L2', queen: 'L3', jack: 'L4', wild: 'W' });
+export const SYMBOL_NAMES = Object.freeze({ scarab: '小丑烏鴉', eye: '皇冠白兔', ankh: '皇家蝴蝶', necklace: '皇冠金魚', ace: '黑桃', king: '紅心', queen: '方塊', jack: '梅花', wild: 'WILD' });
 const fromCode = Object.fromEntries(SYMBOLS.map(s => [SYMBOL_CODES[s], s]));
 export const REEL_STRIPS = Object.freeze(REEL_CODES.map(strip => Object.freeze(strip.map(code => fromCode[code]))));
 export const PAYTABLE = Object.freeze(Object.fromEntries(SYMBOLS.map((s, i) => [s, PAYOUTS[i]])));

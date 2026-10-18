@@ -2,7 +2,7 @@
 :root{font-family:'Noto Sans TC',sans-serif;color:#fff0d5;background:#211426;font-synthesis:none;--gold:#f5d28c;--muted:#d0bcc0;--line:#e7be7140;--safe-top:var(--discord-safe-area-inset-top,env(safe-area-inset-top,0px));--safe-bottom:var(--discord-safe-area-inset-bottom,env(safe-area-inset-bottom,0px));--safe-left:var(--discord-safe-area-inset-left,env(safe-area-inset-left,0px));--safe-right:var(--discord-safe-area-inset-right,env(safe-area-inset-right,0px))}
 *{box-sizing:border-box}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;overscroll-behavior:none}
-body::before{content:'';position:fixed;inset:0;z-index:-1;background:linear-gradient(#17102820,#190e1810 60%,#170e20dc),url('../images/background.webp') center 57%/cover no-repeat}
+body::before{content:'';position:fixed;inset:0;z-index:-1;background:linear-gradient(#17102820,#190e1810 60%,#170e20dc),url('../images/jokers-circus/circus-background.webp') center 57%/cover no-repeat}
 button,a{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 button:disabled{opacity:.5;cursor:wait}
@@ -118,3 +118,12 @@ dialog[open]{display:flex;flex-direction:column}
 :root[data-game-layout=desktop] #celebration{inset:64% 23% 10%}
 :root[data-game-layout=desktop] #celebration-title{font-size:22px}
 :root[data-game-layout=desktop] #celebration-amount{font-size:62px}
+
+/* Atlas artwork supplies the complete circus spin button, including its rim. */
+.spin{padding:0;border:0;background:none;box-shadow:none}
+.spin-art{width:100%;height:100%;pointer-events:none}
+.spin:disabled{filter:saturate(.45) brightness(.7)}
+.spin:hover:not(:disabled){filter:brightness(1.12)}
+.spin:active:not(:disabled){transform:scale(.95)}
+.spin.spinning .spin-art{animation:rotate 1s linear infinite}
+@media(prefers-reduced-motion:reduce){.spin.spinning .spin-art{animation:none}}

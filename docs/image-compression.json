@@ -1,24 +1,41 @@
 [
   {
-    "source": "images/background.png",
-    "webp": "images/background.webp",
+    "source": "images/main.png",
+    "webp": "images/main.webp",
     "size": [
-      2796,
-      2796
+      2048,
+      2048
     ],
-    "lossless": false,
-    "quality": 90,
+    "lossless": true,
+    "quality": null,
     "alphaExact": true,
-    "beforeBytes": 11037586,
-    "afterBytes": 1068124,
+    "beforeBytes": 3811175,
+    "afterBytes": 2971958,
     "compositedPSNR": {
-      "black": 38.42,
-      "white": 38.42
+      "black": null,
+      "white": null
     }
   },
   {
-    "source": "images/fonts/kemet-gold.png",
-    "webp": "images/fonts/kemet-gold.webp",
+    "source": "images/symbols.png",
+    "webp": "images/symbols.webp",
+    "size": [
+      1024,
+      1024
+    ],
+    "lossless": true,
+    "quality": null,
+    "alphaExact": true,
+    "beforeBytes": 635087,
+    "afterBytes": 449354,
+    "compositedPSNR": {
+      "black": null,
+      "white": null
+    }
+  },
+  {
+    "source": "images/fonts/circus-gold.png",
+    "webp": "images/fonts/circus-gold.webp",
     "size": [
       768,
       1024
@@ -26,130 +43,45 @@
     "lossless": true,
     "quality": null,
     "alphaExact": true,
-    "beforeBytes": 138585,
-    "afterBytes": 81168,
+    "beforeBytes": 136214,
+    "afterBytes": 80504,
     "compositedPSNR": {
       "black": null,
       "white": null
     }
   },
   {
-    "source": "images/fx/big-win-aura-source.png",
-    "webp": "images/fx/big-win-aura-source.webp",
+    "source": "images/fx/circus-win-frame.png",
+    "webp": "images/fx/circus-win-frame.webp",
     "size": [
       1254,
       1254
-    ],
-    "lossless": false,
-    "quality": 96,
-    "alphaExact": true,
-    "beforeBytes": 2388505,
-    "afterBytes": 730294,
-    "compositedPSNR": {
-      "black": 35.5,
-      "white": 35.5
-    }
-  },
-  {
-    "source": "images/fx/big-win-spark-sheet.png",
-    "webp": "images/fx/big-win-spark-sheet.webp",
-    "size": [
-      1024,
-      128
     ],
     "lossless": true,
     "quality": null,
     "alphaExact": true,
-    "beforeBytes": 8009,
-    "afterBytes": 3252,
+    "beforeBytes": 599552,
+    "afterBytes": 399734,
     "compositedPSNR": {
       "black": null,
       "white": null
     }
   },
   {
-    "source": "images/fx/win-symbol-frame-thin.png",
-    "webp": "images/fx/win-symbol-frame-thin.webp",
+    "source": "images/jokers-circus/circus-background.png",
+    "webp": "images/jokers-circus/circus-background.webp",
     "size": [
-      1254,
-      1254
+      1672,
+      941
     ],
     "lossless": false,
-    "quality": 96,
+    "quality": 90,
     "alphaExact": true,
-    "beforeBytes": 381795,
-    "afterBytes": 130830,
+    "beforeBytes": 1966659,
+    "afterBytes": 196428,
     "compositedPSNR": {
-      "black": 38.39,
-      "white": 38.39
-    }
-  },
-  {
-    "source": "images/fx/win-symbol-frame.png",
-    "webp": "images/fx/win-symbol-frame.webp",
-    "size": [
-      1254,
-      1254
-    ],
-    "lossless": false,
-    "quality": 96,
-    "alphaExact": true,
-    "beforeBytes": 924108,
-    "afterBytes": 279210,
-    "compositedPSNR": {
-      "black": 37.24,
-      "white": 37.24
-    }
-  },
-  {
-    "source": "images/main.png",
-    "webp": "images/main.webp",
-    "size": [
-      1982,
-      1804
-    ],
-    "lossless": false,
-    "quality": 94,
-    "alphaExact": true,
-    "beforeBytes": 2445719,
-    "afterBytes": 493270,
-    "compositedPSNR": {
-      "black": 37.76,
-      "white": 37.76
-    }
-  },
-  {
-    "source": "images/spine/anubis/character_anubis.png",
-    "webp": "images/spine/anubis/character_anubis.webp",
-    "size": [
-      1413,
-      1540
-    ],
-    "lossless": false,
-    "quality": 95,
-    "alphaExact": true,
-    "beforeBytes": 2136344,
-    "afterBytes": 377150,
-    "compositedPSNR": {
-      "black": 43.48,
-      "white": 43.48
-    }
-  },
-  {
-    "source": "images/symbols.png",
-    "webp": "images/symbols.webp",
-    "size": [
-      256,
-      2048
-    ],
-    "lossless": true,
-    "quality": null,
-    "alphaExact": true,
-    "beforeBytes": 733745,
-    "afterBytes": 538976,
-    "compositedPSNR": {
-      "black": null,
-      "white": null
+      "black": 37.16,
+      "white": 37.16
     }
   }
 ]
