@@ -1,5 +1,6 @@
 import { Application, Assets, Container, Graphics, Sprite, Texture, Rectangle } from 'pixi.js';
-import { SYMBOLS, INITIAL_GRID } from './game.js';
+import { SYMBOLS, SYMBOL_FRAMES, INITIAL_STOPS, REEL_STRIPS, gridFromStops, reelMotion, PAYLINES } from './game.js';
+import { BOUNCE_MS, reelOffset, WinLineCycle } from './presentation.js';
 import mainAtlas from '../images/main.json';
 import symbolAtlas from '../images/symbols.json';
 import mainUrl from '../images/main.png';
@@ -23,8 +24,10 @@ export class SlotScene {
   reels = [];
   particles = [];
   active = null;
-  current = INITIAL_GRID;
+  currentStops = INITIAL_STOPS;
   reduced = false;
+  lineCycle = new WinLineCycle();
+  presentationPaused = false;
   async init(host) {
     await this.app.init({ width: W, height: H, backgroundAlpha: 0, antialias: true, preference: 'webgl', resolution: Math.min(devicePixelRatio || 1, 2), autoDensity: true });
     host.append(this.app.canvas);
@@ -34,7 +37,11 @@ export class SlotScene {
     const [main, symbols] = await Promise.all([Assets.load(mainUrl), Assets.load(symbolsUrl)]);
     this.art = textures(main, mainAtlas);
     const sheet = textures(symbols, symbolAtlas, true);
-    this.textures = Object.fromEntries(SYMBOLS.map(s => [s, sheet[s === 'wild' ? 'wild.png' : `high_${s}.png`]]));
+    this.textures = Object.fromEntries(SYMBOLS.map(s => {
+      const texture = sheet[SYMBOL_FRAMES[s]];
+      if (!texture) throw new Error(`圖集缺少符號：${SYMBOL_FRAMES[s]}`);
+      return [s, texture];
+    }));
     this.addArt('reel_frame_filled.png', 140, 104, 920);
     const ornament = new Graphics();
     for (let col = 0; col < 5; col++) {
@@ -48,7 +55,7 @@ export class SlotScene {
     }
     this.app.stage.addChild(ornament);
     this.reels.forEach(r => this.app.stage.addChild(r.mask, r.strip));
-    this.setStatic(this.current);
+    this.setStops(this.currentStops);
     const shade = new Graphics();
     for (let i = 0; i < 22; i++) {
       const alpha = .45 * (1 - i / 22);
@@ -57,7 +64,6 @@ export class SlotScene {
     }
     this.app.stage.addChild(shade);
     this.line = new Graphics();
-    for (let i = 0; i < 5; i++) this.line.roundRect(GRID.x + i * CW + 4, GRID.y + CH + 3, CW - 8, CH - 6, 10).stroke({ color: GOLD, width: 3 });
     this.line.alpha = 0;
     this.app.stage.addChild(this.line);
     this.app.stage.addChild(new Graphics().poly([238, 425, 250, 432, 238, 439]).fill(GOLD).poly([962, 425, 950, 432, 962, 439]).fill(GOLD));
@@ -76,29 +82,67 @@ export class SlotScene {
   addArt(name, x, y, width) {
     const s = new Sprite(this.art[name]); s.position.set(x, y); s.scale.set(width / s.texture.width); this.app.stage.addChild(s); return s;
   }
-  populate(reel, names) {
+  populate(reel, names, rowOffset = 0) {
     reel.strip.removeChildren().forEach(s => s.destroy());
     names.forEach((name, row) => {
       const s = new Sprite(this.textures[name]); s.anchor.set(.5); s.scale.set(132 / 256);
-      s.position.set(reel.x + CW / 2, GRID.y + CH / 2 + row * CH); reel.strip.addChild(s);
+      s.position.set(reel.x + CW / 2, GRID.y + CH / 2 + (row + rowOffset) * CH); reel.strip.addChild(s);
     });
     reel.strip.y = 0;
   }
-  setStatic(grid) { this.current = grid; this.reels.forEach((r, i) => this.populate(r, grid[i])); }
-  spin(grid, onStop) {
+  setStops(stops) { const grid = gridFromStops(stops); this.currentStops = [...stops]; this.reels.forEach((r, i) => this.populate(r, grid[i])); }
+  clearWins() {
+    this.lineCycle.clear();
+    this.line.clear(); this.line.alpha = 0;
+  }
+  showWins(wins, onLine = () => {}) {
+    this.clearWins();
+    this.lineCycle.start(wins, (win, index, total) => {
+      const color = this.drawWin(win);
+      onLine(win, index, total, `#${color.toString(16).padStart(6, '0')}`);
+    });
+  }
+  drawWin(win) {
+    this.line.clear();
+    const rows = PAYLINES[win.line - 1];
+    const color = [GOLD, 0x80f0e5, 0xe9a7ff, 0xffb58e, 0xa4eaa0][(win.line - 1) % 5];
+    for (let col = 0; col < 5; col++) for (let row = 0; row < 3; row++) {
+      const x = GRID.x + col * CW, y = GRID.y + row * CH;
+      if (col < win.count && row === rows[col]) {
+        this.line.roundRect(x + 4, y + 3, CW - 8, CH - 6, 10).fill({ color, alpha: .1 }).stroke({ color, width: 3 });
+      } else this.line.rect(x, y, CW, CH).fill({ color: 0x140c20, alpha: .52 });
+    }
+    const path = (count, width, alpha) => {
+      this.line.moveTo(GRID.x - 10, GRID.y + (rows[0] + .5) * CH);
+      for (let col = 0; col < count; col++) this.line.lineTo(GRID.x + (col + .5) * CW, GRID.y + (rows[col] + .5) * CH);
+      this.line.stroke({ color, width, alpha, cap: 'round', join: 'round' });
+    };
+    path(5, 2, .35); path(win.count, 11, .25); path(win.count, 3, 1);
+    for (let col = 0; col < win.count; col++) this.line.circle(GRID.x + (col + .5) * CW, GRID.y + (rows[col] + .5) * CH, 5).fill(color);
+    this.line.alpha = 1;
+    return color;
+  }
+  spin(stops, onStop) {
     if (this.active) throw new Error('轉輪正在運轉');
-    this.clearCelebration(); this.line.alpha = 0;
+    this.clearCelebration(); this.clearWins();
     return new Promise(resolve => {
-      this.active = { time: 0, resolve, onStop, grid };
+      this.active = { time: 0, resolve, onStop, stops };
       this.reels.forEach((r, i) => {
-        r.steps = 20 + i * 4; r.duration = this.reduced ? 240 + i * 70 : 1900 + i * 340; r.stopped = false;
-        const names = Array.from({ length: r.steps + 4 }, () => SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]);
-        names.splice(0, 3, ...this.current[i]); names.splice(r.steps, 3, ...grid[i]); this.populate(r, names);
+        const { steps, names } = reelMotion(i, this.currentStops[i], stops[i]);
+        r.steps = steps; r.stopAt = this.reduced ? 240 + i * 70 : 1200 + i * 230;
+        r.reduced = this.reduced; r.stopped = false; r.impacted = false;
+        const strip = REEL_STRIPS[i], length = strip.length;
+        // Guard cells above/below keep the mask filled during both bounce directions.
+        const before = strip[(stops[i] - 2 + length) % length];
+        const after = strip[(stops[i] + steps + 2) % length];
+        this.populate(r, [before, ...names, after], -1);
+        r.strip.y = -r.steps * CH;
       });
     });
   }
   celebrate(big = false, showLine = true) {
-    this.line.alpha = showLine ? 1 : 0; this.winArt.visible = big;
+    this.presentationPaused = big || !showLine;
+    this.line.alpha = this.presentationPaused ? 0 : 1; this.winArt.visible = big;
     if (this.reduced) return;
     for (let i = 0; i < (big ? 100 : 30); i++) {
       const g = new Graphics();
@@ -108,20 +152,24 @@ export class SlotScene {
       this.particles.push({ g, vx: (Math.random() - .5) * 800, vy: -140 - Math.random() * 430, life: 1.8 + Math.random(), age: 0, spin: (Math.random() - .5) * 9 });
     }
   }
-  clearCelebration() { if (this.winArt) this.winArt.visible = false; }
+  clearCelebration() {
+    if (this.winArt) this.winArt.visible = false;
+    this.presentationPaused = false;
+    if (this.lineCycle.index >= 0) this.line.alpha = 1;
+  }
   tick(t) {
     const dt = Math.min(t.elapsedMS, 50) / 1000;
     if (this.active) {
       const a = this.active; a.time += t.deltaMS;
       this.reels.forEach((r, i) => {
         if (r.stopped) return;
-        const p = Math.min(a.time / r.duration, 1);
-        // Insert all three final cells into the moving strip, avoiding a final-frame swap.
-        r.strip.y = -r.steps * CH * (1 - (1 - p) ** 3);
-        if (p === 1) { r.stopped = true; a.onStop(i); }
+        r.strip.y = reelOffset(r.steps * CH, a.time, r.stopAt, CH, r.reduced);
+        if (!r.impacted && a.time >= r.stopAt) { r.impacted = true; a.onStop(i); }
+        if (a.time >= r.stopAt + (r.reduced ? 0 : BOUNCE_MS)) r.stopped = true;
       });
-      if (this.reels.every(r => r.stopped)) { this.active = null; this.setStatic(a.grid); a.resolve(); }
+      if (this.reels.every(r => r.stopped)) { this.active = null; this.setStops(a.stops); a.resolve(); }
     }
+    this.lineCycle.tick(t.deltaMS, this.presentationPaused || !!this.active);
     this.particles = this.particles.filter(p => {
       p.age += dt; p.vy += 330 * dt; p.g.x += p.vx * dt; p.g.y += p.vy * dt; p.g.rotation += p.spin * dt; p.g.alpha = Math.max(0, 1 - p.age / p.life);
       if (p.age >= p.life) { p.g.destroy(); return false; } return true;
@@ -129,7 +177,7 @@ export class SlotScene {
   }
   finish() {
     if (!this.active) return;
-    const a = this.active; this.active = null; this.setStatic(a.grid); a.resolve();
+    const a = this.active; this.active = null; this.setStops(a.stops); a.resolve();
     this.particles.forEach(p => p.g.destroy()); this.particles = [];
   }
 }

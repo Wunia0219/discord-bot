@@ -1,38 +1,42 @@
+import { SYMBOLS, COLS, ROWS, MODEL_VERSION, INITIAL_STOPS, gridFromStops, evaluateGrid, validateStops } from './slot-math.js';
+export * from './slot-math.js';
 export const INITIAL_BALANCE = 10000;
-export const BETS = [50, 100, 250, 500];
-export const SYMBOLS = ['ankh', 'eye', 'necklace', 'scarab', 'wild'];
-export const SYMBOL_NAMES = { ankh: '生命之符', eye: '荷魯斯之眼', necklace: '皇家項鍊', scarab: '聖甲蟲', wild: 'WILD' };
-export const COLS = 5, ROWS = 3;
-// Column-major 5 × 3 display. Only the middle line pays in this visual prototype.
-export function makeGrid(symbols, seed = 0) {
-  return symbols.map((symbol, col) => [SYMBOLS[(col + seed) % SYMBOLS.length], symbol, SYMBOLS[(col + seed + 2) % SYMBOLS.length]]);
+export const BETS = [20, 100, 200, 500];
+export const freshState = () => ({ version: 3, balance: INITIAL_BALANCE, history: [], milestones: [] });
+export function roundFromStops(bet, stops) {
+  const grid = gridFromStops(stops);
+  return { ...evaluateGrid(grid, bet), grid, stops: [...stops], symbols: grid.map(col => col[1]), rules: MODEL_VERSION };
 }
-export const INITIAL_GRID = makeGrid(['ankh', 'eye', 'wild', 'scarab', 'necklace'], 2);
-// Illustrative preview distribution, NOT approved production odds.
-export const OUTCOMES = [
-  { limit: .50, symbols: ['eye', 'ankh', 'necklace', 'scarab', 'eye'], multiplier: 0, label: '寶藏仍在等待', level: 'none' },
-  { limit: .80, symbols: Array(5).fill('ankh'), multiplier: 2, label: '生命之符的祝福', level: 'small' },
-  { limit: .95, symbols: Array(5).fill('eye'), multiplier: 5, label: '荷魯斯的眷顧', level: 'medium' },
-  { limit: 1, symbols: Array(5).fill('wild'), multiplier: 20, label: '法老王的寶藏', level: 'jackpot' },
-];
-export const freshState = () => ({ version: 2, balance: INITIAL_BALANCE, history: [], milestones: [] });
-export function createRound(state, bet, roll, id, time = new Date().toISOString()) {
+export function createRound(state, bet, stops, id, time = new Date().toISOString()) {
   if (state.history.some(r => r.id === id)) return { state, round: state.history.find(r => r.id === id), duplicate: true };
   if (!BETS.includes(bet)) throw new Error('請選擇有效的下注額');
   if (!Number.isSafeInteger(state.balance) || state.balance < bet) throw new Error('測試籌碼不足，請重設試玩');
-  if (!Number.isFinite(roll) || roll < 0 || roll >= 1) throw new Error('無效的測試亂數');
-  const outcome = OUTCOMES.find(o => roll < o.limit);
-  const payout = bet * outcome.multiplier;
-  const after = state.balance - bet + payout;
+  if (typeof id !== 'string' || !id || !Number.isFinite(Date.parse(time))) throw new Error('無效的局號或時間');
+  const outcome = roundFromStops(bet, stops);
+  const after = state.balance - bet + outcome.payout;
+  if (!Number.isSafeInteger(after)) throw new Error('籌碼超過可記帳範圍');
   const milestone = after >= 12000 && !state.milestones.includes(12000);
-  const round = { id, time, bet, payout, before: state.balance, after, net: payout - bet, ...outcome, grid: makeGrid(outcome.symbols, Math.floor(roll * 1000) % 5), rules: 'kemet-preview-v2', milestone };
-  return { round, state: { ...state, balance: after, history: [round, ...state.history].slice(0, 100), milestones: milestone ? [...state.milestones, 12000] : [...state.milestones] } };
+  const round = { id, time, bet, before: state.balance, after, net: outcome.payout - bet, ...outcome, milestone };
+  return { round, state: { ...state, version: 3, balance: after, history: [round, ...state.history].slice(0, 100), milestones: milestone ? [...state.milestones, 12000] : [...state.milestones] } };
 }
 export function readState(raw) {
   try {
     const state = JSON.parse(raw);
-    if (state?.version !== 2 || !Number.isSafeInteger(state.balance) || state.balance < 0 || !Array.isArray(state.history) || !Array.isArray(state.milestones)) return freshState();
-    if (state.history.length > 100 || state.history.some(r => !r || typeof r.id !== 'string' || !BETS.includes(r.bet) || !Number.isSafeInteger(r.payout) || r.payout < 0 || !Number.isSafeInteger(r.before) || r.before < r.bet || r.after !== r.before - r.bet + r.payout || r.net !== r.payout - r.bet || !Array.isArray(r.symbols) || r.symbols.length !== COLS || r.symbols.some(s => !SYMBOLS.includes(s)) || !Array.isArray(r.grid) || r.grid.length !== COLS || r.grid.some((col,i) => !Array.isArray(col) || col.length !== ROWS || col[1] !== r.symbols[i] || col.some(s => !SYMBOLS.includes(s))) || !Number.isFinite(Date.parse(r.time)))) return freshState();
-    return state;
+    if (![2, 3].includes(state?.version) || !Number.isSafeInteger(state.balance) || state.balance < 0 || !Array.isArray(state.history) || !Array.isArray(state.milestones) || state.milestones.some(x => x !== 12000)) return freshState();
+    if (state.history.length > 100 || new Set(state.history.map(r => r?.id)).size !== state.history.length) return freshState();
+    for (const r of state.history) {
+      const legacy = r?.rules === 'kemet-preview-v2';
+      if (!r || typeof r.id !== 'string' || !(legacy ? [50,100,250,500] : BETS).includes(r.bet) || !Number.isSafeInteger(r.payout) || r.payout < 0 || !Number.isSafeInteger(r.before) || r.before < r.bet || !Number.isSafeInteger(r.after) || r.after !== r.before - r.bet + r.payout || r.net !== r.payout - r.bet || !Number.isFinite(Date.parse(r.time))) return freshState();
+      if (!Array.isArray(r.symbols) || r.symbols.length !== COLS || !Array.isArray(r.grid) || r.grid.length !== COLS || r.grid.some((col, i) => !Array.isArray(col) || col.length !== ROWS || col[1] !== r.symbols[i] || col.some(s => !SYMBOLS.includes(s)))) return freshState();
+      if (!legacy) {
+        if (r.rules !== MODEL_VERSION) return freshState();
+        validateStops(r.stops);
+        const expected = roundFromStops(r.bet, r.stops);
+        if (JSON.stringify(r.grid) !== JSON.stringify(expected.grid) || r.payout !== expected.payout || r.lineBet !== expected.lineBet || JSON.stringify(r.wins) !== JSON.stringify(expected.wins)) return freshState();
+      }
+    }
+    if (state.history.length && state.history[0].after !== state.balance) return freshState();
+    return { ...state, version: 3 };
   } catch { return freshState(); }
 }
+export const restoredStops = state => state.history[0]?.rules === MODEL_VERSION ? state.history[0].stops : INITIAL_STOPS;
