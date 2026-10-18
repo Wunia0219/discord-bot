@@ -113,4 +113,24 @@ export class WalletStore {
     this.validate(guild,user);if(!Number.isSafeInteger(before)||before<1)throw problem(400,'無效的紀錄游標。');
     return this.db.prepare('SELECT * FROM ledger WHERE guild=? AND user=? AND id<? ORDER BY id DESC LIMIT 50').all(guild,user,before);
   }
+  auditHistory(guild,user,{category='rewards',before=Number.MAX_SAFE_INTEGER,days=0}={}){
+    this.validate(guild,user);
+    const kinds={rewards:['grant','reversal'],checkin:['checkin'],game:['spin'],all:[]};
+    if(!Object.hasOwn(kinds,category)||!Number.isSafeInteger(before)||before<1||![0,1,7,30].includes(days))throw problem(400,'無效的紀錄查詢條件。');
+    const since=days?taipeiDay(this.clock()-(days-1)*86400000):'0000-01-01';
+    const filter=kinds[category];
+    const rows=this.db.prepare(`SELECT l.*, (SELECT r.id FROM ledger r WHERE r.guild=l.guild AND r.user=l.user AND r.kind='reversal' AND r.reference=CAST(l.id AS TEXT)) AS reversal_id
+      FROM ledger l WHERE l.guild=? AND l.user=? AND l.id<? AND l.day>=?
+      ${filter.length?`AND l.kind IN (${filter.map(()=>'?').join(',')})`:''} ORDER BY l.id DESC LIMIT 11`).all(guild,user,before,since,...filter);
+    return {rows:rows.slice(0,10),next:rows.length>10?rows[9].id:null};
+  }
+  auditSummary(guild,user,days=0){
+    this.validate(guild,user);
+    if(![0,1,7,30].includes(days))throw problem(400,'無效的紀錄查詢期間。');
+    const since=days?taipeiDay(this.clock()-(days-1)*86400000):'0000-01-01';
+    const checkin=this.db.prepare("SELECT COUNT(DISTINCT day) days, COALESCE(SUM(delta),0) total FROM ledger WHERE guild=? AND user=? AND kind='checkin' AND day>=?").get(guild,user,since);
+    const game=this.db.prepare(`SELECT COUNT(*) rounds, COALESCE(SUM(json_extract(data,'$.bet')),0) bet,
+      COALESCE(SUM(json_extract(data,'$.payout')),0) payout FROM rounds WHERE guild=? AND user=? AND created>=?`).get(guild,user,days?Date.parse(since+'T00:00:00+08:00'):0);
+    return {checkin,game:{...game,net:game.payout-game.bet}};
+  }
 }
