@@ -2,12 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { webpSize } from './helpers/webp.js';
 import { freshState, createRound, readState, SYMBOLS, SYMBOL_FRAMES, INITIAL_GRID, INITIAL_STOPS, PREVIEW_STOPS, restoredStops, REEL_STRIPS, REEL_CODES, PAYLINES, PAYTABLE, MODEL_VERSION, gridFromStops, evaluateLine, evaluateGrid, uniformStop, drawStops, reelMotion } from '../src/game.js';
 
 test('all nine symbols resolve to valid renamed atlas frames',()=>{
   const atlas=JSON.parse(readFileSync(new URL('../images/symbols.json',import.meta.url),'utf8'));
-  const png=readFileSync(new URL('../images/symbols.png',import.meta.url));
-  const width=png.readUInt32BE(16),height=png.readUInt32BE(20);
+  assert.equal(atlas.meta.image,'symbols.webp');
+  const [width,height]=webpSize(new URL('../images/symbols.webp',import.meta.url));
   assert.equal(SYMBOLS.length,9);
   for(const symbol of SYMBOLS){
     const {x,y,w,h}=atlas.frames[SYMBOL_FRAMES[symbol]].frame;

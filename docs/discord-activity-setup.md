@@ -62,7 +62,7 @@ Windows 測試工具放在 `.tools/cloudflared.exe`（不提交 Git、不安裝�
 - 音效按鈕可手動開啟；縮放 Activity 不產生主頁捲動或遮住操作。
 - 切離與重新進入不會白屏。不同網址或裝置的本機帳本不保證共享，這不是 Discord 帳號錢包。
 - 再測 Discord 手機端的載入、音效與版面；先在 Activities → Settings → Supported Platforms 啟用需要的 iOS／Android 平台。
-- 新版依可用寬高切換桌面、直向與橫向排列，並在 READY 後請求 UNLOCKED 方向。測試空白鍵 SPIN，以及開啟紀錄／介紹時不會誤觸下注。
+- 桌面版依可用寬高等比例縮放相同構圖，操作列固定在機台下方；手機版才切換直向與橫向排列，並在 READY 後請求 UNLOCKED 方向。測試空白鍵 SPIN，以及開啟紀錄／介紹時不會誤觸下注。
 - 本機重新建置後，關閉再啟動 Discord Activity 以載入新版。外層黑邊可能由 Discord 的 Activity 容器決定，不能只靠遊戲 CSS 保證消除。
 
 ## 排查
@@ -81,3 +81,9 @@ Windows 測試工具放在 `.tools/cloudflared.exe`（不提交 Git、不安裝�
 - [Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)
 
 自動測試驗證一般瀏覽器回退、設定錯誤、等待 READY、逾時處理及方向解鎖請求，使用模擬 SDK。使用者已完成 Portal 設定並回報成功在 Discord 內試玩。自適應新版已在瀏覽器測試多種視窗尺寸；Discord 新版版面與手機端仍須實機確認。
+
+## 2026-10-18 測試通道修復
+
+舊的 `corn-acquire-lamps-detected.trycloudflare.com` DNS 回覆 NXDOMAIN，本機 4188 服務正常。已重新建立 Quick Tunnel：`stanford-glance-imposed-server.trycloudflare.com`，首頁與最新主程式 HTTP 200。使用者已將 Discord Portal 的 `/` URL Mapping Target 改成此新主機名稱，並確認重新開啟 Activity 後可正常遊玩。
+
+目前通道程序與網址資訊保存在不提交 Git 的 `.tools/activity-tunnel.json`，診斷日誌在 `test-results/activity-tunnel.stderr.log`。此為臨時網址，不能視為固定部署地址。

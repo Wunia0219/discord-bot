@@ -9,6 +9,7 @@
     "preview": "vite preview --host 127.0.0.1 --port 4187 --strictPort",
     "activity:serve": "npm run build && vite preview --host 127.0.0.1 --port 4188 --strictPort",
     "test": "node --test tests/*.test.js",
+    "assets:webp": "python scripts/optimize-images.py",
     "verify:math": "node scripts/verify-math.js"
   },
   "dependencies": {

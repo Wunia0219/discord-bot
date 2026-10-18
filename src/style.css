@@ -2,7 +2,7 @@
 :root{font-family:'Noto Sans TC',sans-serif;color:#fff0d5;background:#211426;font-synthesis:none;--gold:#f5d28c;--muted:#d0bcc0;--line:#e7be7140;--safe-top:var(--discord-safe-area-inset-top,env(safe-area-inset-top,0px));--safe-bottom:var(--discord-safe-area-inset-bottom,env(safe-area-inset-bottom,0px));--safe-left:var(--discord-safe-area-inset-left,env(safe-area-inset-left,0px));--safe-right:var(--discord-safe-area-inset-right,env(safe-area-inset-right,0px))}
 *{box-sizing:border-box}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;overscroll-behavior:none}
-body::before{content:'';position:fixed;inset:0;z-index:-1;background:linear-gradient(#17102820,#190e1810 60%,#170e20dc),url('../images/background.png') center 57%/cover no-repeat}
+body::before{content:'';position:fixed;inset:0;z-index:-1;background:linear-gradient(#17102820,#190e1810 60%,#170e20dc),url('../images/background.webp') center 57%/cover no-repeat}
 button,a{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 button:disabled{opacity:.5;cursor:wait}
@@ -26,6 +26,7 @@ h1,h2,h3,p{margin:0}
 .icon-button[aria-pressed=true]{color:#f5d28c;background:#e7be711a;border-color:#e7be714d}
 main{width:100%;flex:1;min-height:0;container-type:size;padding:0 8px 8px}
 .game-panel{--scene-width:970;--scene-height:700;--scene-x:115;--stage-width:min(100cqw,calc((100cqh - 246px)*970/700),880px);position:relative;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.game-composition{display:contents}
 .game-stage{position:relative;isolation:isolate;flex:none;width:var(--stage-width)}
 #canvas-host{width:100%;aspect-ratio:var(--scene-width)/var(--scene-height);position:relative;filter:drop-shadow(0 8px 14px #16061d55)}
 .control-deck{position:relative;z-index:2;flex:none;display:grid;grid-template-columns:1fr 92px 1fr;grid-template-rows:88px 82px;align-items:center;align-content:center;gap:16px 10px;width:min(100cqw,600px);height:246px;margin:0 auto;padding:24px 16px;border:1px solid #e2b76b;border-radius:12px 12px 24px 24px;background:linear-gradient(180deg,#75452f,#36202e 9%,#301b2b 88%,#5d322a);box-shadow:0 3px 0 #281421,0 6px 0 #ac7c4390,0 12px 25px #11091b80,inset 0 1px 0 #ffe6a780}
@@ -51,32 +52,24 @@ main{width:100%;flex:1;min-height:0;container-type:size;padding:0 8px 8px}
 .wallet small{display:none}
 .wallet strong{font:clamp(25px,5cqw,36px) Georgia,serif;color:#fff0ba;font-variant-numeric:tabular-nums;display:block;line-height:1.1;margin-top:10px;text-shadow:0 2px 3px #0008;overflow-wrap:anywhere}
 .payout-result{position:absolute;z-index:3;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%);display:block;width:min(80%,480px);height:58px;padding:4px 12px;text-align:center;font:700 48px/1 Georgia,serif;pointer-events:none;color:#fff0ba;filter:drop-shadow(0 3px 5px #180c20)}
-/* Keep the camera left edge before Anubis's action shoulder (world x ~27).
-   Large windows use one compact control bar aligned with the machine frame. */
-@container (min-width:900px) and (min-height:560px){
- .game-panel{--scene-width:1160;--scene-x:20;--stage-width:min(100cqw,calc((100cqh - 124px)*1160/700))}
- .control-deck{width:min(100cqw,max(800px,calc(var(--stage-width)*.84)));height:140px;margin-top:-16px;grid-template-columns:minmax(184px,1.35fr) minmax(104px,1fr) 112px minmax(104px,1fr) minmax(176px,1.1fr);grid-template-rows:1fr;gap:14px;padding:16px 24px}
- .bet-group{grid-column:1;grid-row:1}#preview-win{grid-column:2;grid-row:1}.spin{grid-column:3;grid-row:1;width:104px;height:104px;margin:0 auto}#max-bet{grid-column:4;grid-row:1}.wallet{grid-column:5;grid-row:1}
- .gold-button{height:82px;padding:14px 10px;gap:8px}.gold-button>span{font-size:clamp(17px,1.6cqw,24px)}.gold-button small{font-size:12px}.spin svg{width:52px;height:52px}.spin>span{font-size:13px}.bet-group{padding:4px 0}.bet-group label,.wallet>span{font-size:14px}.bet-group label span{font-size:11px}.bets button{min-height:52px;font-size:16px}.wallet{padding:6px 12px}.wallet strong{font-size:clamp(36px,3.6cqw,52px);margin-top:12px}.payout-result{height:64px;font-size:54px;padding:4px 12px}
-}
 /* Short landscape: keep the score above the side deck, with its own space. */
 @container (min-width:500px) and (max-height:560px){
- .game-panel{--stage-width:min(calc(100cqw - 224px),calc(100cqh*970/700));display:grid;grid-template-columns:var(--stage-width) 204px;grid-template-rows:1fr;gap:0 12px;justify-content:center;align-content:center;align-items:center}
- .game-stage{grid-column:1;grid-row:1}
- .control-deck{grid-column:2;grid-row:1;width:204px;height:min(calc(100cqh - 36px),350px);min-height:220px;margin:36px 0 0;grid-template-columns:1fr 1fr;grid-template-rows:minmax(38px,1fr) 48px 44px 60px;gap:4px;padding:8px}
- .wallet{grid-column:1/3;grid-row:1;border-left:0;padding:0 6px}.wallet strong{font-size:22px;line-height:1.1;margin-top:2px}.wallet>span{font-size:10px}
- .spin{grid-column:1/3;grid-row:2;width:48px;height:48px;margin:0 auto;padding:4px}.spin svg{width:24px;height:24px}.spin>span{font-size:8px;margin-top:1px;letter-spacing:1px}
- #preview-win{grid-column:1;grid-row:3}#max-bet{grid-column:2;grid-row:3}.gold-button{height:44px;padding:6px 4px;gap:2px}.gold-button>span{font-size:12px}.gold-button small{font-size:9px}
- .bet-group{grid-column:1/3;grid-row:4;padding:0}.bets{margin-top:4px;gap:4px}.bets button{min-height:44px;padding:8px 4px;font-size:11px}.bet-group label{font-size:10px;line-height:12px}
- .payout-result{width:100%;height:32px;bottom:calc(100% + 4px);font-size:28px;padding:0 6px}
+ :root[data-game-layout=mobile] .game-panel{--stage-width:min(calc(100cqw - 224px),calc(100cqh*970/700));display:grid;grid-template-columns:var(--stage-width) 204px;grid-template-rows:1fr;gap:0 12px;justify-content:center;align-content:center;align-items:center}
+ :root[data-game-layout=mobile] .game-stage{grid-column:1;grid-row:1}
+ :root[data-game-layout=mobile] .control-deck{grid-column:2;grid-row:1;width:204px;height:min(calc(100cqh - 36px),350px);min-height:220px;margin:36px 0 0;grid-template-columns:1fr 1fr;grid-template-rows:minmax(38px,1fr) 48px 44px 60px;gap:4px;padding:8px}
+ :root[data-game-layout=mobile] .wallet{grid-column:1/3;grid-row:1;border-left:0;padding:0 6px}:root[data-game-layout=mobile] .wallet strong{font-size:22px;line-height:1.1;margin-top:2px}:root[data-game-layout=mobile] .wallet>span{font-size:10px}
+ :root[data-game-layout=mobile] .spin{grid-column:1/3;grid-row:2;width:48px;height:48px;margin:0 auto;padding:4px}:root[data-game-layout=mobile] .spin svg{width:24px;height:24px}:root[data-game-layout=mobile] .spin>span{font-size:8px;margin-top:1px;letter-spacing:1px}
+ :root[data-game-layout=mobile] #preview-win{grid-column:1;grid-row:3}:root[data-game-layout=mobile] #max-bet{grid-column:2;grid-row:3}:root[data-game-layout=mobile] .gold-button{height:44px;padding:6px 4px;gap:2px}:root[data-game-layout=mobile] .gold-button>span{font-size:12px}:root[data-game-layout=mobile] .gold-button small{font-size:9px}
+ :root[data-game-layout=mobile] .bet-group{grid-column:1/3;grid-row:4;padding:0}:root[data-game-layout=mobile] .bets{margin-top:4px;gap:4px}:root[data-game-layout=mobile] .bets button{min-height:44px;padding:8px 4px;font-size:11px}:root[data-game-layout=mobile] .bet-group label{font-size:10px;line-height:12px}
+ :root[data-game-layout=mobile] .payout-result{width:100%;height:32px;bottom:calc(100% + 4px);font-size:28px;padding:0 6px}
 }
 /* Portrait phones reserve a full row for the complete chip balance. */
 @container (max-width:499px){
- .control-deck{grid-template-rows:88px 40px 66px;row-gap:8px;padding-top:16px;padding-bottom:16px}
- .control-deck .wallet{grid-column:1/4;grid-row:2;display:flex;align-items:center;justify-content:space-between;gap:12px;border-left:0;padding:0 8px}
- .control-deck .wallet>span{font-size:12px}
- .control-deck .wallet strong{font-size:32px;margin:0;max-width:calc(100% - 64px)}
- .control-deck .bet-group{grid-column:1/4;grid-row:3}
+ :root[data-game-layout=mobile] .control-deck{grid-template-rows:88px 40px 66px;row-gap:8px;padding-top:16px;padding-bottom:16px}
+ :root[data-game-layout=mobile] .control-deck .wallet{grid-column:1/4;grid-row:2;display:flex;align-items:center;justify-content:space-between;gap:12px;border-left:0;padding:0 8px}
+ :root[data-game-layout=mobile] .control-deck .wallet>span{font-size:12px}
+ :root[data-game-layout=mobile] .control-deck .wallet strong{font-size:32px;margin:0;max-width:calc(100% - 64px)}
+ :root[data-game-layout=mobile] .control-deck .bet-group{grid-column:1/4;grid-row:3}
 }
 @media(max-width:700px){.test-label{display:none}.header{height:60px;padding:0 10px}.header-right{gap:4px;padding:3px 4px;border-radius:14px}.utility{width:44px;padding:0}.utility span{display:none}}
 @media(max-height:500px){.header{height:56px}.test-label{display:none}.header-right{gap:4px;padding:2px 4px}}
@@ -96,7 +89,31 @@ dialog[open]{display:flex;flex-direction:column}
 #celebration-title{font-size:clamp(12px,2cqw,22px)}
 #celebration-amount{font-size:clamp(28px,5cqw,62px)}
 #celebration-note{font-size:10px;max-width:100%;text-align:center}
-@container (min-width:900px) and (min-height:560px){#celebration{inset:64% 23% 10%}}
+
 @media(max-width:450px){dialog{padding:14px}.dialog-head h2{font-size:17px}#celebration-kicker{font-size:7px;letter-spacing:1px}#celebration-title{font-size:12px;letter-spacing:1px}#celebration-note{font-size:8px;padding:3px 5px}}
 
 @media(max-width:360px){.control-deck{padding-left:12px;padding-right:12px;column-gap:8px}.bets{gap:4px}.bets button{padding:10px 4px}.gold-button>span{font-size:14px}.gold-button small{font-size:11px}.wallet{padding:4px 6px}.wallet strong{font-size:24px}}
+
+/* A desktop Activity keeps one composition at every window size. Only its scale changes. */
+:root[data-game-layout=desktop] .game-panel{--scene-width:1160;--scene-height:700;--scene-x:20;--stage-width:1160px;display:block}
+:root[data-game-layout=desktop] .game-composition{display:flex;flex-direction:column;align-items:center;position:absolute;width:1160px;height:824px;left:50%;top:50%;transform:translate(-50%,-50%) scale(var(--game-scale,0));transform-origin:center}
+:root[data-game-layout=desktop] .control-deck{width:974px;height:140px;margin-top:-16px;grid-template-columns:minmax(184px,1.35fr) minmax(104px,1fr) 112px minmax(104px,1fr) minmax(176px,1.1fr);grid-template-rows:1fr;gap:14px;padding:16px 24px}
+:root[data-game-layout=desktop] .bet-group{grid-column:1;grid-row:1;padding:4px 0}
+:root[data-game-layout=desktop] #preview-win{grid-column:2;grid-row:1}
+:root[data-game-layout=desktop] .spin{grid-column:3;grid-row:1;width:104px;height:104px;margin:0 auto}
+:root[data-game-layout=desktop] #max-bet{grid-column:4;grid-row:1}
+:root[data-game-layout=desktop] .wallet{grid-column:5;grid-row:1;padding:6px 12px}
+:root[data-game-layout=desktop] .gold-button{height:82px;padding:14px 10px;gap:8px}
+:root[data-game-layout=desktop] .gold-button>span{font-size:22px}
+:root[data-game-layout=desktop] .gold-button small{font-size:12px}
+:root[data-game-layout=desktop] .spin svg{width:52px;height:52px}
+:root[data-game-layout=desktop] .spin>span{font-size:13px}
+:root[data-game-layout=desktop] .bet-group label,:root[data-game-layout=desktop] .wallet>span{font-size:14px}
+:root[data-game-layout=desktop] .bet-group label span{font-size:11px}
+:root[data-game-layout=desktop] .bets{gap:6px}
+:root[data-game-layout=desktop] .bets button{min-height:52px;padding:10px 6px;font-size:16px}
+:root[data-game-layout=desktop] .wallet strong{font-size:44px;margin-top:12px}
+:root[data-game-layout=desktop] .payout-result{height:64px;font-size:54px;padding:4px 12px}
+:root[data-game-layout=desktop] #celebration{inset:64% 23% 10%}
+:root[data-game-layout=desktop] #celebration-title{font-size:22px}
+:root[data-game-layout=desktop] #celebration-amount{font-size:62px}

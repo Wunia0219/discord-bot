@@ -3,10 +3,10 @@ import { SYMBOLS, SYMBOL_FRAMES, INITIAL_STOPS, REEL_STRIPS, gridFromStops, reel
 import { BOUNCE_MS, reelOffset, WinLineCycle, WinSymbolPop } from './presentation.js';
 import mainAtlas from '../images/main.json';
 import symbolAtlas from '../images/symbols.json';
-import mainUrl from '../images/main.png';
-import symbolsUrl from '../images/symbols.png';
-import backgroundUrl from '../images/background.png';
-import winFrameUrl from '../images/fx/win-symbol-frame-thin.png';
+import mainUrl from '../images/main.webp';
+import symbolsUrl from '../images/symbols.webp';
+import backgroundUrl from '../images/background.webp';
+import winFrameUrl from '../images/fx/win-symbol-frame-thin.webp';
 
 const W = 1200, H = 760;
 const GRID = { x: 255, y: 228, w: 690, h: 408 };

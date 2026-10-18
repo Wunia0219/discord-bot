@@ -1,8 +1,8 @@
 import './big-win.css';
-import mainUrl from '../images/main.png';
+import mainUrl from '../images/main.webp';
 import atlas from '../images/main.json';
 import auraUrl from '../images/fx/big-win-aura.webp';
-import sparkUrl from '../images/fx/big-win-spark-sheet.png';
+import sparkUrl from '../images/fx/big-win-spark-sheet.webp';
 import { prepareNumberFont, setBitmapNumber } from './bitmap-number.js';
 
 function art(name, className) {

@@ -5,6 +5,7 @@ import { connectActivity } from './discord-activity.js';
 import { createLoadingScreen } from './loading.js';
 import { BigWinPresentation } from './big-win.js';
 import { setBitmapNumber } from './bitmap-number.js';
+import { installResponsiveLayout } from './responsive-layout.js';
 import { BETS, SYMBOL_NAMES, SYMBOL_CODES, SYMBOLS, PAYTABLE, PAYLINES, MODEL_VERSION, INITIAL_STOPS, PREVIEW_STOPS, drawStops, roundFromStops, restoredStops, freshState, readState, createRound } from './game.js';
 
 const $ = s => document.querySelector(s);
@@ -18,6 +19,7 @@ $('#app').innerHTML = `
   <main>
     <section class="game-panel" aria-label="凱美特之冠：五軸三列老虎機">
       <h1 class="sr-only">CROWNS OF KEMET · 凱美特之冠</h1>
+      <div class="game-composition">
       <div class="game-stage"><div id="canvas-host"></div>
         <div id="celebration" aria-hidden="true"><span id="celebration-kicker">PHARAOH’S TREASURE</span><strong id="celebration-title">法老王的寶藏</strong><b id="celebration-amount">+2,000</b><span id="celebration-note">尼羅河畔，傳說再次閃耀。</span></div>
       </div>
@@ -30,10 +32,12 @@ $('#app').innerHTML = `
         <div class="wallet"><span>COINS <small>測試籌碼</small></span><strong id="balance">10,000</strong></div>
       </div>
       <div id="game-status" class="sr-only" role="status" aria-live="polite"></div>
+      </div>
     </section>
   </main>
   <dialog id="dialog" aria-labelledby="dialog-title"><div class="dialog-head"><h2 id="dialog-title"></h2><button id="close-dialog" class="icon-button" aria-label="關閉視窗">${icon('close')}</button></div><div id="dialog-body"></div></dialog>`;
 
+installResponsiveLayout($('main'));
 const KEY='kemet-slot-preview-v2';
 let state, storageAvailable=true;
 try { state=readState(localStorage.getItem(KEY)); } catch { state=freshState();storageAvailable=false; }

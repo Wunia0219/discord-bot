@@ -29,8 +29,9 @@ for frame in range(8):
             image.putpixel((x, y), (164, 255, 240, alpha))
     sheet.alpha_composite(image, (frame * 128, 0))
 sheet.save(root / 'big-win-spark-sheet.png')
+sheet.save(root / 'big-win-spark-sheet.webp', lossless=True, method=6, exact=True)
 (root / 'big-win-spark-sheet.json').write_text(json.dumps({
-    'image': 'big-win-spark-sheet.png', 'size': [1024, 128],
+    'image': 'big-win-spark-sheet.webp', 'size': [1024, 128],
     'cell': [128, 128], 'frames': 8, 'columns': 8, 'rows': 1,
     'order': 'left-to-right', 'anchor': [.5, .5], 'safePadding': 18,
     'fps': 8, 'loop': True, 'alpha': True,

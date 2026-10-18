@@ -4,7 +4,7 @@ import { TextureAtlas } from '@pixi-spine/base';
 import { AtlasAttachmentLoader, SkeletonJson, Spine } from '@pixi-spine/runtime-3.8';
 import skeletonUrl from '../images/spine/anubis/character_anubis.json?url';
 import atlasText from '../images/spine/anubis/character_anubis.atlas?raw';
-import imageUrl from '../images/spine/anubis/character_anubis.png';
+import imageUrl from '../images/spine/anubis/character_anubis.webp';
 import { playAnubisResult, resetAnubisIdle } from './guardian-animation.js';
 import { prepareAnubisData } from './anubis-asset.js';
 
