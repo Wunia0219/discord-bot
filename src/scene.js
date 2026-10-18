@@ -5,6 +5,7 @@ import mainAtlas from '../images/main.json';
 import symbolAtlas from '../images/symbols.json';
 import mainUrl from '../images/main.png';
 import symbolsUrl from '../images/symbols.png';
+import backgroundUrl from '../images/background.png';
 
 const W = 1200, H = 760;
 const GRID = { x: 255, y: 228, w: 690, h: 408 };
@@ -28,13 +29,17 @@ export class SlotScene {
   reduced = false;
   lineCycle = new WinLineCycle();
   presentationPaused = false;
-  async init(host) {
+  async init(host, onProgress = () => {}) {
     await this.app.init({ width: W, height: H, backgroundAlpha: 0, antialias: true, preference: 'webgl', resolution: Math.min(devicePixelRatio || 1, 2), autoDensity: true });
+    onProgress(28, '正在點亮神殿');
     host.append(this.app.canvas);
     this.app.canvas.setAttribute('aria-hidden', 'true');
     Object.assign(this.app.canvas.style, { width: '100%', height: 'auto', display: 'block' });
     this.app.ticker.maxFPS = 60;
-    const [main, symbols] = await Promise.all([Assets.load(mainUrl), Assets.load(symbolsUrl)]);
+    const background = new Image(); background.src = backgroundUrl;
+    let completed = 0;
+    const loaded = value => { onProgress(28 + (++completed * 14), '正在收藏古埃及的寶藏'); return value; };
+    const [main, symbols] = await Promise.all([Assets.load(mainUrl).then(loaded), Assets.load(symbolsUrl).then(loaded), background.decode().then(loaded)]);
     this.art = textures(main, mainAtlas);
     const sheet = textures(symbols, symbolAtlas, true);
     this.textures = Object.fromEntries(SYMBOLS.map(s => {
@@ -69,7 +74,9 @@ export class SlotScene {
     this.app.stage.addChild(new Graphics().poly([238, 425, 250, 432, 238, 439]).fill(GOLD).poly([962, 425, 950, 432, 962, 439]).fill(GOLD));
     this.addArt('logo_long.png', 225, 38, 750);
     const { Anubis } = await import('./anubis.js');
+    onProgress(78, '正在喚醒阿努比斯');
     this.guardian = await Anubis.create();
+    onProgress(92, '守護者已就位');
     this.app.stage.addChild(this.guardian);
     this.effects = new Container(); this.app.stage.addChild(this.effects);
     this.winArt = new Container();
@@ -92,6 +99,7 @@ export class SlotScene {
     this.resizeObserver.observe(host);
     fitViewport();
     this.app.ticker.add(t => this.tick(t));
+    onProgress(96, '即將進入神殿');
   }
   addArt(name, x, y, width) {
     const s = new Sprite(this.art[name]); s.position.set(x, y); s.scale.set(width / s.texture.width); this.app.stage.addChild(s); return s;

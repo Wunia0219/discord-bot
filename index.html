@@ -5,10 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#211426" />
     <title>CROWNS OF KEMET 凱美特之冠 · 內部試玩</title>
+    <link rel="stylesheet" href="/src/loading.css" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath fill='%23eacb88' d='M30 4A17 17 0 1 0 36 29 15 15 0 0 1 30 4'/%3E%3C/svg%3E" />
   </head>
   <body>
-    <div id="app"></div>
+    <section id="loading" class="loading-screen" aria-label="載入凱美特之冠" aria-busy="true">
+      <div class="loading-content">
+        <div class="loading-logo"><img src="/images/main.png" alt="CROWNS OF KEMET" fetchpriority="high" /></div>
+        <div class="loading-meter">
+          <span id="loading-status" class="loading-status" role="status">正在載入遊戲</span>
+          <div id="loading-track" class="loading-track" role="progressbar" aria-label="遊戲載入進度" aria-describedby="loading-status" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="loading-fill" class="loading-fill"><span class="loading-current"></span><i></i><i></i><i></i><i></i></div>
+          </div>
+          <button id="loading-retry" class="loading-retry" aria-label="重新載入" title="重新載入" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10a8 8 0 1 0-2 8M20 4v6h-6"/></svg></button>
+        </div>
+      </div>
+    </section>
+    <div id="app" inert></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

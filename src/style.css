@@ -28,7 +28,6 @@ main{width:100%;flex:1;min-height:0;container-type:size;padding:0 8px}
 .game-panel{--scene-width:970;--scene-height:700;--scene-x:115;--stage-width:min(100cqw,calc((100cqh - 246px)*970/700),880px);position:relative;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .game-stage{position:relative;isolation:isolate;flex:none;width:var(--stage-width)}
 #canvas-host{width:100%;aspect-ratio:var(--scene-width)/var(--scene-height);position:relative;filter:drop-shadow(0 8px 14px #16061d55)}
-#loading{position:absolute;z-index:3;inset:25% 8%;display:grid;place-items:center;text-align:center;background:#241328f5;border:1px solid var(--gold);border-radius:12px;padding:15px;font-size:14px}
 .control-deck{position:relative;z-index:2;flex:none;display:grid;grid-template-columns:1fr 84px 1fr;grid-template-rows:76px 66px;align-items:center;gap:8px;width:min(100cqw,600px);height:178px;margin:0 auto;padding:10px 12px;border:1px solid #e2b76b;border-radius:12px 12px 24px 24px;background:linear-gradient(180deg,#75452f,#36202e 9%,#301b2b 88%,#5d322a);box-shadow:0 3px 0 #281421,0 6px 0 #ac7c4390,0 12px 25px #11091b80,inset 0 1px 0 #ffe6a780}
 .bet-group{grid-column:1/3;grid-row:2;min-width:0}
 .bet-group label,.wallet>span{display:block;font:11px Georgia,serif;letter-spacing:1px;color:#e8c787;white-space:nowrap}

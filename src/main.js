@@ -2,6 +2,7 @@ import './style.css';
 import { SlotScene } from './scene.js';
 import { Sound } from './audio.js';
 import { connectActivity } from './discord-activity.js';
+import { createLoadingScreen } from './loading.js';
 import { BETS, SYMBOL_NAMES, SYMBOL_CODES, SYMBOLS, PAYTABLE, PAYLINES, MODEL_VERSION, INITIAL_STOPS, PREVIEW_STOPS, drawStops, roundFromStops, restoredStops, freshState, readState, createRound } from './game.js';
 
 const $ = s => document.querySelector(s);
@@ -15,7 +16,7 @@ $('#app').innerHTML = `
   <main>
     <section class="game-panel" aria-label="凱美特之冠：五軸三列老虎機">
       <h1 class="sr-only">CROWNS OF KEMET · 凱美特之冠</h1>
-      <div class="game-stage"><div id="canvas-host"><div id="loading">正在開啟法老王的寶藏…</div></div>
+      <div class="game-stage"><div id="canvas-host"></div>
         <div id="celebration" aria-hidden="true"><span id="celebration-kicker">PHARAOH’S TREASURE</span><strong id="celebration-title">法老王的寶藏</strong><b id="celebration-amount">+2,000</b><span id="celebration-note">尼羅河畔，傳說再次閃耀。</span></div>
       </div>
       <div class="control-deck">
@@ -185,21 +186,27 @@ renderState();
 showPayout(0);
 setBusy(false);
 async function startGame() {
+  const loading = createLoadingScreen();
+  loading.update(8, '正在喚醒神殿');
   try {
     const activity=await connectActivity();
     activityMode=activity.mode;
     if(activityMode==='discord')$('.test-label').innerHTML='<i></i>Discord 試玩';
+    loading.update(20, '正在展開尼羅河的風景');
   } catch(error) {
     console.error(error);
-    $('#loading').textContent=error.message;
+    loading.fail(error.message);
     result('Discord 尚未連接',error.message);
     return;
   }
   try {
-    await scene.init($('#canvas-host'));
-    $('#loading').remove();ready=true;scene.setStops(restoredStops(state));setBusy(false);
+    await scene.init($('#canvas-host'),loading.update);
+    scene.setStops(restoredStops(state));
+    scene.app.render();
+    await loading.finish();
+    ready=true;setBusy(false);
   } catch(error) {
-    console.error(error);$('#loading').textContent='無法啟動圖形引擎，請使用支援 WebGL 的瀏覽器，並開啟硬體加速。';result('圖形引擎尚未就緒','重新整理後再試，或更換瀏覽器。');
+    console.error(error);loading.fail('請確認網路連線，並使用支援 WebGL、已開啟硬體加速的瀏覽器後重試。');result('遊戲尚未就緒','重新載入後再試，或更換瀏覽器。');
   }
 }
 startGame();
