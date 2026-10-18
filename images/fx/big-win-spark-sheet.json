@@ -1,0 +1,23 @@
+{
+  "image": "big-win-spark-sheet.png",
+  "size": [
+    1024,
+    128
+  ],
+  "cell": [
+    128,
+    128
+  ],
+  "frames": 8,
+  "columns": 8,
+  "rows": 1,
+  "order": "left-to-right",
+  "anchor": [
+    0.5,
+    0.5
+  ],
+  "safePadding": 18,
+  "fps": 8,
+  "loop": true,
+  "alpha": true
+}

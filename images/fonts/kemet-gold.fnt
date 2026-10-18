@@ -1,0 +1,18 @@
+info face="Kemet Gold Numerals" size=190 bold=1 italic=0 charset="" unicode=1 stretchH=100 smooth=1 aa=1 padding=8,8,8,8 spacing=0,0
+common lineHeight=256 base=207 scaleW=768 scaleH=1024 pages=1 packed=0
+page id=0 file="kemet-gold.png"
+chars count=13
+char id=48 x=24 y=101 width=126 height=120 xoffset=6 yoffset=101 xadvance=141 page=0 chnl=15
+char id=49 x=217 y=101 width=89 height=117 xoffset=7 yoffset=101 xadvance=101 page=0 chnl=15
+char id=50 x=409 y=101 width=112 height=118 xoffset=7 yoffset=101 xadvance=127 page=0 chnl=15
+char id=51 x=595 y=101 width=117 height=151 xoffset=1 yoffset=101 xadvance=127 page=0 chnl=15
+char id=52 x=19 y=357 width=124 height=151 xoffset=1 yoffset=101 xadvance=131 page=0 chnl=15
+char id=53 x=212 y=360 width=112 height=148 xoffset=2 yoffset=104 xadvance=122 page=0 chnl=15
+char id=54 x=408 y=324 width=118 height=153 xoffset=6 yoffset=68 xadvance=131 page=0 chnl=15
+char id=55 x=599 y=360 width=110 height=148 xoffset=5 yoffset=104 xadvance=113 page=0 chnl=15
+char id=56 x=24 y=580 width=121 height=153 xoffset=6 yoffset=68 xadvance=136 page=0 chnl=15
+char id=57 x=214 y=613 width=118 height=152 xoffset=4 yoffset=101 xadvance=131 page=0 chnl=15
+char id=44 x=411 y=684 width=49 height=82 xoffset=9 yoffset=172 xadvance=70 page=0 chnl=15
+char id=43 x=606 y=611 width=115 height=117 xoffset=12 yoffset=99 xadvance=142 page=0 chnl=15
+char id=8722 x=30 y=911 width=115 height=30 xoffset=12 yoffset=143 xadvance=142 page=0 chnl=15
+kernings count=0

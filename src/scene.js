@@ -79,11 +79,6 @@ export class SlotScene {
     onProgress(92, '守護者已就位');
     this.app.stage.addChild(this.guardian);
     this.effects = new Container(); this.app.stage.addChild(this.effects);
-    this.winArt = new Container();
-    this.winArt.addChild(new Graphics().roundRect(270, 280, 660, 340, 20).fill({ color: 0x21102b, alpha: .94 }).stroke({ color: GOLD, alpha: .8, width: 2 }));
-    const decor = new Sprite(this.art['big_win_decor.png']); decor.anchor.set(.5); decor.position.set(600, 365); decor.width = 290; decor.height = 206;
-    const title = new Sprite(this.art['big_win.png']); title.anchor.set(.5); title.position.set(600, 385); title.width = 540; title.height = 133;
-    this.winArt.addChild(decor, title); this.winArt.visible = false; this.app.stage.addChild(this.winArt);
     // Reframe the same game coordinates; never stretch symbols or restart animation.
     const fitViewport = () => {
       const style = getComputedStyle(host);
@@ -165,8 +160,8 @@ export class SlotScene {
   }
   celebrate(big = false, showLine = true) {
     this.presentationPaused = big || !showLine;
-    this.line.alpha = this.presentationPaused ? 0 : 1; this.winArt.visible = big;
-    if (this.reduced) return;
+    this.line.alpha = this.presentationPaused ? 0 : 1;
+    if (this.reduced || big) return;
     for (let i = 0; i < (big ? 100 : 30); i++) {
       const g = new Graphics();
       if (i % 3 === 0) g.star(0, 0, 4, 4 + Math.random() * 4, 2).fill(GOLD);
@@ -176,7 +171,6 @@ export class SlotScene {
     }
   }
   clearCelebration() {
-    if (this.winArt) this.winArt.visible = false;
     this.presentationPaused = false;
     if (this.lineCycle.index >= 0) this.line.alpha = 1;
   }

@@ -3,6 +3,8 @@ import { SlotScene } from './scene.js';
 import { Sound } from './audio.js';
 import { connectActivity } from './discord-activity.js';
 import { createLoadingScreen } from './loading.js';
+import { BigWinPresentation } from './big-win.js';
+import { setBitmapNumber } from './bitmap-number.js';
 import { BETS, SYMBOL_NAMES, SYMBOL_CODES, SYMBOLS, PAYTABLE, PAYLINES, MODEL_VERSION, INITIAL_STOPS, PREVIEW_STOPS, drawStops, roundFromStops, restoredStops, freshState, readState, createRound } from './game.js';
 
 const $ = s => document.querySelector(s);
@@ -37,6 +39,7 @@ let state, storageAvailable=true;
 try { state=readState(localStorage.getItem(KEY)); } catch { state=freshState();storageAvailable=false; }
 let bet=100, busy=false, ready=false, countAnimation=0, payoutAnimation=0, celebrationTimer=0;
 const scene=new SlotScene(), sound=new Sound();
+const bigWin=new BigWinPresentation($('#app'));
 let activityMode='browser';
 const motion=matchMedia('(prefers-reduced-motion: reduce)');scene.reduced=motion.matches;motion.addEventListener('change',()=>scene.reduced=motion.matches);
 const signed=n=>(n>0?'+':'')+fmt(n);
@@ -54,7 +57,7 @@ function historyRow(r,full=false) {
   const net=document.createElement('b');net.className=r.net>0?'positive':'neutral';net.textContent=signed(r.net);row.append(mark,content,net);return row;
 }
 function renderState() {
-  $('#balance').textContent=fmt(state.balance);
+  setBitmapNumber($('#balance'),fmt(state.balance));
 
 }
 function setBusy(value) {
@@ -75,15 +78,15 @@ function showPayout(payout, animate=false) {
   const output=$('#payout-result');
   output.setAttribute('aria-busy','false');
   output.setAttribute('aria-label',`本局中獎得分 ${fmt(payout)}`);
-  if(payout<=0){output.textContent='';return;}
-  if(!animate||scene.reduced){output.textContent=signed(payout);return;}
+  if(payout<=0){setBitmapNumber(output,'');return;}
+  if(!animate||scene.reduced){setBitmapNumber(output,signed(payout));return;}
   output.setAttribute('aria-busy','true');
-  output.textContent='+0';
+  setBitmapNumber(output,'+0');
   const start=performance.now();
   const frame=now=>{
     const progress=scene.reduced?1:Math.min(Math.max((now-start)/1200,0),1);
     const value=progress===1?payout:Math.floor(payout*(1-(1-progress)**3));
-    output.textContent=`+${fmt(value)}`;
+    setBitmapNumber(output,`+${fmt(value)}`);
     if(progress<1)payoutAnimation=requestAnimationFrame(frame);
     else {payoutAnimation=0;output.setAttribute('aria-busy','false');}
   };
@@ -91,16 +94,22 @@ function showPayout(payout, animate=false) {
 }
 function animateBalance(from,to) {
   cancelAnimationFrame(countAnimation);
-  if(scene.reduced){$('#balance').textContent=fmt(to);return;}
+  if(scene.reduced){setBitmapNumber($('#balance'),fmt(to));return;}
   const start=performance.now();
-  const frame=now=>{const p=Math.min((now-start)/900,1);$('#balance').textContent=fmt(from+(to-from)*(1-(1-p)**3));if(p<1)countAnimation=requestAnimationFrame(frame);};countAnimation=requestAnimationFrame(frame);
+  const frame=now=>{const p=Math.min((now-start)/900,1);setBitmapNumber($('#balance'),fmt(from+(to-from)*(1-(1-p)**3)));if(p<1)countAnimation=requestAnimationFrame(frame);};countAnimation=requestAnimationFrame(frame);
 }
-function hideCelebration(){scene.clearCelebration();clearTimeout(celebrationTimer);$('#celebration').classList.remove('show');$('.game-panel').classList.remove('big-win');}
+function hideCelebration(){bigWin.hide();scene.clearCelebration();clearTimeout(celebrationTimer);$('#celebration').classList.remove('show');$('.game-panel').classList.remove('big-win');}
 function clearLineReadout(){scene.clearWins();}
 function presentLines(round){scene.showWins(round.wins);}
 function celebrate(kind,amount,preview=false) {
   hideCelebration();
   const milestone=kind==='milestone';
+  if(!milestone){
+    bigWin.show(amount,scene.reduced);
+    scene.celebrate(true,true);sound.win(true);
+    celebrationTimer=setTimeout(hideCelebration,4500);
+    return;
+  }
   $('#celebration').classList.toggle('milestone',milestone);
   $('#celebration-kicker').textContent=milestone?'A NEW CHAPTER':'PHARAOH’S TREASURE';
   $('#celebration-title').textContent=milestone?'法老的眷顧':'法老王的寶藏';
@@ -123,7 +132,7 @@ async function spin(preview=false) {
     }catch(error){openDialog('無法開始本局','<p>測試籌碼不足，請降低下注，或到「遊玩介紹」重設試玩。</p>');return;}
   }
   setBusy(true);sound.tone(220,.2);
-  if(!preview)$('#balance').textContent=fmt(r.before-bet);
+  if(!preview)setBitmapNumber($('#balance'),fmt(r.before-bet));
   result(preview?'為你預演一場法老王的寶藏。':'轉輪啟動，讓寶藏慢慢揭曉。',preview?'此演出不影響籌碼與遊戲紀錄。':`本次下注 ${fmt(bet)} · 正在播放本局演出`,'SPINNING');
   try {
     await scene.spin(r.stops,i=>sound.stop(i));
@@ -200,7 +209,8 @@ async function startGame() {
     return;
   }
   try {
-    await scene.init($('#canvas-host'),loading.update);
+    await Promise.all([scene.init($('#canvas-host'),loading.update),bigWin.prepare()]);
+    renderState();
     scene.setStops(restoredStops(state));
     scene.app.render();
     await loading.finish();
