@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reelAnimation, reelOffset, REEL_SETTLE_MS, LINE_HOLD_MS, WinLineCycle } from '../src/presentation.js';
-import { REEL_STRIPS, INITIAL_STOPS, gridFromStops } from '../src/slot-math.js';
-import { WinSymbolPop, SYMBOL_POP_MS } from '../src/presentation.js';
+import { reelAnimation, reelOffset, REEL_SETTLE_MS, WIN_HOLD_MS, WinCycle } from '../src/ui/presentation.js';
+import { REEL_STRIPS, INITIAL_STOPS, gridFromStops } from '../src/game/slot-math.js';
+import { WinSymbolPop, SYMBOL_POP_MS } from '../src/ui/presentation.js';
 
 test('winning symbols pop twice, settle, and restart on every line display',()=>{
   const pop = new WinSymbolPop();
@@ -77,15 +77,15 @@ test('animation preserves actual starting and landing windows at reel wraps and 
   });
 });
 test('line display proceeds in order with the original individual payouts and loops',()=>{
-  const cycle=new WinLineCycle(),seen=[];
+  const cycle=new WinCycle(),seen=[];
   const wins=[{line:1,payout:50},{line:7,payout:25},{line:12,payout:100}];
   cycle.start(wins,(win,index,total)=>seen.push([win.line,win.payout,index,total]));
-  cycle.tick(16);cycle.tick(LINE_HOLD_MS-1);assert.equal(seen.length,1);
-  cycle.tick(1);cycle.tick(LINE_HOLD_MS);cycle.tick(LINE_HOLD_MS);
+  cycle.tick(16);cycle.tick(WIN_HOLD_MS-1);assert.equal(seen.length,1);
+  cycle.tick(1);cycle.tick(WIN_HOLD_MS);cycle.tick(WIN_HOLD_MS);
   assert.deepEqual(seen,[[1,50,0,3],[7,25,1,3],[12,100,2,3],[1,50,0,3]]);
 });
 test('celebration pauses line display; clearing/replacing prevents stale round callbacks',()=>{
-  const cycle=new WinLineCycle(),seen=[];
+  const cycle=new WinCycle(),seen=[];
   cycle.start([{line:1},{line:2}],win=>seen.push(win.line));
   cycle.tick(10000,true);assert.deepEqual(seen,[]);
   cycle.tick(16);cycle.tick(10000,true);assert.deepEqual(seen,[1]);

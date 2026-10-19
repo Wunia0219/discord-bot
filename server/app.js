@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { resolve, relative, extname, sep, isAbsolute } from 'node:path';
 import { validSignature, handleCommand } from './commands.js';
-import { MODEL_VERSION } from '../src/slot-math.js';
+import { MODEL_VERSION } from '../src/game/slot-math.js';
 
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.webp':'image/webp', '.png':'image/png', '.svg':'image/svg+xml', '.json':'application/json', '.woff2':'font/woff2' };
 const json = (res, status, data) => {

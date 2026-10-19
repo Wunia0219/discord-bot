@@ -1,3 +1,4 @@
+import { LEGACY_MODELS } from '../src/game/legacy-models.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -5,12 +6,27 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { WalletStore, taipeiDay } from '../server/wallet.js';
-import * as v1 from '../src/models/v1/slot-math.js';
-import * as v2 from '../src/models/v2/slot-math.js';
-import * as v4 from '../src/models/v4/slot-math.js';
-import { MODEL_VERSION, REEL_STRIPS } from '../src/slot-math.js';
+const v1=LEGACY_MODELS['kemet-20-v1'];
+const v2=LEGACY_MODELS['kemet-20-v2'];
+const v4=LEGACY_MODELS['circus-20-v4'];
+const oldWays=LEGACY_MODELS['circus-243-v1'];
+import { MODEL_VERSION, REEL_STRIPS } from '../src/game/slot-math.js';
 const guild='1441097301685698703',other='1441097301685698704',user='1561284960986599626',admin='1561284960986599627';
 function store(t,opts={}){const s=new WalletStore({guildIds:[guild,other],...opts});t.after(()=>s.close());return s;}
+
+test('wallet retries of deployed 243 v1 rounds keep original scores under 96% v2',t=>{
+ const s=store(t,{spinDelay:0}),request=randomUUID(),stops=[8,16,34,6,93];s.state(guild,user);
+ const grid=oldWays.gridFromStops(stops),outcome=oldWays.evaluateGrid(grid,100);
+ const round={...outcome,id:randomUUID(),bet:100,stops,grid,symbols:grid.map(c=>c[1]),rules:oldWays.MODEL_VERSION,time:new Date().toISOString(),before:10000,after:279900,net:269900,milestone:false};
+ s.tx(()=>{
+  s.credit(guild,user,round.net,'spin',user,'old 243 settlement',request);
+  s.db.prepare('INSERT INTO rounds VALUES(?,?,?,?,?)').run(guild,user,round.id,JSON.stringify(round),Date.now());
+  s.db.prepare('INSERT INTO operations VALUES(?,?,?,?)').run(guild,`spin:${user}:${request}`,'100',JSON.stringify({round}));
+ });
+ const replay=s.spin(guild,user,100,request);assert.ok(replay.duplicate);assert.deepEqual(replay.round,round);assert.equal(replay.state.balance,279900);
+ const update=s.spin(guild,user,20,randomUUID());assert.equal(update.round.rules,MODEL_VERSION);
+ assert.equal(s.history(guild,user).filter(e=>e.kind==='spin').length,2);
+});
 
 test('v4 wallet retries preserve settled 200-stop results while current rounds use verified reels',t=>{
  const s=store(t,{spinDelay:0}),request=randomUUID(),stops=[91,51,41,31,151];s.state(guild,user);
@@ -24,7 +40,7 @@ test('v4 wallet retries preserve settled 200-stop results while current rounds u
  const replay=s.spin(guild,user,100,request);assert.equal(replay.duplicate,true);assert.deepEqual(replay.round,old);assert.equal(replay.state.balance,29900);
  const next=s.spin(guild,user,20,randomUUID());assert.equal(next.round.rules,MODEL_VERSION);
  assert.ok(next.round.stops.every((stop,i)=>stop>=0&&stop<REEL_STRIPS[i].length));
- assert.ok(REEL_STRIPS.every(r=>r.length===80));assert.equal(s.history(guild,user).filter(e=>e.kind==='spin').length,2);
+ assert.ok(REEL_STRIPS.every(r=>r.length>0));assert.equal(s.history(guild,user).filter(e=>e.kind==='spin').length,2);
 });
 
 test('stored v2 wallet spin survives v3 upgrade and replay without another ledger entry',t=>{

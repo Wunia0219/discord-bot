@@ -1,15 +1,16 @@
-import { mainArt } from './main-art.js';
+import { mainArt } from './ui/main-art.js';
 import './style.css';
-import { SlotScene } from './scene.js';
-import { Sound } from './audio.js';
-import { connectActivity } from './discord-activity.js';
-import { createLoadingScreen } from './loading.js';
-import { BigWinPresentation } from './big-win.js';
-import { winTier, WIN_TITLES } from './win-tier.js';
-import { setBitmapNumber } from './bitmap-number.js';
-import { installResponsiveLayout } from './responsive-layout.js';
-import { createWalletClient } from './wallet-client.js';
-import { BETS, SYMBOL_NAMES, SYMBOL_CODES, SYMBOLS, PAYTABLE, PAYLINES, REEL_STRIPS, MODEL_VERSION, INITIAL_STOPS, PREVIEW_STOPS, TIER_PREVIEW_STOPS, MAXIMUM_MULTIPLIER, BIG_WIN_MEAN_SPINS, drawStops, roundFromStops, restoredStops, freshState, readState, createRound } from './game.js';
+import { SlotScene } from './ui/scene.js';
+import { Sound } from './ui/audio.js';
+import { connectActivity } from './platform/discord-activity.js';
+import { createLoadingScreen } from './ui/loading.js';
+import { BigWinPresentation } from './ui/big-win.js';
+import { winTier } from './game/win-tier.js';
+import { SpinControls } from './ui/spin-controls.js';
+import { setBitmapNumber } from './ui/bitmap-number.js';
+import { installResponsiveLayout } from './ui/responsive-layout.js';
+import { createWalletClient } from './platform/wallet-client.js';
+import { BETS, LEGACY_MODELS, SYMBOL_NAMES, SYMBOL_CODES, SYMBOLS, PAYTABLE, BET_DIVISOR, THEORETICAL_RTP, REEL_STRIPS, MODEL_VERSION, INITIAL_STOPS, MAXIMUM_MULTIPLIER, BIG_WIN_MEAN_SPINS, drawStops, restoredStops, freshState, readState, createRound } from './game/index.js';
 
 const $ = s => document.querySelector(s);
 const fmt = n => Math.round(n).toLocaleString('en-US');
@@ -29,7 +30,7 @@ $('#app').innerHTML = `
       <div class="control-deck">
       <output id="payout-result" class="payout-result" aria-live="polite" aria-label="本局中獎得分"></output>
         <div class="bet-group"><label>BET <span>每次下注</span></label><div class="bets">${BETS.map(b=>'<button data-bet="'+b+'" aria-pressed="'+(b===100)+'">'+fmt(b)+'</button>').join('')}</div></div>
-        <button id="preview-win" class="gold-button"><span>WIN SHOW</span><small>大獎預覽</small></button>
+        <button id="auto-spin" class="gold-button" aria-label="自動旋轉" aria-pressed="false"><span>AUTO SPIN</span><small>自動旋轉</small></button>
         <button id="spin" class="spin" aria-label="旋轉一次" aria-keyshortcuts="Space" title="旋轉一次（空白鍵）" disabled>${mainArt('spin-button.png','spin-art')}</button>
         <button id="max-bet" class="gold-button"><span>MAX BET</span><small>最大下注</small></button>
         <div class="wallet"><span>COINS <small>測試籌碼</small></span><strong id="balance">10,000</strong></div>
@@ -48,6 +49,19 @@ let bet=100, busy=false, ready=false, countAnimation=0, payoutAnimation=0, celeb
 const scene=new SlotScene(), sound=new Sound();
 const bigWin=new BigWinPresentation($('#app'));
 let activityMode='browser', activityUser=null, walletClient=null;
+const controls=new SpinControls({
+  isReady:()=>ready&&!document.hidden&&!$('#dialog').open,
+  isBusy:()=>busy,
+  startSpin:()=>spin(),
+  stopReels:()=>scene.finish(),
+  onAutoChange:enabled=>{
+    const button=$('#auto-spin');
+    button.setAttribute('aria-pressed',String(enabled));
+    button.setAttribute('aria-label',enabled?'停止自動旋轉':'自動旋轉');
+    button.innerHTML=enabled?'<span>STOP AUTO</span><small>停止自動</small>':'<span>AUTO SPIN</span><small>自動旋轉</small>';
+    setBusy(busy);
+  },
+});
 const motion=matchMedia('(prefers-reduced-motion: reduce)');scene.reduced=motion.matches;motion.addEventListener('change',()=>scene.reduced=motion.matches);
 const signed=n=>(n>0?'+':'')+fmt(n);
 function save(next) { if(walletClient){if((next.revision||0)>=(state.revision||0))state=next;return;}state=next;try{localStorage.setItem(KEY,JSON.stringify(state));}catch{storageAvailable=false;} }
@@ -60,8 +74,8 @@ function historyRow(r,full=false) {
   const caption=document.createElement('small');caption.textContent=`${new Date(r.time).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})} · 下注 ${fmt(r.bet)}`;
   content.append(title,caption);
   if(full){const detail=document.createElement('small');detail.textContent=`${r.symbols.map(s=>SYMBOL_NAMES[s]).join(' / ')} · 餘額 ${fmt(r.after)} · 局號 ${r.id.slice(0,8)}`;content.append(detail);
-    const rules=document.createElement('small');rules.textContent=[MODEL_VERSION,'kemet-20-v1','kemet-20-v2','circus-20-v3','circus-20-v4'].includes(r.rules) ? `${r.rules===MODEL_VERSION?'目前規則':'舊版 96% 規則'} · ${r.rules} · 停點（從 0 起）${r.stops.join(' / ')} · 單線下注 ${fmt(r.lineBet)}` : '舊展示規則 · 非 96% RTP 模型';content.append(rules);
-    if(r.wins?.length){const lines=document.createElement('small');lines.textContent=r.wins.map(w=>`第 ${w.line} 線：${SYMBOL_CODES[w.symbol]} ${w.count} 連 ×${w.multiplier} = ${fmt(w.payout)}`).join('；');content.append(lines);}
+    const rules=document.createElement('small');rules.textContent=(r.rules===MODEL_VERSION||LEGACY_MODELS[r.rules]) ? `${r.rules===MODEL_VERSION?'目前 243 路':r.unitBet?'舊版 243 路':'舊版 20 線'} · ${r.rules} · 停點（從 0 起）${r.stops.join(' / ')} · 計價單位 ${fmt(r.unitBet??r.lineBet)}` : '舊展示規則';content.append(rules);
+    if(r.wins?.length){const lines=document.createElement('small');lines.textContent=r.wins.map(w=>w.ways?`${SYMBOL_NAMES[w.symbol]} ${w.count} 連・${w.ways} 組 ×${w.multiplier} ×${r.unitBet} = ${fmt(w.payout)}`:`第 ${w.line} 線：${SYMBOL_CODES[w.symbol]} ${w.count} 連 ×${w.multiplier} = ${fmt(w.payout)}`).join('；');content.append(lines);}
   }
   const net=document.createElement('b');net.className=r.net>0?'positive':'neutral';net.textContent=signed(r.net);row.append(mark,content,net);return row;
 }
@@ -71,9 +85,11 @@ function renderState() {
 }
 function setBusy(value) {
   busy=value;
-  ['#spin','#preview-win','#max-bet'].forEach(s=>$(s).disabled=value||!ready);
+  ['#spin','#max-bet'].forEach(s=>$(s).disabled=value||!ready);
+  $('#max-bet').disabled=value||!ready||controls.auto;
+  $('#auto-spin').disabled=!ready;
   if($('#reset'))$('#reset').disabled=value||!ready;
-  document.querySelectorAll('[data-bet]').forEach(b=>b.disabled=value);
+  document.querySelectorAll('[data-bet]').forEach(b=>b.disabled=value||controls.auto);
   $('#spin').setAttribute('aria-label',value?'轉動中':'旋轉一次');
   $('#spin').classList.toggle('spinning',value);
 }
@@ -107,9 +123,9 @@ function animateBalance(from,to) {
   const frame=now=>{const p=Math.min((now-start)/900,1);setBitmapNumber($('#balance'),fmt(from+(to-from)*(1-(1-p)**3)));if(p<1)countAnimation=requestAnimationFrame(frame);};countAnimation=requestAnimationFrame(frame);
 }
 function hideCelebration(){bigWin.hide();scene.clearCelebration();clearTimeout(celebrationTimer);$('#celebration').classList.remove('show');$('.game-panel').classList.remove('big-win');}
-function clearLineReadout(){scene.clearWins();}
-function presentLines(round){scene.showWins(round.wins);}
-function celebrate(kind,amount,preview=false) {
+function clearWinReadout(){scene.clearWins();}
+function presentWins(round){scene.showWins(round.wins);}
+function celebrate(kind,amount) {
   hideCelebration();
   const milestone=kind==='milestone';
   if(!milestone){
@@ -122,50 +138,49 @@ function celebrate(kind,amount,preview=false) {
   $('#celebration-kicker').textContent=milestone?'A NEW CHAPTER':'JOKER’S CIRCUS';
   $('#celebration-title').textContent=milestone?'馬戲團里程碑':'馬戲團大獎';
   $('#celebration-amount').textContent=milestone?'12,000':`+${fmt(amount)}`;
-  $('#celebration-note').textContent=preview?'演出預覽 · 測試籌碼不變':milestone?'第一枚馬戲團徽章，已為你收藏。':'這一刻，傳說再次閃耀。';
+  $('#celebration-note').textContent=milestone?'第一枚馬戲團徽章，已為你收藏。':'這一刻，傳說再次閃耀。';
   $('#celebration').classList.add('show');$('.game-panel').classList.add('big-win');
   scene.celebrate(!milestone,!milestone);sound.win(true);
   celebrationTimer=setTimeout(hideCelebration,4500);
 }
-async function spin(preview=false,previewTier='big') {
-  if(busy||!ready)return;
+async function spin() {
+  if(busy||!controls.isReady())return;
+  controls.beginRound();
   showPayout(0);
-  cancelAnimationFrame(countAnimation);hideCelebration();clearLineReadout();
-  let r;
-  setBusy(true);
-  if(preview)r={...roundFromStops(bet,TIER_PREVIEW_STOPS[previewTier]||PREVIEW_STOPS),bet};
-  else {
-    try{
-      const update=walletClient?await walletClient.spin(bet):createRound(state,bet,drawStops(),crypto.randomUUID());r=update.round;save(update.state);
-    }catch(error){setBusy(false);showError('無法開始本局',walletClient?error.message:'測試籌碼不足，請降低下注，或到「遊玩介紹」重設試玩。');return;}
-  }
-  setBusy(true);sound.tone(220,.2);
-  if(r.rules!==MODEL_VERSION){
-    renderState();showPayout(r.payout);setBusy(false);
-    result('已取回舊版本的已結算回合',`派彩 ${fmt(r.payout)}，未重複下注。可在遊玩紀錄查看；下一局使用新版規則。`,'RECOVERED');
-    return;
-  }
-  if(!preview)setBitmapNumber($('#balance'),fmt(r.before-r.bet));
-  result(preview?'為你預演一場馬戲團大獎。':'轉輪啟動，讓寶藏慢慢揭曉。',preview?'此演出不影響籌碼與遊戲紀錄。':`本次下注 ${fmt(r.bet)} · 正在播放本局演出`,'SPINNING');
-  try {
-    await scene.spin(r.stops,i=>sound.stop(i));
-    renderState();
-    if(!preview)animateBalance(r.before-r.bet,state.balance);
-    presentLines(r);
-    showPayout(r.payout,true);
-    const symbols=r.wins.length ? `線號 ${r.wins.map(w=>w.line).join('、')}` : '20 條線未形成得獎組合';
-    result(r.label,preview?`${symbols}｜預覽派彩 ${fmt(r.payout)}，籌碼不變`:`${symbols}｜派彩 ${fmt(r.payout)} · 淨損益 ${signed(r.net)}`,preview?'PREVIEW':r.net>0?'WIN':'FINISHED',r.payout>r.bet);
-    const tier=winTier(r.payout,r.bet);
-    if(tier)celebrate(tier,r.payout,preview);
-    else if(r.payout>r.bet){scene.celebrate();sound.win(false);}
-    if(r.milestone) {
-      clearTimeout(celebrationTimer);
-      celebrationTimer=setTimeout(()=>celebrate('milestone',12000),tier?4500:1800);
+  cancelAnimationFrame(countAnimation);hideCelebration();clearWinReadout();
+  setBusy(true);let nextDelay=650,settledRound;
+  try{
+    const update=walletClient?await walletClient.spin(bet):createRound(state,bet,drawStops(),crypto.randomUUID());
+    const r=update.round;save(update.state);settledRound=r;
+    if(r.rules!==MODEL_VERSION){
+      controls.stopAuto();renderState();showPayout(r.payout);
+      result('已取回舊版本的已結算回合',`派彩 ${fmt(r.payout)}，未重複下注。可在遊玩紀錄查看。`);
+      return;
     }
-  } catch { renderState();if(!preview)showPayout(r.payout);openDialog('本局演出中斷',preview?'<p>請再試一次大獎預覽。</p>':'<p>本局已保存，可在遊玩紀錄中查看結果。</p>'); }
-  finally {setBusy(false);}
+    sound.tone(220,.2);
+    setBitmapNumber($('#balance'),fmt(r.before-r.bet));
+    result('轉輪啟動，讓寶藏慢慢揭曉。',`本次下注 ${fmt(r.bet)} · 正在播放本局演出`);
+    const animation=scene.spin(r.stops,i=>sound.stop(i));
+    controls.animationStarted();
+    if(document.hidden)scene.finish();
+    await animation;
+    renderState();animateBalance(r.before-r.bet,state.balance);presentWins(r);showPayout(r.payout,true);
+    const symbols=r.wins.length?r.wins.map(w=>`${SYMBOL_NAMES[w.symbol]} ${w.count} 連・${w.ways} 組`).join('、'):'未形成由左起連續三軸的得獎組合';
+    result(r.label,`${symbols}｜派彩 ${fmt(r.payout)} · 淨損益 ${signed(r.net)}`);
+    const tier=winTier(r.payout,r.bet);
+    if(tier)celebrate(tier,r.payout);
+    else if(r.payout>r.bet){scene.celebrate();sound.win(false);}
+    nextDelay=tier?(r.milestone?9800:5200):r.milestone?7000:r.wins.length?Math.min(4000,r.wins.length*1600):650;
+    if(r.milestone){clearTimeout(celebrationTimer);celebrationTimer=setTimeout(()=>celebrate('milestone',12000),tier?4500:1800);}
+  }catch(error){
+    controls.stopAuto();renderState();
+    if(settledRound)showPayout(settledRound.payout);
+    showError('無法完成本局',settledRound?'本局已結算並保存在遊玩紀錄，自動旋轉已停止。':error.message||'請再試一次。');
+  }finally{
+    setBusy(false);controls.endRound(nextDelay);
+  }
 }
-function openDialog(title,body) {$('#dialog-title').textContent=title;$('#dialog-body').replaceChildren();if(typeof body==='string')$('#dialog-body').innerHTML=body;else $('#dialog-body').append(body);if(!$('#dialog').open)$('#dialog').showModal();$('#dialog-body').scrollTop=0;}
+function openDialog(title,body) {controls.stopAuto();$('#dialog-title').textContent=title;$('#dialog-body').replaceChildren();if(typeof body==='string')$('#dialog-body').innerHTML=body;else $('#dialog-body').append(body);if(!$('#dialog').open)$('#dialog').showModal();$('#dialog-body').scrollTop=0;}
 function reelSummary(){
   const shares=symbols=>{const values=REEL_STRIPS.map(r=>r.filter(s=>symbols.includes(s)).length/r.length*100);return `${Number(Math.min(...values).toFixed(2))}～${Number(Math.max(...values).toFixed(2))}%`;};
   const lengths=REEL_STRIPS.map(r=>r.length),size=new Set(lengths).size===1?`五軸各 ${lengths[0]} 格`:`五軸長度 ${lengths.join('／')} 格`;
@@ -173,8 +188,7 @@ function reelSummary(){
 }
 function showRules(){
   const table=SYMBOLS.map(s=>'<tr><td>'+SYMBOL_CODES[s]+' · '+SYMBOL_NAMES[s]+'</td>'+PAYTABLE[s].map(p=>'<td>'+fmt(p)+'×</td>').join('')+'</tr>').join('');
-  const lines=PAYLINES.map((rows,i)=>'<div class="payline-card"><b>'+String(i+1).padStart(2,'0')+'</b><svg viewBox="0 0 100 60" role="img" aria-label="第 '+(i+1)+' 線，列序 '+rows.map(r=>r+1).join('、')+'"><path d="M0 20H100M0 40H100M20 0V60M40 0V60M60 0V60M80 0V60" stroke="#765067" stroke-width="1"/><polyline points="'+rows.map((r,c)=>(c*20+10)+','+(r*20+10)).join(' ')+'" fill="none" stroke="#ffd57d" stroke-width="3"/>'+rows.map((r,c)=>'<circle cx="'+(c*20+10)+'" cy="'+(r*20+10)+'" r="4" fill="#ffd57d"/>').join('')+'</svg></div>').join('');
-  openDialog('20 線遊戲規則',`<p>5 軸 × 3 列，20 條線全部啟用。每軸從固定輪帶獨立等機率抽取停點；理論 RTP 為 96%，代表長期平均，單次或短期結果會波動。規則版本：${MODEL_VERSION}。</p><h3>賠率表</h3><p>下表倍率 × 單線下注。單線下注 = 總下注 ÷ 20；例如下注 100，單線下注為 5。從第一軸向右連續至少 3 個相同符號得獎，每線只付最高獎，不同線相加。W 替代一般符號，也可獨立派彩，取較高者。沒有 Scatter、免費旋轉或額外獎池。</p><table><thead><tr><th>符號</th><th>3 連</th><th>4 連</th><th>5 連</th></tr></thead><tbody>${table}</tbody></table><h3>20 條固定線</h3><div class="payline-grid">${lines}</div><p>派彩不另外返還本金；淨損益 = 派彩 − 總下注。此固定輪帶最高可達 ${MAXIMUM_MULTIPLIER} 倍總下注。得獎線每 1.6 秒依序亮出，彩色實線與亮框標示得獎段，淡線標示該線後續路徑。控制框正上方顯示最近一局的中獎總得分（未扣下注），沒有中獎則留白；各線得分與完整明細可在右上角「遊玩紀錄」查看。</p><h3>內部試玩與資料</h3><p>${walletClient?'已連接本伺服器的帳號錢包，餘額及紀錄由後端保存。':activityMode==='discord'?'已連接 Discord Activity，目前使用本機試玩帳本。':'目前是獨立瀏覽器展示模式，不影響 Discord 帳號餘額。'}籌碼僅供測試，不能購買、轉讓或兌現。大獎預覽使用實際可達的停點，但不扣籌碼、不寫紀錄，也不參與 RTP 統計；12,000 里程碑僅為演出。只有派彩大於下注才播放獲利慶祝，20～不足 50 倍播放 BIG WIN、50～不足 200 倍播放 SUPER WIN、恰好 200 倍播放 MEGA WIN。新版${reelSummary()}；20 倍以上派彩長期平均約 ${Math.round(BIG_WIN_MEAN_SPINS)} 局一次，並非固定間隔。</p><p>${walletClient?'顯示最近 100 局，後端保留完整帳本及停點、各線獎金與規則版本。':'最近 100 局保存在此瀏覽器，含停點、各線獎金與規則版本。舊展示版紀錄另標示為舊規則；重設試玩會清除餘額與紀錄。'}空白鍵可啟動 SPIN；長按、轉動中或彈出視窗開啟時不會重複下注。音效需手動開啟，系統減少動態效果時會簡化演出。</p><button id="reset" class="confirm-reset" ${busy||!ready?'disabled':''}>重設試玩</button>`);
+  openDialog('243 路遊戲規則',`<p>5 軸 × 3 列，243 路全部啟用。相同圖標從第一軸向右連續出現在至少三軸，即可得獎，位置可在各軸任意一列。規則版本：${MODEL_VERSION}。</p><p>此版理論 RTP 為 ${(THEORETICAL_RTP*100).toFixed(4)}%，代表長期平均，單次或短期結果會波動。</p><h3>倍率與計價</h3><p>保留原倍率表與計價單位：總下注 ÷ ${BET_DIVISOR}。例如下注 100，計價單位為 5；243 是可形成的完整路徑數。得分＝倍率 × 得獎組合數 × 計價單位。</p><table><thead><tr><th>圖標</th><th>3 連</th><th>4 連</th><th>5 連</th></tr></thead><tbody>${table}</tbody></table><h3>組合怎麼計算</h3><p>例如前三軸分別有 2、1、3 個紅心，第四軸沒有紅心或 WILD，就形成 2 × 1 × 3＝6 組三連，派彩為 6 × 5 × 計價單位。同一圖標只付最長連續得獎段，不重複累加較短獎；不同圖標的得分相加。後方未參與的轉輪不會重複放大三連獎。</p><p>WILD 替代一般圖標，出現在第三至第五軸；前兩軸沒有 WILD。沒有 Scatter、免費旋轉或額外獎池。派彩不另外返還本金；淨損益＝派彩−總下注。有得分仍可能小於下注。</p><h3>得分演出</h3><p>每 1.6 秒輪流展示一種得獎圖標，紅金亮框與彈動標示所有參與得獎的格子。控制框上方保留本局中獎總得分的跳字，無派彩時留白；各圖標、組合數及淨損益可在「遊玩紀錄」查看。此輪帶自然最高派彩為 ${fmt(MAXIMUM_MULTIPLIER)} 倍總下注。</p><h3>內部試玩與資料</h3><p>${walletClient?'已連接本伺服器的帳號錢包，餘額及紀錄由後端保存。':'目前使用此瀏覽器的試玩帳本。'}籌碼僅供測試，不能購買、轉讓或兌現。12,000 里程碑僅為演出。20～不足 50 倍播放 BIG WIN、50～不足 200 倍播放 SUPER WIN、200 倍以上播放 MEGA WIN。${reelSummary()}；20 倍以上長期平均約 ${Math.round(BIG_WIN_MEAN_SPINS)} 局一次，並非固定間隔。</p><p>顯示最近 100 局，舊版回合保留原規則與已結算派彩。空白鍵第一次開轉，轉動中再按一次快速停輪，結果與原停點相同。AUTO SPIN 開啟連續旋轉，再按一次停止後續自動開轉；得分與大獎演出後才繼續。開啟視窗、切到背景或籌碼不足時停止自動。音效需手動開啟，減少動態效果時會簡化演出。</p><button id="reset" class="confirm-reset" ${busy||!ready?'disabled':''}>重設試玩</button>`);
   if(activityUser){
     const identity=document.createElement('p');
     identity.textContent=`已登入 Discord：${activityUser.global_name || activityUser.username}（${activityUser.id}）。${walletClient?`目前使用本伺服器的${state.environment==='test'?'測試':'正式'}錢包，跨裝置同步。`:'籌碼與紀錄仍為此瀏覽器的測試資料，尚未同步到帳號。'}`;
@@ -202,28 +216,25 @@ document.addEventListener('keydown',event=>{
   // Editable fields and dialogs retain normal typing / keyboard behavior.
   if(event.target.closest?.('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]'))return;
   event.preventDefault();
-  if(!event.repeat)spin();
+  if(!event.repeat)controls.space();
 });
-$('#preview-win').addEventListener('click',()=>{
-  openDialog('大獎演出預覽','<p>選擇演出等級。使用真實可達的盤面，不扣籌碼、不寫入紀錄。</p>'+Object.entries(WIN_TITLES).map(([tier,title])=>`<button class="gold-button tier-preview" data-tier="${tier}">${title}</button>`).join(''));
-  document.querySelectorAll('.tier-preview').forEach(button=>button.addEventListener('click',()=>{$('#dialog').close();spin(true,button.dataset.tier);}));
-});
+$('#auto-spin').addEventListener('click',()=>controls.toggleAuto());
 document.querySelectorAll('[data-bet]').forEach(b=>b.addEventListener('click',()=>{if(busy)return;bet=Number(b.dataset.bet);document.querySelectorAll('[data-bet]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));}));
 $('#sound').addEventListener('click',async()=>{
   if(sound.enabled)sound.enabled=false;else await sound.enable();
   $('#sound').innerHTML=icon(sound.enabled?'sound':'muted');$('#sound').setAttribute('aria-pressed',String(sound.enabled));$('#sound').setAttribute('aria-label',sound.enabled?'關閉音效':'開啟音效');if(sound.enabled)sound.tone(659,.2);
 });
 $('#help').addEventListener('click',showRules);
-$('#all-history').addEventListener('click',()=>{const body=document.createElement('div');if(state.history.length)state.history.forEach(r=>body.append(historyRow(r,true)));else body.textContent='還沒有紀錄。完成第一局後再來看看。';const note=document.createElement('p');note.className='history-note';note.textContent=walletClient?'本伺服器最近 100 局 · 帳號同步 · 大獎預覽不入帳':storageAvailable?'最近 100 局 · 僅保存在此瀏覽器 · 大獎預覽不影響籌碼與紀錄':'瀏覽器儲存不可用 · 本次關閉後不保留';body.prepend(note);openDialog('遊玩紀錄',body);});
+$('#all-history').addEventListener('click',()=>{const body=document.createElement('div');if(state.history.length)state.history.forEach(r=>body.append(historyRow(r,true)));else body.textContent='還沒有紀錄。完成第一局後再來看看。';const note=document.createElement('p');note.className='history-note';note.textContent=walletClient?'本伺服器最近 100 局 · 帳號同步':storageAvailable?'最近 100 局 · 僅保存在此瀏覽器':'瀏覽器儲存不可用 · 本次關閉後不保留';body.prepend(note);openDialog('遊玩紀錄',body);});
 $('#close-dialog').addEventListener('click',()=>$('#dialog').close());
 $('#dialog').addEventListener('click',e=>{if(e.target===$('#dialog')){const r=$('#dialog').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)$('#dialog').close();}});
 $('#dialog-body').addEventListener('click',e=>{
   if(!e.target.closest('#reset')||busy||!ready||walletClient)return;
   openDialog('重新開始試玩', '<p>將恢復 10,000 測試籌碼，並清除這個瀏覽器中的試玩紀錄與里程碑。</p><button class="confirm-reset" id="confirm-reset">確認重設</button>');
-  $('#confirm-reset').addEventListener('click',()=>{cancelAnimationFrame(countAnimation);hideCelebration();clearLineReadout();save(freshState());renderState();showPayout(0);scene.setStops(INITIAL_STOPS);result('新的馬戲團旅程，準備開始。','測試籌碼已恢復為 10,000。');$('#dialog').close();});
+  $('#confirm-reset').addEventListener('click',()=>{cancelAnimationFrame(countAnimation);hideCelebration();clearWinReadout();save(freshState());renderState();showPayout(0);scene.setStops(INITIAL_STOPS);result('新的馬戲團旅程，準備開始。','測試籌碼已恢復為 10,000。');$('#dialog').close();});
 });
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden){scene.finish();if(ready)scene.app.stop();sound.context?.suspend();}
+  if(document.hidden){controls.stopAuto();controls.stopCurrent();scene.finish();if(ready)scene.app.stop();sound.context?.suspend();}
   else {if(ready)scene.app.start();if(sound.enabled)sound.context?.resume().catch(()=>{});refreshWallet();}
 });
 renderState();

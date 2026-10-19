@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import { randomInt, randomUUID } from 'node:crypto';
-import { BETS, roundFromStops, REEL_STRIPS } from '../src/game.js';
+import { BETS, roundFromStops, REEL_STRIPS } from '../src/game/index.js';
 
 export const problem = (status, message) => Object.assign(new Error(message), { status });
 export const taipeiDay = now => new Date(now + 8*3600000).toISOString().slice(0,10);

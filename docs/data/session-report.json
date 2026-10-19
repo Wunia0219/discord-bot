@@ -1,0 +1,978 @@
+{
+  "model": "circus-243-v2",
+  "modelSha256": "514680cb90d0625b3cb3535c52b2c3c02da3bb59c7af8de14f4be2e4b33b1e89",
+  "method": "100 independent fixed-seed wallets x 500 actual createRound settlements; no rerolls, topups or excluded outcomes",
+  "seedBase": 446038016,
+  "sessionCount": 100,
+  "roundsPerSession": 500,
+  "rounds": 50000,
+  "bet": 20,
+  "startingBalance": 10000,
+  "oracleComparisons": 5000,
+  "trace": "test-results/243-sessions.jsonl",
+  "traceSha256": "7c4160a8a313003f03762ca46dffb9d8f58d2aca0060f7602f21f96cdb020b00",
+  "observed": {
+    "rtp": 0.954288,
+    "standardError": 0.014181091295387903,
+    "approximate95PercentInterval": [
+      0.9264930610610398,
+      0.9820829389389603
+    ],
+    "hitRate": 0.55874,
+    "profitableRate": 0.21016,
+    "lossWithPayoutRate": 0.31252,
+    "spadeOnlyRate": 0.0738,
+    "symbols": {
+      "scarab": {
+        "rounds": 418,
+        "payout": 52460,
+        "roundFrequency": 0.00836,
+        "payoutShare": 0.05497292222054558
+      },
+      "eye": {
+        "rounds": 634,
+        "payout": 68140,
+        "roundFrequency": 0.01268,
+        "payoutShare": 0.07140402058917224
+      },
+      "ankh": {
+        "rounds": 2156,
+        "payout": 140250,
+        "roundFrequency": 0.04312,
+        "payoutShare": 0.14696821085458478
+      },
+      "necklace": {
+        "rounds": 1970,
+        "payout": 102060,
+        "roundFrequency": 0.0394,
+        "payoutShare": 0.10694884563150747
+      },
+      "ace": {
+        "rounds": 5540,
+        "payout": 155045,
+        "roundFrequency": 0.1108,
+        "payoutShare": 0.16247191623493118
+      },
+      "king": {
+        "rounds": 7308,
+        "payout": 150108,
+        "roundFrequency": 0.14616,
+        "payoutShare": 0.15729842563251345
+      },
+      "queen": {
+        "rounds": 7895,
+        "payout": 139474,
+        "roundFrequency": 0.1579,
+        "payoutShare": 0.1461550391496068
+      },
+      "jack": {
+        "rounds": 7747,
+        "payout": 146751,
+        "roundFrequency": 0.15494,
+        "payoutShare": 0.15378061968713846
+      }
+    }
+  },
+  "sessions": [
+    {
+      "session": 1,
+      "seed": 446038017,
+      "rounds": 500,
+      "rtp": 0.8223,
+      "hitRate": 0.562,
+      "endingBalance": 8223,
+      "longestNoPayoutRun": 5
+    },
+    {
+      "session": 2,
+      "seed": 446038018,
+      "rounds": 500,
+      "rtp": 0.8781,
+      "hitRate": 0.57,
+      "endingBalance": 8781,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 3,
+      "seed": 446038019,
+      "rounds": 500,
+      "rtp": 1.0925,
+      "hitRate": 0.574,
+      "endingBalance": 10925,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 4,
+      "seed": 446038020,
+      "rounds": 500,
+      "rtp": 0.9858,
+      "hitRate": 0.528,
+      "endingBalance": 9858,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 5,
+      "seed": 446038021,
+      "rounds": 500,
+      "rtp": 0.9113,
+      "hitRate": 0.554,
+      "endingBalance": 9113,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 6,
+      "seed": 446038022,
+      "rounds": 500,
+      "rtp": 0.882,
+      "hitRate": 0.58,
+      "endingBalance": 8820,
+      "longestNoPayoutRun": 5
+    },
+    {
+      "session": 7,
+      "seed": 446038023,
+      "rounds": 500,
+      "rtp": 0.8421,
+      "hitRate": 0.56,
+      "endingBalance": 8421,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 8,
+      "seed": 446038024,
+      "rounds": 500,
+      "rtp": 0.8521,
+      "hitRate": 0.536,
+      "endingBalance": 8521,
+      "longestNoPayoutRun": 8
+    },
+    {
+      "session": 9,
+      "seed": 446038025,
+      "rounds": 500,
+      "rtp": 0.8927,
+      "hitRate": 0.542,
+      "endingBalance": 8927,
+      "longestNoPayoutRun": 9
+    },
+    {
+      "session": 10,
+      "seed": 446038026,
+      "rounds": 500,
+      "rtp": 0.8224,
+      "hitRate": 0.532,
+      "endingBalance": 8224,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 11,
+      "seed": 446038027,
+      "rounds": 500,
+      "rtp": 0.8001,
+      "hitRate": 0.534,
+      "endingBalance": 8001,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 12,
+      "seed": 446038028,
+      "rounds": 500,
+      "rtp": 0.8506,
+      "hitRate": 0.548,
+      "endingBalance": 8506,
+      "longestNoPayoutRun": 9
+    },
+    {
+      "session": 13,
+      "seed": 446038029,
+      "rounds": 500,
+      "rtp": 0.9827,
+      "hitRate": 0.542,
+      "endingBalance": 9827,
+      "longestNoPayoutRun": 8
+    },
+    {
+      "session": 14,
+      "seed": 446038030,
+      "rounds": 500,
+      "rtp": 0.8777,
+      "hitRate": 0.578,
+      "endingBalance": 8777,
+      "longestNoPayoutRun": 8
+    },
+    {
+      "session": 15,
+      "seed": 446038031,
+      "rounds": 500,
+      "rtp": 0.8429,
+      "hitRate": 0.584,
+      "endingBalance": 8429,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 16,
+      "seed": 446038032,
+      "rounds": 500,
+      "rtp": 0.7791,
+      "hitRate": 0.52,
+      "endingBalance": 7791,
+      "longestNoPayoutRun": 9
+    },
+    {
+      "session": 17,
+      "seed": 446038033,
+      "rounds": 500,
+      "rtp": 1.1074,
+      "hitRate": 0.546,
+      "endingBalance": 11074,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 18,
+      "seed": 446038034,
+      "rounds": 500,
+      "rtp": 1.3926,
+      "hitRate": 0.594,
+      "endingBalance": 13926,
+      "longestNoPayoutRun": 5
+    },
+    {
+      "session": 19,
+      "seed": 446038035,
+      "rounds": 500,
+      "rtp": 1.0873,
+      "hitRate": 0.6,
+      "endingBalance": 10873,
+      "longestNoPayoutRun": 5
+    },
+    {
+      "session": 20,
+      "seed": 446038036,
+      "rounds": 500,
+      "rtp": 1.0815,
+      "hitRate": 0.556,
+      "endingBalance": 10815,
+      "longestNoPayoutRun": 9
+    },
+    {
+      "session": 21,
+      "seed": 446038037,
+      "rounds": 500,
+      "rtp": 1.0294,
+      "hitRate": 0.584,
+      "endingBalance": 10294,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 22,
+      "seed": 446038038,
+      "rounds": 500,
+      "rtp": 1.1816,
+      "hitRate": 0.554,
+      "endingBalance": 11816,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 23,
+      "seed": 446038039,
+      "rounds": 500,
+      "rtp": 0.8898,
+      "hitRate": 0.56,
+      "endingBalance": 8898,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 24,
+      "seed": 446038040,
+      "rounds": 500,
+      "rtp": 0.8759,
+      "hitRate": 0.514,
+      "endingBalance": 8759,
+      "longestNoPayoutRun": 15
+    },
+    {
+      "session": 25,
+      "seed": 446038041,
+      "rounds": 500,
+      "rtp": 1.4404,
+      "hitRate": 0.606,
+      "endingBalance": 14404,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 26,
+      "seed": 446038042,
+      "rounds": 500,
+      "rtp": 0.7693,
+      "hitRate": 0.558,
+      "endingBalance": 7693,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 27,
+      "seed": 446038043,
+      "rounds": 500,
+      "rtp": 0.8461,
+      "hitRate": 0.534,
+      "endingBalance": 8461,
+      "longestNoPayoutRun": 10
+    },
+    {
+      "session": 28,
+      "seed": 446038044,
+      "rounds": 500,
+      "rtp": 0.9797,
+      "hitRate": 0.588,
+      "endingBalance": 9797,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 29,
+      "seed": 446038045,
+      "rounds": 500,
+      "rtp": 0.9346,
+      "hitRate": 0.552,
+      "endingBalance": 9346,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 30,
+      "seed": 446038046,
+      "rounds": 500,
+      "rtp": 1.0244,
+      "hitRate": 0.55,
+      "endingBalance": 10244,
+      "longestNoPayoutRun": 5
+    },
+    {
+      "session": 31,
+      "seed": 446038047,
+      "rounds": 500,
+      "rtp": 0.8124,
+      "hitRate": 0.56,
+      "endingBalance": 8124,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 32,
+      "seed": 446038048,
+      "rounds": 500,
+      "rtp": 0.8821,
+      "hitRate": 0.538,
+      "endingBalance": 8821,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 33,
+      "seed": 446038049,
+      "rounds": 500,
+      "rtp": 0.8893,
+      "hitRate": 0.556,
+      "endingBalance": 8893,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 34,
+      "seed": 446038050,
+      "rounds": 500,
+      "rtp": 0.8047,
+      "hitRate": 0.548,
+      "endingBalance": 8047,
+      "longestNoPayoutRun": 5
+    },
+    {
+      "session": 35,
+      "seed": 446038051,
+      "rounds": 500,
+      "rtp": 1.0079,
+      "hitRate": 0.58,
+      "endingBalance": 10079,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 36,
+      "seed": 446038052,
+      "rounds": 500,
+      "rtp": 0.9371,
+      "hitRate": 0.548,
+      "endingBalance": 9371,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 37,
+      "seed": 446038053,
+      "rounds": 500,
+      "rtp": 1.1443,
+      "hitRate": 0.556,
+      "endingBalance": 11443,
+      "longestNoPayoutRun": 8
+    },
+    {
+      "session": 38,
+      "seed": 446038054,
+      "rounds": 500,
+      "rtp": 0.8586,
+      "hitRate": 0.55,
+      "endingBalance": 8586,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 39,
+      "seed": 446038055,
+      "rounds": 500,
+      "rtp": 0.7103,
+      "hitRate": 0.524,
+      "endingBalance": 7103,
+      "longestNoPayoutRun": 9
+    },
+    {
+      "session": 40,
+      "seed": 446038056,
+      "rounds": 500,
+      "rtp": 0.9604,
+      "hitRate": 0.562,
+      "endingBalance": 9604,
+      "longestNoPayoutRun": 4
+    },
+    {
+      "session": 41,
+      "seed": 446038057,
+      "rounds": 500,
+      "rtp": 1.2069,
+      "hitRate": 0.58,
+      "endingBalance": 12069,
+      "longestNoPayoutRun": 8
+    },
+    {
+      "session": 42,
+      "seed": 446038058,
+      "rounds": 500,
+      "rtp": 0.9377,
+      "hitRate": 0.572,
+      "endingBalance": 9377,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 43,
+      "seed": 446038059,
+      "rounds": 500,
+      "rtp": 1.1523,
+      "hitRate": 0.584,
+      "endingBalance": 11523,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 44,
+      "seed": 446038060,
+      "rounds": 500,
+      "rtp": 0.8325,
+      "hitRate": 0.53,
+      "endingBalance": 8325,
+      "longestNoPayoutRun": 5
+    },
+    {
+      "session": 45,
+      "seed": 446038061,
+      "rounds": 500,
+      "rtp": 1.0365,
+      "hitRate": 0.556,
+      "endingBalance": 10365,
+      "longestNoPayoutRun": 8
+    },
+    {
+      "session": 46,
+      "seed": 446038062,
+      "rounds": 500,
+      "rtp": 0.9209,
+      "hitRate": 0.574,
+      "endingBalance": 9209,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 47,
+      "seed": 446038063,
+      "rounds": 500,
+      "rtp": 0.9932,
+      "hitRate": 0.562,
+      "endingBalance": 9932,
+      "longestNoPayoutRun": 5
+    },
+    {
+      "session": 48,
+      "seed": 446038064,
+      "rounds": 500,
+      "rtp": 0.8429,
+      "hitRate": 0.534,
+      "endingBalance": 8429,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 49,
+      "seed": 446038065,
+      "rounds": 500,
+      "rtp": 0.9589,
+      "hitRate": 0.526,
+      "endingBalance": 9589,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 50,
+      "seed": 446038066,
+      "rounds": 500,
+      "rtp": 0.8998,
+      "hitRate": 0.56,
+      "endingBalance": 8998,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 51,
+      "seed": 446038067,
+      "rounds": 500,
+      "rtp": 1.0315,
+      "hitRate": 0.558,
+      "endingBalance": 10315,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 52,
+      "seed": 446038068,
+      "rounds": 500,
+      "rtp": 1.0106,
+      "hitRate": 0.594,
+      "endingBalance": 10106,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 53,
+      "seed": 446038069,
+      "rounds": 500,
+      "rtp": 0.9276,
+      "hitRate": 0.578,
+      "endingBalance": 9276,
+      "longestNoPayoutRun": 8
+    },
+    {
+      "session": 54,
+      "seed": 446038070,
+      "rounds": 500,
+      "rtp": 1.1067,
+      "hitRate": 0.59,
+      "endingBalance": 11067,
+      "longestNoPayoutRun": 5
+    },
+    {
+      "session": 55,
+      "seed": 446038071,
+      "rounds": 500,
+      "rtp": 1.0968,
+      "hitRate": 0.548,
+      "endingBalance": 10968,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 56,
+      "seed": 446038072,
+      "rounds": 500,
+      "rtp": 1.4069,
+      "hitRate": 0.528,
+      "endingBalance": 14069,
+      "longestNoPayoutRun": 8
+    },
+    {
+      "session": 57,
+      "seed": 446038073,
+      "rounds": 500,
+      "rtp": 0.8782,
+      "hitRate": 0.528,
+      "endingBalance": 8782,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 58,
+      "seed": 446038074,
+      "rounds": 500,
+      "rtp": 0.8466,
+      "hitRate": 0.528,
+      "endingBalance": 8466,
+      "longestNoPayoutRun": 11
+    },
+    {
+      "session": 59,
+      "seed": 446038075,
+      "rounds": 500,
+      "rtp": 1.1141,
+      "hitRate": 0.586,
+      "endingBalance": 11141,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 60,
+      "seed": 446038076,
+      "rounds": 500,
+      "rtp": 0.7176,
+      "hitRate": 0.518,
+      "endingBalance": 7176,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 61,
+      "seed": 446038077,
+      "rounds": 500,
+      "rtp": 0.7562,
+      "hitRate": 0.526,
+      "endingBalance": 7562,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 62,
+      "seed": 446038078,
+      "rounds": 500,
+      "rtp": 0.9922,
+      "hitRate": 0.576,
+      "endingBalance": 9922,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 63,
+      "seed": 446038079,
+      "rounds": 500,
+      "rtp": 0.9005,
+      "hitRate": 0.57,
+      "endingBalance": 9005,
+      "longestNoPayoutRun": 5
+    },
+    {
+      "session": 64,
+      "seed": 446038080,
+      "rounds": 500,
+      "rtp": 0.9556,
+      "hitRate": 0.562,
+      "endingBalance": 9556,
+      "longestNoPayoutRun": 11
+    },
+    {
+      "session": 65,
+      "seed": 446038081,
+      "rounds": 500,
+      "rtp": 0.9769,
+      "hitRate": 0.57,
+      "endingBalance": 9769,
+      "longestNoPayoutRun": 8
+    },
+    {
+      "session": 66,
+      "seed": 446038082,
+      "rounds": 500,
+      "rtp": 1.0239,
+      "hitRate": 0.568,
+      "endingBalance": 10239,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 67,
+      "seed": 446038083,
+      "rounds": 500,
+      "rtp": 1.091,
+      "hitRate": 0.55,
+      "endingBalance": 10910,
+      "longestNoPayoutRun": 8
+    },
+    {
+      "session": 68,
+      "seed": 446038084,
+      "rounds": 500,
+      "rtp": 1.1383,
+      "hitRate": 0.568,
+      "endingBalance": 11383,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 69,
+      "seed": 446038085,
+      "rounds": 500,
+      "rtp": 0.9911,
+      "hitRate": 0.55,
+      "endingBalance": 9911,
+      "longestNoPayoutRun": 13
+    },
+    {
+      "session": 70,
+      "seed": 446038086,
+      "rounds": 500,
+      "rtp": 0.9043,
+      "hitRate": 0.558,
+      "endingBalance": 9043,
+      "longestNoPayoutRun": 9
+    },
+    {
+      "session": 71,
+      "seed": 446038087,
+      "rounds": 500,
+      "rtp": 0.936,
+      "hitRate": 0.574,
+      "endingBalance": 9360,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 72,
+      "seed": 446038088,
+      "rounds": 500,
+      "rtp": 1.3823,
+      "hitRate": 0.56,
+      "endingBalance": 13823,
+      "longestNoPayoutRun": 5
+    },
+    {
+      "session": 73,
+      "seed": 446038089,
+      "rounds": 500,
+      "rtp": 0.9766,
+      "hitRate": 0.544,
+      "endingBalance": 9766,
+      "longestNoPayoutRun": 9
+    },
+    {
+      "session": 74,
+      "seed": 446038090,
+      "rounds": 500,
+      "rtp": 0.8498,
+      "hitRate": 0.572,
+      "endingBalance": 8498,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 75,
+      "seed": 446038091,
+      "rounds": 500,
+      "rtp": 0.8464,
+      "hitRate": 0.554,
+      "endingBalance": 8464,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 76,
+      "seed": 446038092,
+      "rounds": 500,
+      "rtp": 0.908,
+      "hitRate": 0.55,
+      "endingBalance": 9080,
+      "longestNoPayoutRun": 8
+    },
+    {
+      "session": 77,
+      "seed": 446038093,
+      "rounds": 500,
+      "rtp": 0.9599,
+      "hitRate": 0.574,
+      "endingBalance": 9599,
+      "longestNoPayoutRun": 5
+    },
+    {
+      "session": 78,
+      "seed": 446038094,
+      "rounds": 500,
+      "rtp": 0.7803,
+      "hitRate": 0.564,
+      "endingBalance": 7803,
+      "longestNoPayoutRun": 8
+    },
+    {
+      "session": 79,
+      "seed": 446038095,
+      "rounds": 500,
+      "rtp": 1.4273,
+      "hitRate": 0.52,
+      "endingBalance": 14273,
+      "longestNoPayoutRun": 8
+    },
+    {
+      "session": 80,
+      "seed": 446038096,
+      "rounds": 500,
+      "rtp": 0.9651,
+      "hitRate": 0.572,
+      "endingBalance": 9651,
+      "longestNoPayoutRun": 9
+    },
+    {
+      "session": 81,
+      "seed": 446038097,
+      "rounds": 500,
+      "rtp": 0.8929,
+      "hitRate": 0.576,
+      "endingBalance": 8929,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 82,
+      "seed": 446038098,
+      "rounds": 500,
+      "rtp": 1.0704,
+      "hitRate": 0.554,
+      "endingBalance": 10704,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 83,
+      "seed": 446038099,
+      "rounds": 500,
+      "rtp": 0.8774,
+      "hitRate": 0.536,
+      "endingBalance": 8774,
+      "longestNoPayoutRun": 9
+    },
+    {
+      "session": 84,
+      "seed": 446038100,
+      "rounds": 500,
+      "rtp": 0.7928,
+      "hitRate": 0.606,
+      "endingBalance": 7928,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 85,
+      "seed": 446038101,
+      "rounds": 500,
+      "rtp": 0.9039,
+      "hitRate": 0.558,
+      "endingBalance": 9039,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 86,
+      "seed": 446038102,
+      "rounds": 500,
+      "rtp": 1.1195,
+      "hitRate": 0.576,
+      "endingBalance": 11195,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 87,
+      "seed": 446038103,
+      "rounds": 500,
+      "rtp": 0.9648,
+      "hitRate": 0.606,
+      "endingBalance": 9648,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 88,
+      "seed": 446038104,
+      "rounds": 500,
+      "rtp": 0.9927,
+      "hitRate": 0.55,
+      "endingBalance": 9927,
+      "longestNoPayoutRun": 5
+    },
+    {
+      "session": 89,
+      "seed": 446038105,
+      "rounds": 500,
+      "rtp": 0.8178,
+      "hitRate": 0.55,
+      "endingBalance": 8178,
+      "longestNoPayoutRun": 9
+    },
+    {
+      "session": 90,
+      "seed": 446038106,
+      "rounds": 500,
+      "rtp": 0.9053,
+      "hitRate": 0.566,
+      "endingBalance": 9053,
+      "longestNoPayoutRun": 9
+    },
+    {
+      "session": 91,
+      "seed": 446038107,
+      "rounds": 500,
+      "rtp": 0.9678,
+      "hitRate": 0.592,
+      "endingBalance": 9678,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 92,
+      "seed": 446038108,
+      "rounds": 500,
+      "rtp": 0.9793,
+      "hitRate": 0.556,
+      "endingBalance": 9793,
+      "longestNoPayoutRun": 5
+    },
+    {
+      "session": 93,
+      "seed": 446038109,
+      "rounds": 500,
+      "rtp": 0.8798,
+      "hitRate": 0.568,
+      "endingBalance": 8798,
+      "longestNoPayoutRun": 8
+    },
+    {
+      "session": 94,
+      "seed": 446038110,
+      "rounds": 500,
+      "rtp": 0.8714,
+      "hitRate": 0.498,
+      "endingBalance": 8714,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 95,
+      "seed": 446038111,
+      "rounds": 500,
+      "rtp": 0.7698,
+      "hitRate": 0.558,
+      "endingBalance": 7698,
+      "longestNoPayoutRun": 9
+    },
+    {
+      "session": 96,
+      "seed": 446038112,
+      "rounds": 500,
+      "rtp": 0.7933,
+      "hitRate": 0.54,
+      "endingBalance": 7933,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 97,
+      "seed": 446038113,
+      "rounds": 500,
+      "rtp": 0.7879,
+      "hitRate": 0.566,
+      "endingBalance": 7879,
+      "longestNoPayoutRun": 7
+    },
+    {
+      "session": 98,
+      "seed": 446038114,
+      "rounds": 500,
+      "rtp": 0.9294,
+      "hitRate": 0.6,
+      "endingBalance": 9294,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 99,
+      "seed": 446038115,
+      "rounds": 500,
+      "rtp": 0.7915,
+      "hitRate": 0.556,
+      "endingBalance": 7915,
+      "longestNoPayoutRun": 6
+    },
+    {
+      "session": 100,
+      "seed": 446038116,
+      "rounds": 500,
+      "rtp": 0.8797,
+      "hitRate": 0.584,
+      "endingBalance": 8797,
+      "longestNoPayoutRun": 6
+    }
+  ]
+}

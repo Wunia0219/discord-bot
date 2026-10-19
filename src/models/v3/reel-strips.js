@@ -1,3 +1,0 @@
-// Verified fixed strips; no runtime compensation or payout clipping.
-export const MODEL_VERSION='circus-20-v3';
-export const REEL_CODES=Object.freeze([["L3","H3","L3","L1","L4","L2","H4","H3","W","L4","L1","L2","L3","L1","L2","W","H2","H4","L4","H1"],["L1","H4","L3","L2","W","L1","H1","L3","L1","H2","H3","L4","L3","H2","L2","L4","L3","L2","L4","H4"],["L1","L4","W","L3","L4","L3","L2","W","H2","L1","H4","L3","L4","H1","L1","L2","H3","H1","L2","H3"],["L1","L3","L4","H2","L1","L2","H1","L2","L3","H3","L1","H4","L2","H2","L1","L4","H3","L3","L4","W"],["L1","L2","H4","L3","H3","L2","H2","W","H3","L2","H4","L4","L3","L4","L1","L3","H1","L4","L1","H1","L2","L1","L4","L3","H2"]].map(Object.freeze));

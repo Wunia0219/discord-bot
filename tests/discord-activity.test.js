@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { connectActivity, isDiscordActivity } from '../src/discord-activity.js';
+import { connectActivity, isDiscordActivity } from '../src/platform/discord-activity.js';
 
 const clientId='123456789012345678';
 const location={hostname:`${clientId}.discordsays.com`,search:'?frame_id=test-frame&instance_id=test-instance&platform=desktop'};

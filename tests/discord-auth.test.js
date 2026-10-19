@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { authenticateActivity } from '../src/discord-auth.js';
+import { authenticateActivity } from '../src/platform/discord-auth.js';
 
 const id = '1561284960986599626';
 test('OAuth requests identify only, exchanges on our backend, and returns no tokens', async () => {

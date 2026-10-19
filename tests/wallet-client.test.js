@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createWalletClient } from '../src/wallet-client.js';
+import { createWalletClient } from '../src/platform/wallet-client.js';
 test('lost response retries the same bet and id, including a page reload, without storing session secrets',async()=>{
  const data=new Map();const storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)};
  const session={token:'private-session',guildId:'guild',userId:'user'};let first;
