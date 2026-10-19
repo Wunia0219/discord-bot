@@ -7,7 +7,7 @@ test('OAuth requests identify only, exchanges on our backend, and returns no tok
   const calls = [];
   const sdk = { commands:{
     authorize:async args => { calls.push('authorize'); assert.deepEqual(args.scope,['identify']); assert.equal(args.client_id,id); return { code:'test-code' }; },
-    authenticate:async args => { calls.push('authenticate'); assert.deepEqual(args,{access_token:'test-token'}); return { access_token:'test-token', user:{id,username:'tester',global_name:'玩家',avatar:null} }; },
+    authenticate:async args => { calls.push('authenticate'); assert.deepEqual(args,{access_token:'test-token'}); return { access_token:'test-token', user:{id,username:'tester',global_name:'玩家',avatar:'1269e74af4df7417b13759eae50c83dc'} }; },
   } };
   const user = await authenticateActivity(sdk,id,async (url,opts) => {
     calls.push('exchange');assert.equal(url,'/api/token');assert.equal(opts.cache,'no-store');
@@ -15,7 +15,7 @@ test('OAuth requests identify only, exchanges on our backend, and returns no tok
     return Response.json({access_token:'test-token'});
   });
   assert.deepEqual(calls,['authorize','exchange','authenticate']);
-  assert.deepEqual(user,{id,username:'tester',global_name:'玩家',avatar:null});
+  assert.deepEqual(user,{id,username:'tester',global_name:'玩家',avatar:'1269e74af4df7417b13759eae50c83dc'});
 });
 test('cancelled consent never calls the backend and never exposes raw SDK errors', async () => {
   await assert.rejects(authenticateActivity({commands:{authorize:async()=>{throw new Error('sensitive-provider-detail');}}},id,()=>assert.fail('must not fetch')),error=>/授權尚未完成/.test(error.message)&&!error.message.includes('sensitive'));

@@ -25,7 +25,7 @@ dialog.rules-dialog {
 .rules-logo { flex: none; width: 200px; filter: drop-shadow(0 5px 4px #10071888); }
 .rules-masthead > span { color: var(--rules-gold); font-size: 13px; letter-spacing: 1px; text-align: right; }
 .rules-masthead i { font-style: normal; font-size: 8px; padding: 0 8px; color: #c78d4c; }
-.rules-tabs { position: sticky; top: 0; z-index: 3; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 8px 32px; background: #24182cf5; border-block: 1px solid #e4b8662e; backdrop-filter: blur(12px); }
+.rules-tabs { position: sticky; top: 0; z-index: 3; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 8px 32px; background: #24182cf5; border-block: 1px solid #e4b8662e; backdrop-filter: blur(12px); }
 .rules-tabs button { position: relative; min-height: 48px; padding: 8px 4px; border-radius: 8px; border: 1px solid #e5ba6a32; background: #160f1c66; color: var(--rules-muted); font-size: 14px; white-space: nowrap; }
 .rules-tabs button:hover { border-color: var(--rules-edge); color: var(--rules-text); }
 .rules-tabs button[aria-selected=true] { color: #fff0cb; background: linear-gradient(115deg, #793d38, #4d2834); border-color: var(--rules-edge); box-shadow: inset 0 1px 0 #ffdf9e22, 0 2px 8px #0b061b44; }
@@ -87,7 +87,7 @@ dialog.rules-dialog {
 .rules-principles { display: grid; gap: 22px; margin: 28px 0; }
 .rules-principles article { display: flex; gap: 16px; align-items: baseline; }
 .rules-principles article > b { font: 14px Georgia, serif; color: var(--rules-gold); border-bottom: 1px solid #cfa36088; padding-bottom: 6px; }
-.rules-principles h4, .rules-steps h4, .rules-keyboard h4, .rules-account h4 { color: var(--rules-text); font-size: 16px; font-weight: 500; margin: 0; }
+.rules-principles h4, .rules-steps h4, .rules-keyboard h4 { color: var(--rules-text); font-size: 16px; font-weight: 500; margin: 0; }
 .rules-dialog #dialog-body .rules-principles p { margin-top: 4px; }
 .rules-steps { list-style: none; padding: 0; margin: 0 0 24px; display: grid; gap: 14px; }
 .rules-steps li { display: grid; grid-template-columns: 56px 1fr; gap: 20px; align-items: center; padding: 18px 20px; border: 1px solid #b58b564a; border-radius: 12px; background: #35233266; }
@@ -104,19 +104,18 @@ dialog.rules-dialog {
 .rules-tier > strong { color: var(--rules-gold); font: 28px Georgia, serif; }
 .rules-tier strong small { color: var(--rules-text); font: 12px 'Noto Sans TC', sans-serif; }
 .rules-tier > span { color: var(--rules-muted); font-size: 12px; }
-.rules-account { border: 1px solid #b58b5666; border-radius: 12px; padding: 20px; background: #38233466; }
-.rules-account .wallet-actions { gap: 10px; margin: 16px 0 0; }
-.rules-account .confirm-reset { font-size: 14px; }
-.rules-account #reset { margin-top: 16px; background: transparent; border: 1px solid var(--rules-edge); color: var(--rules-gold); }
 .rules-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0; }
 .rules-facts article { padding: 20px; border-block: 1px solid #e4b86635; }
 .rules-facts article > span { display: block; color: var(--rules-muted); font-size: 13px; }
 .rules-facts article > strong { color: var(--rules-gold); font: 40px/1.6 Georgia, serif; }
 .rules-facts strong small { font: 16px 'Noto Sans TC', sans-serif; margin-left: 5px; }
 .rules-dialog #dialog-body .rules-facts p { font-size: 13px; margin: 0; }
-.rules-dialog #dialog-body .rules-version { font-size: 12px; color: #c8b0be; border-top: 1px solid #e4b86624; padding-top: 16px; }
-.rules-version strong { display: block; color: var(--rules-gold); font-size: 14px; font-weight: 500; }
-.rules-version > span { display: block; margin-top: 4px; }
+.game-rules > .rules-version { display: flex; justify-content: space-between; gap: 16px; margin: 0 32px; padding: 16px 0 20px; border-top: 1px solid #e4b86626; color: #cfb6c1; font: 11px Georgia, serif; letter-spacing: 1px; }
+.rules-more { margin-top: 24px; padding: 0 20px 20px; border: 1px solid #b58b5650; border-radius: 12px; background: #2b1d3066; }
+.rules-more:not([open]) { padding-bottom: 0; }
+.rules-more > summary { min-height: 52px; padding: 14px 0; color: #ead0a6; font-size: 14px; cursor: pointer; }
+.rules-more > summary:focus-visible { outline: 2px solid var(--rules-gold); outline-offset: 4px; }
+.rules-more .rules-facts { margin: 0 0 16px; }
 
 @media (max-width: 600px) {
   dialog.rules-dialog { width: calc(100% - 16px); height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px); max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px); border-radius: 16px; }
@@ -165,7 +164,8 @@ dialog.rules-dialog {
   .rules-tier > strong { font-size: 27px; }
   .rules-tier strong small { display: block; font-size: 12px; margin-top: 4px; }
   .rules-tier > span { font-size: 11px; }
-  .rules-account { padding: 16px; }
+  .game-rules > .rules-version { margin-inline: 16px; }
+  .rules-more { padding-inline: 16px; }
   .rules-facts { gap: 12px; }
   .rules-facts article { padding: 16px 4px; }
   .rules-facts article > strong { font-size: 32px; }

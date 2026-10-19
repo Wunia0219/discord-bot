@@ -40,9 +40,12 @@ export function createLoadingScreen() {
       cancelAnimationFrame(frame);
       screen.classList.add('has-error');
       screen.setAttribute('aria-busy', 'false');
-      status.textContent = `暫時無法開啟馬戲團。${message}`;
-      screen.querySelector('#loading-retry').title = `${message} 點此重新載入`;
-      screen.querySelector('#loading-retry').hidden = false;
+      status.textContent = message;
+      status.className = 'loading-error';
+      const retry = screen.querySelector('#loading-retry');
+      retry.title = '重新開啟遊戲';retry.setAttribute('aria-label','重新開啟遊戲');
+      const label = document.createElement('span');label.textContent = '再試一次';
+      retry.querySelector('span')?.remove();retry.append(label);retry.hidden = false;
     },
   };
 }
