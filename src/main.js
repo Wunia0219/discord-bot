@@ -1,17 +1,19 @@
 import { mainArt } from './ui/main-art.js';
+import { APP_VERSION } from './version.js';
 import './style.css';
 import { SlotScene } from './ui/scene.js';
 import { Sound } from './ui/audio.js';
 import { connectActivity } from './platform/discord-activity.js';
 import { createLoadingScreen } from './ui/loading.js';
 import { BigWinPresentation } from './ui/big-win.js';
-import { winTier, WIN_THRESHOLDS } from './game/win-tier.js';
+import { winTier } from './game/win-tier.js';
+import { createGameRules } from './ui/game-rules.js';
 import { SpinControls } from './ui/spin-controls.js';
 import { roundFeedbackTiming } from './ui/presentation.js';
 import { setBitmapNumber } from './ui/bitmap-number.js';
 import { installResponsiveLayout } from './ui/responsive-layout.js';
 import { createWalletClient } from './platform/wallet-client.js';
-import { BETS, LEGACY_MODELS, SYMBOL_NAMES, SYMBOL_CODES, SYMBOLS, PAYTABLE, BET_DIVISOR, THEORETICAL_RTP, REEL_STRIPS, MODEL_VERSION, INITIAL_STOPS, MAXIMUM_MULTIPLIER, BIG_WIN_MEAN_SPINS, drawStops, restoredStops, freshState, readState, createRound } from './game/index.js';
+import { BETS, LEGACY_MODELS, SYMBOL_NAMES, SYMBOL_CODES, MODEL_VERSION, INITIAL_STOPS, drawStops, restoredStops, freshState, readState, createRound } from './game/index.js';
 
 const $ = s => document.querySelector(s);
 const fmt = n => Math.round(n).toLocaleString('en-US');
@@ -20,7 +22,7 @@ const icon = (name) => {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.star}</svg>`;
 };
 $('#app').innerHTML = `
-  <header class="header"><nav class="header-right" aria-label="遊戲工具"><span class="test-label"><i></i>內部試玩</span><button id="all-history" class="utility" aria-label="遊玩紀錄" title="遊玩紀錄" aria-haspopup="dialog">${icon('clock')}<span>遊玩紀錄</span></button><button id="sound" class="icon-button" aria-label="開啟音效" aria-pressed="false">${icon('muted')}</button><button id="help" class="utility" aria-label="遊玩介紹" title="遊玩介紹" aria-haspopup="dialog">${icon('info')}<span>遊玩介紹</span></button></nav></header>
+  <header class="header"><nav class="header-right" aria-label="遊戲工具"><span class="test-label"><i></i>內部試玩</span><span class="game-version" aria-label="遊戲版本 ${APP_VERSION}">v${APP_VERSION}</span><button id="all-history" class="utility" aria-label="遊玩紀錄" title="遊玩紀錄" aria-haspopup="dialog">${icon('clock')}<span>遊玩紀錄</span></button><button id="sound" class="icon-button" aria-label="開啟音效" aria-pressed="false">${icon('muted')}</button><button id="help" class="utility" aria-label="遊戲規則" title="遊戲規則" aria-haspopup="dialog">${icon('info')}<span>遊戲規則</span></button></nav></header>
   <main>
     <section class="game-panel" aria-label="Joker’s Circus：五軸三列老虎機">
       <h1 class="sr-only">Joker’s Circus</h1>
@@ -185,28 +187,39 @@ async function spin() {
     presenting=false;setBusy(false);controls.endRound(nextDelay);
   }
 }
-function openDialog(title,body) {controls.stopAuto();$('#dialog-title').textContent=title;$('#dialog-body').replaceChildren();if(typeof body==='string')$('#dialog-body').innerHTML=body;else $('#dialog-body').append(body);if(!$('#dialog').open)$('#dialog').showModal();$('#dialog-body').scrollTop=0;}
-function reelSummary(){
-  const shares=symbols=>{const values=REEL_STRIPS.map(r=>r.filter(s=>symbols.includes(s)).length/r.length*100);return `${Number(Math.min(...values).toFixed(2))}～${Number(Math.max(...values).toFixed(2))}%`;};
-  const lengths=REEL_STRIPS.map(r=>r.length),size=new Set(lengths).size===1?`五軸各 ${lengths[0]} 格`:`五軸長度 ${lengths.join('／')} 格`;
-  return `${size}，低分圖標占 ${shares(SYMBOLS.slice(4,8))}；高分圖標占 ${shares(SYMBOLS.slice(0,4))}，WILD 占 ${shares(['wild'])}`;
+function openDialog(title,body,variant='') {
+  controls.stopAuto();
+  $('#dialog').classList.toggle('rules-dialog',variant==='rules');
+  $('#dialog-title').textContent=title;
+  $('#dialog-body').replaceChildren();
+  if(typeof body==='string')$('#dialog-body').innerHTML=body;
+  else $('#dialog-body').append(body);
+  if(!$('#dialog').open)$('#dialog').showModal();
+  $('#dialog-body').scrollTop=0;
 }
 function showRules(){
-  const table=SYMBOLS.map(s=>'<tr><td>'+SYMBOL_CODES[s]+' · '+SYMBOL_NAMES[s]+'</td>'+PAYTABLE[s].map(p=>'<td>'+fmt(p)+'×</td>').join('')+'</tr>').join('');
-  openDialog('243 路遊戲規則',`<p>5 軸 × 3 列，243 路全部啟用。相同圖標從第一軸向右連續出現在至少三軸，即可得獎，位置可在各軸任意一列。規則版本：${MODEL_VERSION}。</p><p>此版理論 RTP 為 ${(THEORETICAL_RTP*100).toFixed(4)}%，代表長期平均，單次或短期結果會波動。</p><h3>倍率與計價</h3><p>保留原倍率表與計價單位：總下注 ÷ ${BET_DIVISOR}。例如下注 100，計價單位為 5；243 是可形成的完整路徑數。得分＝倍率 × 得獎組合數 × 計價單位。</p><table><thead><tr><th>圖標</th><th>3 連</th><th>4 連</th><th>5 連</th></tr></thead><tbody>${table}</tbody></table><h3>組合怎麼計算</h3><p>例如前三軸分別有 2、1、3 個紅心，第四軸沒有紅心或 WILD，就形成 2 × 1 × 3＝6 組三連，派彩為 6 × 5 × 計價單位。同一圖標只付最長連續得獎段，不重複累加較短獎；不同圖標的得分相加。後方未參與的轉輪不會重複放大三連獎。</p><p>WILD 替代一般圖標，出現在第三至第五軸；前兩軸沒有 WILD。沒有 Scatter、免費旋轉或額外獎池。派彩不另外返還本金；淨損益＝派彩−總下注。有得分仍可能小於下注。</p><h3>得分演出</h3><p>每 1.6 秒輪流展示一種得獎圖標，紅金亮框與彈動標示所有參與得獎的格子。控制框上方保留本局中獎總得分的跳字，無派彩時留白；各圖標、組合數及淨損益可在「遊玩紀錄」查看。此輪帶自然最高派彩為 ${fmt(MAXIMUM_MULTIPLIER)} 倍總下注。</p><h3>內部試玩與資料</h3><p>${walletClient?'已連接本伺服器的帳號錢包，餘額及紀錄由後端保存。':'目前使用此瀏覽器的試玩帳本。'}籌碼僅供測試，不能購買、轉讓或兌現。12,000 里程碑僅為演出。${WIN_THRESHOLDS.big}～不足 ${WIN_THRESHOLDS.super} 倍播放 BIG WIN、${WIN_THRESHOLDS.super}～不足 ${WIN_THRESHOLDS.mega} 倍播放 SUPER WIN、${WIN_THRESHOLDS.mega} 倍以上播放 MEGA WIN。${reelSummary()}；${WIN_THRESHOLDS.big} 倍以上長期平均約 ${Math.round(BIG_WIN_MEAN_SPINS)} 局一次，並非固定間隔。</p><p>顯示最近 100 局，舊版回合保留原規則與已結算派彩。空白鍵第一次開轉，轉動中再按一次快速停輪，結果與原停點相同。AUTO SPIN 開啟連續旋轉，再按一次停止後續自動開轉；得分與大獎演出後才繼續。開啟視窗、切到背景或籌碼不足時停止自動。音效需手動開啟，減少動態效果時會簡化演出。</p><button id="reset" class="confirm-reset" ${busy||!ready?'disabled':''}>重設試玩</button>`);
+  const rules=createGameRules(bet);
+  openDialog('遊戲規則',rules,'rules');
+  const account=rules.querySelector('#rules-account-content');
   if(activityUser){
     const identity=document.createElement('p');
-    identity.textContent=`已登入 Discord：${activityUser.global_name || activityUser.username}（${activityUser.id}）。${walletClient?`目前使用本伺服器的${state.environment==='test'?'測試':'正式'}錢包，跨裝置同步。`:'籌碼與紀錄仍為此瀏覽器的測試資料，尚未同步到帳號。'}`;
-    $('#dialog-body').prepend(identity);
+    identity.textContent=`已登入 Discord：${activityUser.global_name || activityUser.username}。${walletClient?`目前使用本伺服器的${state.environment==='test'?'測試':'正式'}錢包，跨裝置同步。`:'目前使用此瀏覽器的試玩帳本，尚未同步到帳號。'}`;
+    account.append(identity);
+  }else{
+    const info=document.createElement('p');
+    info.textContent=storageAvailable?'目前使用此瀏覽器的試玩帳本，餘額與紀錄保存在本機。':'瀏覽器儲存不可用，關閉後不會保留本次試玩資料。';
+    account.append(info);
   }
   if(walletClient){
-    $('#reset')?.remove();
     const info=document.createElement('p');info.textContent=`每日簽到 ${state.daily} 籌碼，台灣時間 00:00 換日。也可在 Discord 使用 /簽到、/籌碼。帳號餘額不可自行重設。`;
     const check=document.createElement('button');check.className='confirm-reset';check.textContent=state.claimed?'今日已簽到':'領取今日簽到';check.disabled=busy||state.claimed;
     check.addEventListener('click',async()=>{check.disabled=true;try{const r=await walletClient.checkin();save(r.state);renderState();check.textContent='今日已簽到';}catch(error){check.disabled=false;showError('簽到未完成',error.message);}});
     const log=document.createElement('button');log.className='confirm-reset';log.textContent='籌碼收支';
     log.addEventListener('click',async()=>{try{const {entries}=await walletClient.ledger();const body=document.createElement('div');for(const e of entries){const p=document.createElement('p');p.textContent=`#${e.id} ${new Date(e.time).toLocaleString('zh-TW')}｜${signed(e.delta)}｜${e.before} → ${e.after}｜${e.reason}`;body.append(p);}if(!entries.length)body.textContent='尚無收支紀錄。';openDialog('最近 50 筆籌碼收支',body);}catch(error){showError('無法取得收支',error.message);}});
-    const account=document.createElement('section'),actions=document.createElement('div');actions.className='wallet-actions';actions.append(check,log);account.append(info,actions);$('#dialog-body').insertBefore(account,$('#dialog-body').children[1]||null);
+    const actions=document.createElement('div');actions.className='wallet-actions';actions.append(check,log);account.append(info,actions);
+  }else{
+    const reset=document.createElement('button');reset.id='reset';reset.className='confirm-reset';reset.textContent='重設試玩';reset.disabled=busy||!ready;
+    account.append(reset);
   }
 }
 $('#max-bet').addEventListener('click',()=>{if(!busy)document.querySelector('[data-bet="500"]').click();});
