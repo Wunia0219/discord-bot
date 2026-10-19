@@ -168,6 +168,9 @@ dialog.rules-dialog {
   .rules-facts article { padding: 16px 4px; }
   .rules-facts article > strong { font-size: 32px; }
 }
+.rules-legal { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 24px; padding: 8px 16px; }
+.rules-legal a { display: inline-flex; align-items: center; min-height: 44px; color: #f7d490; font-size: 13px; text-underline-offset: .25em; }
+.rules-legal a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; border-radius: 2px; }
 @media (max-height: 500px) and (min-width: 601px) {
   dialog.rules-dialog { height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px); max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px); }
   .rules-dialog .dialog-head { min-height: 56px; padding-block: 5px; }

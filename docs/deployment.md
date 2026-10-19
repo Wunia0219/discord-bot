@@ -10,6 +10,8 @@ Discord 測試使用 `npm run activity:serve`：建置後，由 4188 的 Node �
 
 ## Discord 與測試通道
 
+開發期間先保留本機後端與臨時通道，固定網址及 Netlify 部署等正式上架前再安排。每次測試先確認既有通道可用，可用時沿用；若通道失效，再重建並更新 Discord 後台的 Activity Mapping 與 Interactions Endpoint。
+
 - 已有本機通道時，網址與程序資料位於被忽略的 `.tools/activity-tunnel.json`、`.tools/activity-server.json`，不要沿用舊文件中的臨時網址。
 - 新建本機通道：`.\.tools\cloudflared.exe tunnel --url http://127.0.0.1:4188 --http-host-header localhost:4188`。執行檔需來自 Cloudflare 官方來源。
 - Portal 的 Activities `/` URL Mapping Target 使用目前 HTTPS 主機名稱，不含 `https://`；開啟 Activities，並設定需要的桌面／手機平台。
@@ -59,6 +61,26 @@ Discord 測試使用 `npm run activity:serve`：建置後，由 4188 的 Node �
 同一頻道固定 10 分鐘視窗內更新同一則訊息，最多每 10 秒更新一次，保留最近 5 次及視窗內總次數；視窗結束後的下一次得獎才建立新卡。SUPER 香檳金、MEGA 玫瑰紅，保留原生 Discord 卡片結構，無須玩家另開外部頁面。
 
 公告只讀取後端已提交的回合，名稱來自經 Discord 驗證的 session，忽略客戶端聲稱的名稱及得分。佇列與訊息 ID 存在同一個 SQLite 檔案內的獨立表，依群與回合 ID 去重；公告發送不等待在開轉請求內，失敗不影響已結算的籌碼。429 依重試時間稍候、已刪除卡片可重建。重啟後續用原訊息 ID；超過 15 分鐘的待發事件過期，不補貼舊戰報。若建立訊息的網路回應不明，保守跳過該批並暫停本視窗的新卡，避免重新發送造成洗版；這類少量公告可能略過，遊戲紀錄仍完整。Webhooks 的建立與編輯欄位參考 [Discord 官方文件](https://docs.discord.com/developers/resources/webhook#execute-webhook)。
+
+## Discord 驗證使用的政策網頁
+
+Discord 應用程式顯示名稱為「🎲命運荷官」，營運團隊為 Wunia Studio，公開客服與個人資料要求信箱為 `nini900219@gmail.com`。Joker’s Circus 是目前的遊戲名稱。應用程式名稱在「一般資訊」設定；群內機器人帳號名稱另在「機器人 → 使用者名稱」設定，兩者需分別確認並儲存。若伺服器另設機器人暱稱，也需核對該群的顯示設定。
+
+`public/terms.html` 與 `public/privacy.html` 為 Wunia Studio 的服務條款、隱私權政策，共用 `public/legal.css`，生效及更新日期為 2026-10-20。Vite 建置會複製到 `dist/`，現有 Node 靜態服務及 Docker 建置可一起供應 `/terms.html`、`/privacy.html`，不需要 Discord 登入即可閱讀。遊戲「遊戲規則」底部提供連結，政策頁亦可返回遊戲。
+
+公開網站為 `https://jokers-circus.netlify.app/`，連接 GitHub `Wunia0219/discord-bot` 的 `main` 分支。發布政策使用現有網站，不另建專案。網站靜態檔由 Netlify 提供，Discord 測試後端仍是 Wunia Studio 管理的設備，經 Cloudflare 通道提供服務；不可僅因前端上 Netlify 就將 `/api/interactions` 改指向靜態網站。後端、供應商或保存方式變更時，要同步更新政策。
+
+目前錢包資料及手動備份未設固定天數的自動清除排程。公開政策如實描述保存目的、停止營運及有效刪除要求的處理條件，不宣稱已有自動刪除工具。維運人員須檢視保存必要性，不再必要的資料應清除。
+
+發布後將 `https://jokers-circus.netlify.app/terms.html`、`https://jokers-circus.netlify.app/privacy.html` 分別填入 Developer Portal → 一般資訊的服務條款與隱私權政策欄位並儲存，再回到應用程式驗證查看資格及進行驗證。應用程式是否通過以 Discord 後台狀態為準。請用未登入 Discord 的瀏覽器確認兩頁 HTTP 200 且能直接閱讀；本機網址及臨時測試通道不適合作為正式政策網址。
+
+### 人工處理資料要求
+
+1. 由公開信箱受理查詢、更正及刪除要求，核對要求人確實控制對應 Discord 帳號；不能只根據 Email 內聲稱的帳號 ID 就刪除。確認伺服器、要求範圍及相關公告訊息連結，不索取密碼或權杖。
+2. 查詢目前資料庫與團隊控制的備份。刪除需安排後端停機維護，停止新請求並清除記憶體中的登入工作階段；僅能處理身分與範圍已核對的要求。
+3. 普通 API 的帳本禁止修改與刪除。由具資料庫維護權限的人員，在受控離線維護中處理該帳號的錢包、回合、帳本、操作去重資料及得獎公告佇列；若其帳號作為其他成員紀錄的操作者出現，移除可識別該操作者的內容，同時保留其他成員所需的餘額與結算完整性。維護完成後必須保留正常帳本的禁止竄改保護，並檢查關聯、資料庫完整性及其他成員餘額。
+4. 同時處理可控備份及本服務發布的相關 Discord 公告。不要把含待刪除資料的舊資料庫或維護副本無限期保留下來；備份還原前亦須重新套用已確認的刪除要求。若依法必須保留部分資料，記錄範圍與理由。
+5. 恢復服務並回覆要求人處理範圍及結果。上述流程由維運人員人工執行，不應宣稱有自助刪除或一鍵清除功能，也不要在一般執行中的服務直接解除帳本保護。
 
 ## 部署與備份
 

@@ -1,0 +1,50 @@
+:root {
+  color-scheme: light;
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --text: #0f172a;
+  --muted: #475569;
+  --link: #1e3a8a;
+  --border: #cbd5e1;
+  --draft-background: #fff7ed;
+  --draft-text: #7c2d12;
+  font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", sans-serif;
+  font-size: 16px;
+  line-height: 1.85;
+  background: var(--background);
+  color: var(--text);
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+a { color: var(--link); text-underline-offset: .2em; overflow-wrap: anywhere; }
+a:hover { text-decoration-thickness: 2px; }
+a:focus-visible { outline: 3px solid var(--link); outline-offset: 4px; border-radius: 2px; }
+.skip-link { position: absolute; left: 1rem; top: -8rem; padding: .6rem 1rem; background: var(--surface); }
+.skip-link:focus { top: .5rem; }
+.site-header, main, .site-footer { width: min(100% - 2.5rem, 49rem); margin-inline: auto; }
+.site-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; padding-block: 1.5rem; border-bottom: 1px solid var(--border); }
+.brand { font-weight: 700; letter-spacing: .03em; }
+nav { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; }
+nav a { display: inline-flex; align-items: center; min-height: 44px; }
+nav [aria-current="page"] { font-weight: 700; }
+main { padding-block: 2rem 3rem; }
+h1, h2 { line-height: 1.45; text-wrap: balance; }
+h1 { font-size: clamp(1.8rem, 5vw, 2.5rem); margin: .4rem 0; }
+h2 { font-size: 1.2rem; margin: 2rem 0 .5rem; }
+p { margin-block: .75rem; }
+ul, ol { padding-left: 1.5rem; }
+li + li { margin-top: .4rem; }
+.eyebrow, .metadata, .site-footer { color: var(--muted); }
+.eyebrow { margin-bottom: .25rem; }
+.metadata { margin-top: .5rem; }
+.draft { padding: 1rem 1.25rem; margin-block: 1.5rem; background: var(--draft-background); color: var(--draft-text); border-left: 4px solid var(--draft-text); }
+.draft p { margin: .3rem 0; }
+.contact { padding: 1rem 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: .4rem; }
+.contact-placeholder { font-weight: 700; }
+.site-footer { border-top: 1px solid var(--border); padding-block: 1.25rem 2rem; }
+@media print {
+  :root { --background: #ffffff; --text: #000000; --muted: #333333; }
+  .site-header nav, .skip-link { display: none; }
+  main { padding-block: 1rem; }
+  h2 { break-after: avoid; }
+}
