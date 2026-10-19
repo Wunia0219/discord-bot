@@ -1,6 +1,6 @@
 import { Application, Assets, Container, Graphics, Sprite, Texture, Rectangle } from 'pixi.js';
 import { SYMBOLS, SYMBOL_FRAMES, INITIAL_STOPS, REEL_STRIPS, gridFromStops } from '../game/index.js';
-import { reelAnimation, reelOffset, WinCycle, WinSymbolPop } from './presentation.js';
+import { reelAnimation, reelOffset, reelSpeed, quickStopAnimation, quickStopOffset, WinCycle, WinSymbolPop } from './presentation.js';
 import mainAtlas from '../../images/main.json';
 import symbolAtlas from '../../images/symbols.json';
 import mainUrl from '../../images/main.webp';
@@ -169,14 +169,29 @@ export class SlotScene {
     if (this.active) throw new Error('轉輪正在運轉');
     this.clearCelebration(); this.clearWins();
     return new Promise(resolve => {
-      this.active = { time: 0, resolve, onStop, stops };
+      this.active = { time: 0, resolve, onStop, stops, quickStop: false };
       this.reels.forEach((r, i) => {
         const { steps, names, stopAt } = reelAnimation(REEL_STRIPS[i], this.currentStops[i], stops[i], i, this.reduced);
-        r.steps = steps; r.stopAt = stopAt;
+        r.steps = steps; r.stopAt = stopAt; r.names = names; r.quickStop = null;
         r.reduced = this.reduced; r.stopped = false;
         this.populate(r, names, -1);
         r.strip.y = -r.steps * CH;
       });
+    });
+  }
+  requestQuickStop() {
+    const a = this.active;
+    if (!a || a.quickStop) return;
+    a.quickStop = true;
+    this.reels.forEach((r, i) => {
+      if (r.stopped) return;
+      const speed = reelSpeed(r.steps * CH, a.time, r.stopAt, r.reduced);
+      const plan = quickStopAnimation(REEL_STRIPS[i], a.stops[i], r.names, r.strip.y, speed, i, CH);
+      // A reel already near its landing keeps its existing, shorter deceleration.
+      if (!plan || plan.duration >= r.stopAt - a.time) return;
+      r.quickStop = { ...plan, start: a.time };
+      this.populate(r, plan.names, -1);
+      r.strip.y = plan.offset;
     });
   }
   celebrate(big = false, showLine = true) {
@@ -206,8 +221,9 @@ export class SlotScene {
       const a = this.active; a.time += t.deltaMS;
       this.reels.forEach((r, i) => {
         if (r.stopped) return;
-        r.strip.y = reelOffset(r.steps * CH, a.time, r.stopAt, r.reduced);
-        if (a.time >= r.stopAt) { r.stopped = true; a.onStop(i); }
+        const quick = r.quickStop;
+        r.strip.y = quick ? quickStopOffset(quick.offset, a.time - quick.start, quick.duration) : reelOffset(r.steps * CH, a.time, r.stopAt, r.reduced);
+        if (quick ? a.time - quick.start >= quick.duration : a.time >= r.stopAt) { r.stopped = true; a.onStop(i); }
       });
       if (this.reels.every(r => r.stopped)) { this.active = null; this.setStops(a.stops); a.resolve(); }
     }

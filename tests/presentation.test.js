@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reelAnimation, reelOffset, REEL_SETTLE_MS, WIN_HOLD_MS, WinCycle } from '../src/ui/presentation.js';
+import { reelAnimation, reelOffset, reelSpeed, quickStopAnimation, quickStopOffset, roundFeedbackTiming, REEL_SETTLE_MS, WIN_HOLD_MS, WinCycle } from '../src/ui/presentation.js';
 import { REEL_STRIPS, INITIAL_STOPS, gridFromStops } from '../src/game/slot-math.js';
 import { WinSymbolPop, SYMBOL_POP_MS } from '../src/ui/presentation.js';
 
@@ -75,6 +75,72 @@ test('animation preserves actual starting and landing windows at reel wraps and 
       }
     }
   });
+});
+
+test('quick stop preserves every visible symbol and its exact fractional position before braking',()=>{
+  const cell=136;
+  const visible=(names,offset)=>names.map((name,row)=>({name,y:(row-1)*cell+offset})).filter(({y})=>y+cell>1e-7&&y<3*cell-1e-7);
+  REEL_STRIPS.forEach((strip,reel)=>{
+    for(const from of [0,INITIAL_STOPS[reel],strip.length-1])for(const to of [from,0,strip.length-1]){
+      const regular=reelAnimation(strip,from,to,reel);
+      for(const elapsed of [0,73,340,811,1100]){
+        const offset=reelOffset(regular.steps*cell,elapsed,regular.stopAt);
+        const speed=reelSpeed(regular.steps*cell,elapsed,regular.stopAt);
+        const quick=quickStopAnimation(strip,to,regular.names,offset,speed,reel,cell);
+        const before=visible(regular.names,offset),after=visible(quick.names,quick.offset);
+        assert.deepEqual(after.map(row=>row.name),before.map(row=>row.name),'requesting a stop must not swap onscreen symbols');
+        after.forEach((row,i)=>assert.ok(Math.abs(row.y-before[i].y)<1e-7,'requesting a stop must not shift the current frame'));
+        const stops=[...INITIAL_STOPS];stops[reel]=to;
+        assert.deepEqual(visible(quick.names,0).map(row=>row.name),gridFromStops(stops)[reel]);
+        assert.ok(quick.names.every(name=>strip.includes(name)));
+        const initialSpeed=(quickStopOffset(quick.offset,.001,quick.duration)-quick.offset)/.001;
+        assert.ok(Math.abs(initialSpeed-speed)<.00001,'braking starts at the existing reel velocity');
+        for(const fps of [30,60,120]){
+          let previous=quick.offset;
+          for(let t=1000/fps;t<quick.duration;t+=1000/fps){
+            const next=quickStopOffset(quick.offset,t,quick.duration);
+            assert.ok(next>=previous&&next<=0,'quick stop must move down without reversing');
+            assert.ok(next-previous<cell*.6,'quick stop must not flash several cells in one frame');
+            previous=next;
+          }
+        }
+        assert.equal(Math.abs(quickStopOffset(quick.offset,quick.duration,quick.duration)),0);
+        assert.equal(Math.abs(quickStopOffset(quick.offset,quick.duration+1000,quick.duration)),0);
+      }
+    }
+  });
+});
+
+test('quick stop lands the five reels in order within a second, and never prolongs a late or reduced-motion stop',()=>{
+  for(const reduced of [false,true])for(const elapsed of [0,150,700,1100,1400,1800]){
+    const landing=REEL_STRIPS.map((strip,reel)=>{
+      const regular=reelAnimation(strip,INITIAL_STOPS[reel],0,reel,reduced);
+      const remaining=Math.max(0,regular.stopAt-elapsed);
+      if(!remaining)return 0;
+      const offset=reelOffset(regular.steps*136,elapsed,regular.stopAt,reduced);
+      const speed=reelSpeed(regular.steps*136,elapsed,regular.stopAt,reduced);
+      const quick=quickStopAnimation(strip,0,regular.names,offset,speed,reel,136);
+      const duration=Math.min(remaining,quick.duration);
+      assert.ok(duration<=remaining);
+      return duration;
+    });
+    assert.ok(landing.every((time,i)=>!i||time>=landing[i-1]),'reels should settle from left to right');
+    if(!reduced&&elapsed===0){assert.ok(landing[0]>=400);assert.ok(landing[4]<=1000);}
+  }
+});
+
+test('feedback protects all winning-symbol pops and count-ups while retaining existing auto timing',()=>{
+  const timing=(count,milestone=false,tier=null)=>roundFeedbackTiming({wins:Array(count).fill({}),milestone},tier);
+  assert.deepEqual(timing(0),{hold:0,autoDelay:650});
+  for(const count of [1,2,3,4]){
+    const {hold}=timing(count);
+    assert.ok(hold>=1200,'the payout count-up must finish');
+    assert.ok(hold>=count*WIN_HOLD_MS,'each winning combination must get a full display');
+  }
+  assert.deepEqual(timing(1),{hold:1600,autoDelay:0});
+  assert.deepEqual(timing(1,false,'big'),{hold:4500,autoDelay:700});
+  assert.deepEqual(timing(1,true),{hold:6300,autoDelay:700});
+  assert.deepEqual(timing(1,true,'mega'),{hold:9000,autoDelay:800});
 });
 test('line display proceeds in order with the original individual payouts and loops',()=>{
   const cycle=new WinCycle(),seen=[];

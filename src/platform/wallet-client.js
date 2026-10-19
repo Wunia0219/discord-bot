@@ -1,6 +1,7 @@
-export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.sessionStorage){
+export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.sessionStorage,{clock=()=>performance.now(),wait=delay=>new Promise(resolve=>globalThis.setTimeout(resolve,delay))}={}){
   const key=`kemet-pending:${session.guildId}:${session.userId}`;
-  let pending;
+  let pending,nextSpinAt=0,spinPromise=null;
+  const validDelay=value=>Number.isFinite(value)&&value>0&&value<=60000;
   try{pending=JSON.parse(storage?.getItem(key)||'null');}catch{pending=null;}
   if(pending&&(!Number.isInteger(pending.bet)||!/^[-a-zA-Z0-9]{16,80}$/.test(pending.requestId||'')))pending=null;
   const persist=()=>{try{if(pending)storage?.setItem(key,JSON.stringify(pending));else storage?.removeItem(key);}catch{}};
@@ -9,17 +10,38 @@ export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.se
     try{response=await fetchImpl(path,{method:body?'POST':'GET',headers:{Authorization:`Bearer ${session.token}`,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(20000),cache:'no-store'});}
     catch{throw new Error('網路暫時中斷。下一次按 SPIN 會先確認上一筆結果，不會重複下注。');}
     let data;try{data=await response.json();}catch{throw new Error('服務回應中斷，請稍後重試。');}
-    if(!response.ok){const error=new Error(data.error||'服務暫時無法使用。');error.status=response.status;throw error;}
+    if(!response.ok){
+      const error=new Error(data.error||'服務暫時無法使用。');error.status=response.status;
+      if(response.status===429&&data.code==='SPIN_COOLDOWN'&&validDelay(data.retryAfterMs))Object.assign(error,{code:data.code,retryAfterMs:data.retryAfterMs});
+      throw error;
+    }
+    // Relative server time avoids depending on the player's device clock.
+    if(validDelay(data?.state?.spinCooldownMs))nextSpinAt=Math.max(nextSpinAt,clock()+data.state.spinCooldownMs);
     return data;
+  }
+  async function requestSpin(bet){
+    pending ||= {bet,requestId:crypto.randomUUID()};persist();
+    try{
+      for(let attempt=0;;attempt++){
+        let remaining;
+        while((remaining=nextSpinAt-clock())>0)await wait(remaining);
+        try{const data=await request('/api/spin',pending);pending=null;persist();return data;}
+        catch(error){
+          // A different device can start a round after our last wallet snapshot.
+          // Only this explicit cooldown is retried, keeping the same bet and ID.
+          if(error.code==='SPIN_COOLDOWN'&&attempt<2){nextSpinAt=Math.max(nextSpinAt,clock()+error.retryAfterMs+25);continue;}
+          throw error;
+        }
+      }
+    }catch(error){if([400,403,409,429].includes(error.status)){pending=null;persist();}throw error;}
   }
   return {
     state:()=>request('/api/wallet'),
     ledger:()=>request('/api/ledger'),
     checkin:()=>request('/api/checkin',{}),
-    async spin(bet){
-      pending ||= {bet,requestId:crypto.randomUUID()};persist();
-      try{const data=await request('/api/spin',pending);pending=null;persist();return data;}
-      catch(error){if([400,403,409,429].includes(error.status)){pending=null;persist();}throw error;}
+    spin(bet){
+      spinPromise ||= requestSpin(bet).finally(()=>{spinPromise=null;});
+      return spinPromise;
     },
     hasPending:()=>!!pending,
   };

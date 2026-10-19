@@ -59,7 +59,8 @@ export class WalletStore {
     const history=this.db.prepare('SELECT data FROM rounds WHERE guild=? AND user=? ORDER BY created DESC,rowid DESC LIMIT 100').all(guild,user).map(row=>JSON.parse(row.data));
     const claimed=!!this.db.prepare('SELECT 1 FROM operations WHERE guild=? AND key=?').get(guild,`daily:${user}:${taipeiDay(this.clock())}`);
     const revision=this.db.prepare('SELECT COALESCE(MAX(id),0) revision FROM ledger WHERE guild=? AND user=?').get(guild,user).revision;
-    return {version:3,balance:wallet.balance,history,milestones:wallet.milestone?[12000]:[],environment:this.environment,guildId:guild,daily:this.daily,claimed,nextCheckin:nextCheckin(this.clock()),revision};
+    const spinCooldownMs=Math.max(0,wallet.last_spin+this.spinDelay-this.clock());
+    return {version:3,balance:wallet.balance,history,milestones:wallet.milestone?[12000]:[],environment:this.environment,guildId:guild,daily:this.daily,claimed,nextCheckin:nextCheckin(this.clock()),revision,spinCooldownMs};
   }
   state(guild,user){return this.tx(()=>{this.ensure(guild,user);return this.snapshot(guild,user);});}
   spin(guild,user,bet,requestId){
@@ -69,7 +70,8 @@ export class WalletStore {
       this.ensure(guild,user);
       const result=this.once(guild,`spin:${user}:${requestId}`,String(bet),()=>{
         const wallet=this.db.prepare('SELECT * FROM wallets WHERE guild=? AND user=?').get(guild,user);
-        if(this.clock()-wallet.last_spin<this.spinDelay)throw problem(429,'轉輪尚未就緒，請稍後再試。');
+        const retryAfterMs=wallet.last_spin+this.spinDelay-this.clock();
+        if(retryAfterMs>0)throw Object.assign(problem(429,'轉輪尚未就緒，請稍後再試。'),{code:'SPIN_COOLDOWN',retryAfterMs});
         if(wallet.balance<bet)throw problem(409,'籌碼不足，請降低下注、簽到或聯絡管理員。');
         const stops=REEL_STRIPS.map(strip=>randomInt(strip.length));
         const outcome=roundFromStops(bet,stops);

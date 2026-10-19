@@ -9,11 +9,42 @@ function harness(){
   const controls=new SpinControls({isReady:()=>ready,isBusy:()=>busy,startSpin:()=>{starts++;busy=true;controls.beginRound();},stopReels:()=>{stops++;},onAutoChange:value=>changes.push(value),schedule:(callback,delay)=>{queued.set(++id,{callback,delay});return id;},cancel:id=>queued.delete(id)});
   return {controls,queued,changes,get starts(){return starts;},get stops(){return stops;},set busy(value){busy=value;},set ready(value){ready=value;},finish(delay){busy=false;controls.endRound(delay);},advance(){const q=[...queued.values()];queued.clear();q.forEach(({callback})=>callback());}};
 }
+
+test('default timers keep the browser receiver when auto schedules and cancels subsequent rounds',t=>{
+  const queued=new Map();let nextId=0,busy=false,starts=0;
+  t.mock.method(globalThis,'setTimeout',function(callback,delay){
+    assert.equal(this,globalThis,'browser timers require the Window receiver');
+    queued.set(++nextId,{callback,delay});return nextId;
+  });
+  t.mock.method(globalThis,'clearTimeout',function(id){
+    assert.equal(this,globalThis,'browser cancellation requires the Window receiver');
+    queued.delete(id);
+  });
+  const controls=new SpinControls({isReady:()=>true,isBusy:()=>busy,onAutoChange:()=>{},stopReels:()=>{},startSpin:()=>{starts++;busy=true;controls.beginRound();}});
+  controls.toggleAuto();
+  for(let i=0;i<4;i++){
+    busy=false;controls.endRound(650);
+    assert.equal(queued.size,1);
+    const [id,{callback}]=[...queued][0];queued.delete(id);callback();
+  }
+  assert.equal(starts,5);assert.equal(controls.auto,true);
+  busy=false;controls.endRound();controls.space();assert.equal(queued.size,0);
+  busy=false;controls.endRound();controls.stopAuto();assert.equal(queued.size,0);
+});
 test('first Space starts once; subsequent presses request only a quick stop, including network latency',()=>{
   const h=harness();h.controls.space();assert.equal(h.starts,1);
   h.controls.space();h.controls.space();assert.equal(h.starts,1);assert.ok(h.controls.quickStop);
-  h.controls.animationStarted();assert.equal(h.stops,3);
+  h.controls.animationStarted();assert.equal(h.stops,2);
   h.finish();h.controls.space();assert.equal(h.starts,2);assert.equal(h.controls.quickStop,false);
+});
+
+test('repeated Space presses cannot restart the quick-stop braking or start another busy round',()=>{
+  const h=harness();h.controls.space();
+  for(let i=0;i<100;i++)h.controls.space();
+  assert.equal(h.starts,1);assert.equal(h.stops,1);
+  h.controls.animationStarted();
+  for(let i=0;i<100;i++)h.controls.space();
+  assert.equal(h.starts,1);assert.equal(h.stops,2);
 });
 test('auto queues exactly one next round after feedback and can stop during a spin or the delay',()=>{
   const h=harness();h.controls.toggleAuto();assert.equal(h.starts,1);assert.equal(h.queued.size,0);
@@ -60,5 +91,5 @@ test('a quick stop requested before the wallet response does not repeat settleme
   controls.space();controls.space();controls.space();assert.equal(settlements,0);
   release();await pending;
   assert.equal(settlements,1);assert.equal(state.balance,9980);assert.equal(state.history.length,1);
-  assert.deepEqual(state.history[0].stops,TEST_STOPS.none);assert.equal(stops,3);
+  assert.deepEqual(state.history[0].stops,TEST_STOPS.none);assert.equal(stops,2);
 });

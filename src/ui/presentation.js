@@ -42,6 +42,38 @@ export function reelOffset(distance, elapsed, stopAt, reduced = false) {
   return -speed * settle / 2 * remaining ** 2;
 }
 
+export function reelSpeed(distance, elapsed, stopAt, reduced = false) {
+  if (elapsed >= stopAt) return 0;
+  const settle = reduced ? 0 : Math.min(REEL_SETTLE_MS, stopAt);
+  const speed = distance / (stopAt - settle / 2);
+  return elapsed <= stopAt - settle ? speed : speed * (stopAt - elapsed) / settle;
+}
+
+// Stitch only the offscreen part of a short braking strip. The four cells that
+// can overlap the viewport keep their exact symbols and fractional positions.
+export function quickStopAnimation(strip, to, names, offset, speed, reel, cellHeight) {
+  if (speed <= 0) return null;
+  const scroll = -offset / cellHeight, base = Math.floor(scroll), fraction = scroll - base;
+  const steps = 4 + reel;
+  const shortNames = Array.from({ length: steps + 5 }, (_, row) => strip[((to + row - 2) % strip.length + strip.length) % strip.length]);
+  for (let row = 1; row <= 4; row++) shortNames[steps + row] = names[base + row];
+  const distance = (steps + fraction) * cellHeight;
+  return { names: shortNames, offset: -distance, duration: 2 * distance / speed };
+}
+
+export function quickStopOffset(offset, elapsed, duration) {
+  const remaining = 1 - Math.min(1, Math.max(0, elapsed / duration));
+  return offset * remaining ** 2;
+}
+
+export function roundFeedbackTiming(round, tier) {
+  const regularDelay = tier ? (round.milestone ? 9800 : 5200) : round.milestone ? 7000 : round.wins.length ? Math.min(4000, round.wins.length * WIN_HOLD_MS) : 650;
+  // Protect the count-up and one full pass of ordinary wins. Big-win and
+  // milestone sequences retain their full existing presentation durations.
+  const hold = tier ? (round.milestone ? 9000 : 4500) : round.milestone ? 6300 : round.wins.length * WIN_HOLD_MS;
+  return { hold, autoDelay: Math.max(0, regularDelay - hold) };
+}
+
 // Owned by the render loop: pausing the scene also pauses win presentation.
 // Replacing/clearing a cycle cannot leave delayed callbacks from an old round.
 export class WinCycle {

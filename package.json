@@ -12,6 +12,7 @@
     "commands:register": "node --env-file=.env.server.local scripts/admin/register-commands.js",
     "db:backup": "node --env-file=.env.server.local scripts/admin/backup-db.js",
     "test": "node --test tests/*.test.js",
+    "test:bot": "node --test tests/bot-interactions.test.js tests/commands.test.js tests/activity-server.test.js tests/wallet.test.js tests/wallet-service.test.js",
     "assets:webp": "python scripts/assets/optimize-images.py",
     "verify:math": "node scripts/game/verify-math.js",
     "verify:sessions": "node scripts/game/verify-sessions.js",

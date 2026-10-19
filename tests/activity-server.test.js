@@ -56,7 +56,8 @@ test('static server serves the built entry but blocks dotfiles, source paths, an
 });
 
 test('wallet HTTP routes require verified sessions, isolate callers and settle concurrent retries once',async t=>{
- const guild='1441097301685698703',store=new WalletStore({guildIds:[guild]});t.after(()=>store.close());
+ let now=Date.parse('2026-10-19T05:00:00Z');
+ const guild='1441097301685698703',store=new WalletStore({guildIds:[guild],clock:()=>now});t.after(()=>store.close());
  const service=new WalletService(store,{fetchImpl:async url=>Response.json(url.endsWith('/users/@me')?{id}:{user:{id}})});
  const request=await fixture(t,{wallet:{store,service,adminRoles:[]},fetchImpl:async()=>Response.json({access_token:'provider-token',expires_in:3600,scope:'identify guilds.members.read'})});
  assert.equal((await request('/api/wallet')).status,401);
@@ -68,5 +69,14 @@ test('wallet HTTP routes require verified sessions, isolate callers and settle c
  const spins=await Promise.all(Array.from({length:20},()=>request('/api/spin',{method:'POST',headers,body:JSON.stringify({bet:100,requestId:'11111111-2222-3333-4444-555555555555',userId:'fake',guildId:'fake',stops:[0,0,0,0,0],payout:9999999})}).then(r=>r.json())));
  assert.ok(spins.every(r=>r.round.id===spins[0].round.id));assert.equal(store.history(guild,id).filter(e=>e.kind==='spin').length,1);
  assert.equal(store.history(guild,id).filter(e=>e.kind==='checkin').length,1);
+ assert.equal(spins[0].state.spinCooldownMs,2000);
+ const next={method:'POST',headers,body:JSON.stringify({bet:20,requestId:'11111111-2222-3333-4444-555555555556'})};
+ const cooldown=await request('/api/spin',next);
+ assert.equal(cooldown.status,429);assert.equal(cooldown.headers.get('retry-after'),'2');
+ assert.deepEqual(await cooldown.json(),{error:'轉輪尚未就緒，請稍後再試。',code:'SPIN_COOLDOWN',retryAfterMs:2000});
+ assert.equal(store.history(guild,id).filter(e=>e.kind==='spin').length,1);
+ now+=2000;
+ const retry=await request('/api/spin',next);assert.equal(retry.status,200);
+ assert.equal(store.history(guild,id).filter(e=>e.kind==='spin').length,2);
  assert.equal((await request('/api/interactions',post({type:2}))).status,401);
 });

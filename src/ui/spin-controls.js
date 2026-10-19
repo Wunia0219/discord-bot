@@ -4,12 +4,12 @@ export class SpinControls {
   auto=false;
   quickStop=false;
   timer=null;
-  constructor({isReady,isBusy,startSpin,stopReels,onAutoChange,schedule=setTimeout,cancel=clearTimeout}){
+  constructor({isReady,isBusy,startSpin,stopReels,onAutoChange,schedule=(callback,delay)=>globalThis.setTimeout(callback,delay),cancel=timer=>globalThis.clearTimeout(timer)}){
     Object.assign(this,{isReady,isBusy,startSpin,stopReels,onAutoChange,schedule,cancel});
   }
   clearTimer(){if(this.timer!==null){this.cancel(this.timer);this.timer=null;}}
   beginRound(){this.clearTimer();this.quickStop=false;}
-  stopCurrent(){if(this.isBusy()){this.quickStop=true;this.stopReels();}}
+  stopCurrent(){if(this.isBusy()&&!this.quickStop){this.quickStop=true;this.stopReels();}}
   space(){
     if(!this.isReady())return;
     if(this.isBusy()){this.stopCurrent();return;}

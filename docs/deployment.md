@@ -37,6 +37,8 @@ Discord 測試使用 `npm run activity:serve`：建置後，由 4188 的 Node �
 
 ## 部署與備份
 
+後續部署可使用現有的 Netlify 與 Firebase 帳號；實際部署時再依後端執行環境及資料持久化需求選擇配置。
+
 Dockerfile 提供 Node 24 建置與執行環境，執行期保留目前及歷史驗證所需的完整模組。建置只傳公開 Application ID；密鑰由執行環境注入。
 
 使用單一服務實例及持久磁碟 `/app/data`。正式設定 `APP_ENV=production`、獨立 `DATABASE_PATH`、正式群 allowlist，使用固定 HTTPS 網址更新兩個 Discord 端點；不要複製測試 DB 作為正式錢包。SQLite 不能讓多個獨立容器各持有不同副本。固定主機與 Docker 雲端部署需在實際環境驗收。

@@ -7,6 +7,7 @@ import { createLoadingScreen } from './ui/loading.js';
 import { BigWinPresentation } from './ui/big-win.js';
 import { winTier } from './game/win-tier.js';
 import { SpinControls } from './ui/spin-controls.js';
+import { roundFeedbackTiming } from './ui/presentation.js';
 import { setBitmapNumber } from './ui/bitmap-number.js';
 import { installResponsiveLayout } from './ui/responsive-layout.js';
 import { createWalletClient } from './platform/wallet-client.js';
@@ -45,7 +46,7 @@ installResponsiveLayout($('main'));
 const KEY='kemet-slot-preview-v2';
 let state, storageAvailable=true;
 try { state=readState(localStorage.getItem(KEY)); } catch { state=freshState();storageAvailable=false; }
-let bet=100, busy=false, ready=false, countAnimation=0, payoutAnimation=0, celebrationTimer=0;
+let bet=100, busy=false, presenting=false, ready=false, countAnimation=0, payoutAnimation=0, celebrationTimer=0;
 const scene=new SlotScene(), sound=new Sound();
 const bigWin=new BigWinPresentation($('#app'));
 let activityMode='browser', activityUser=null, walletClient=null;
@@ -53,7 +54,7 @@ const controls=new SpinControls({
   isReady:()=>ready&&!document.hidden&&!$('#dialog').open,
   isBusy:()=>busy,
   startSpin:()=>spin(),
-  stopReels:()=>scene.finish(),
+  stopReels:()=>scene.requestQuickStop(),
   onAutoChange:enabled=>{
     const button=$('#auto-spin');
     button.setAttribute('aria-pressed',String(enabled));
@@ -90,8 +91,9 @@ function setBusy(value) {
   $('#auto-spin').disabled=!ready;
   if($('#reset'))$('#reset').disabled=value||!ready;
   document.querySelectorAll('[data-bet]').forEach(b=>b.disabled=value||controls.auto);
-  $('#spin').setAttribute('aria-label',value?'轉動中':'旋轉一次');
-  $('#spin').classList.toggle('spinning',value);
+  $('#spin').setAttribute('aria-label',value?(presenting?'中獎演出中':'轉動中'):'旋轉一次');
+  $('#spin').setAttribute('aria-busy',String(value));
+  $('#spin').classList.toggle('spinning',value&&!presenting);
 }
 function result(title,detail) {
   $('#game-status').textContent=`${title} ${detail}`;
@@ -146,12 +148,12 @@ function celebrate(kind,amount) {
 async function spin() {
   if(busy||!controls.isReady())return;
   controls.beginRound();
-  showPayout(0);
-  cancelAnimationFrame(countAnimation);hideCelebration();clearWinReadout();
-  setBusy(true);let nextDelay=650,settledRound;
+  setBusy(true);result('轉輪準備中，請稍候。','');let nextDelay=650,settledRound;
   try{
     const update=walletClient?await walletClient.spin(bet):createRound(state,bet,drawStops(),crypto.randomUUID());
     const r=update.round;save(update.state);settledRound=r;
+    // Keep the previous round's effects visible during wallet/network waits.
+    showPayout(0);cancelAnimationFrame(countAnimation);hideCelebration();clearWinReadout();
     if(r.rules!==MODEL_VERSION){
       controls.stopAuto();renderState();showPayout(r.payout);
       result('已取回舊版本的已結算回合',`派彩 ${fmt(r.payout)}，未重複下注。可在遊玩紀錄查看。`);
@@ -164,20 +166,23 @@ async function spin() {
     controls.animationStarted();
     if(document.hidden)scene.finish();
     await animation;
+    presenting=true;setBusy(true);
     renderState();animateBalance(r.before-r.bet,state.balance);presentWins(r);showPayout(r.payout,true);
     const symbols=r.wins.length?r.wins.map(w=>`${SYMBOL_NAMES[w.symbol]} ${w.count} 連・${w.ways} 組`).join('、'):'未形成由左起連續三軸的得獎組合';
     result(r.label,`${symbols}｜派彩 ${fmt(r.payout)} · 淨損益 ${signed(r.net)}`);
     const tier=winTier(r.payout,r.bet);
     if(tier)celebrate(tier,r.payout);
     else if(r.payout>r.bet){scene.celebrate();sound.win(false);}
-    nextDelay=tier?(r.milestone?9800:5200):r.milestone?7000:r.wins.length?Math.min(4000,r.wins.length*1600):650;
+    const timing=roundFeedbackTiming(r,tier);nextDelay=timing.autoDelay;
     if(r.milestone){clearTimeout(celebrationTimer);celebrationTimer=setTimeout(()=>celebrate('milestone',12000),tier?4500:1800);}
+    // Space can shorten reel travel, but cannot cut off the resulting win.
+    if(timing.hold&&!document.hidden)await new Promise(resolve=>setTimeout(resolve,timing.hold));
   }catch(error){
     controls.stopAuto();renderState();
     if(settledRound)showPayout(settledRound.payout);
     showError('無法完成本局',settledRound?'本局已結算並保存在遊玩紀錄，自動旋轉已停止。':error.message||'請再試一次。');
   }finally{
-    setBusy(false);controls.endRound(nextDelay);
+    presenting=false;setBusy(false);controls.endRound(nextDelay);
   }
 }
 function openDialog(title,body) {controls.stopAuto();$('#dialog-title').textContent=title;$('#dialog-body').replaceChildren();if(typeof body==='string')$('#dialog-body').innerHTML=body;else $('#dialog-body').append(body);if(!$('#dialog').open)$('#dialog').showModal();$('#dialog-body').scrollTop=0;}

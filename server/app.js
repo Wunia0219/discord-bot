@@ -107,7 +107,9 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
     } catch (error) {
       // Do not echo provider responses, authorization codes, filesystem paths or secrets.
       const status = error.status || (['ENOENT','ENOTDIR'].includes(error.code) ? 404 : 502);
-      if (!res.headersSent) json(res, status, { error:error.status ? error.message : status === 404 ? '找不到檔案。' : '暫時無法完成請求，請稍後重試。' });
+      const cooldown=status===429&&error.code==='SPIN_COOLDOWN';
+      if(cooldown&&!res.headersSent)res.setHeader('Retry-After',String(Math.ceil(error.retryAfterMs/1000)));
+      if (!res.headersSent) json(res, status, { error:error.status ? error.message : status === 404 ? '找不到檔案。' : '暫時無法完成請求，請稍後重試。',...(cooldown?{code:error.code,retryAfterMs:error.retryAfterMs}:{}) });
       else res.end();
     }
   });
