@@ -1,5 +1,6 @@
 export const WIN_HOLD_MS = 1600;
 export const REEL_SETTLE_MS = 160;
+export const REEL_BOUNCE_MS = 190;
 const REEL_CELL_MS = 60;
 export const SYMBOL_POP_MS = 960;
 
@@ -47,6 +48,14 @@ export function reelSpeed(distance, elapsed, stopAt, reduced = false) {
   const settle = reduced ? 0 : Math.min(REEL_SETTLE_MS, stopAt);
   const speed = distance / (stopAt - settle / 2);
   return elapsed <= stopAt - settle ? speed : speed * (stopAt - elapsed) / settle;
+}
+
+// The original Kemet landing: a downward overshoot, smaller upward rebound,
+// then exact alignment. Run after braking while both guard cells still exist.
+export function reelBounceOffset(elapsed, cellHeight, reduced = false) {
+  if (reduced || elapsed <= 0 || elapsed >= REEL_BOUNCE_MS) return 0;
+  const progress = elapsed / REEL_BOUNCE_MS;
+  return cellHeight * .17 * Math.sin(progress * Math.PI * 2) * (1 - progress) ** 2;
 }
 
 // Stitch only the offscreen part of a short braking strip. The four cells that

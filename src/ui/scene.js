@@ -1,6 +1,6 @@
 import { Application, Assets, Container, Graphics, Sprite, Texture, Rectangle } from 'pixi.js';
 import { SYMBOLS, SYMBOL_FRAMES, INITIAL_STOPS, REEL_STRIPS, gridFromStops } from '../game/index.js';
-import { reelAnimation, reelOffset, reelSpeed, quickStopAnimation, quickStopOffset, WinCycle, WinSymbolPop } from './presentation.js';
+import { reelAnimation, reelOffset, reelSpeed, quickStopAnimation, quickStopOffset, reelBounceOffset, REEL_BOUNCE_MS, WinCycle, WinSymbolPop } from './presentation.js';
 import mainAtlas from '../../images/main.json';
 import symbolAtlas from '../../images/symbols.json';
 import mainUrl from '../../images/main.webp';
@@ -173,7 +173,7 @@ export class SlotScene {
       this.reels.forEach((r, i) => {
         const { steps, names, stopAt } = reelAnimation(REEL_STRIPS[i], this.currentStops[i], stops[i], i, this.reduced);
         r.steps = steps; r.stopAt = stopAt; r.names = names; r.quickStop = null;
-        r.reduced = this.reduced; r.stopped = false;
+        r.reduced = this.reduced; r.stopped = false; r.impacted = false;
         this.populate(r, names, -1);
         r.strip.y = -r.steps * CH;
       });
@@ -184,7 +184,7 @@ export class SlotScene {
     if (!a || a.quickStop) return;
     a.quickStop = true;
     this.reels.forEach((r, i) => {
-      if (r.stopped) return;
+      if (r.stopped || r.impacted) return;
       const speed = reelSpeed(r.steps * CH, a.time, r.stopAt, r.reduced);
       const plan = quickStopAnimation(REEL_STRIPS[i], a.stops[i], r.names, r.strip.y, speed, i, CH);
       // A reel already near its landing keeps its existing, shorter deceleration.
@@ -222,8 +222,13 @@ export class SlotScene {
       this.reels.forEach((r, i) => {
         if (r.stopped) return;
         const quick = r.quickStop;
-        r.strip.y = quick ? quickStopOffset(quick.offset, a.time - quick.start, quick.duration) : reelOffset(r.steps * CH, a.time, r.stopAt, r.reduced);
-        if (quick ? a.time - quick.start >= quick.duration : a.time >= r.stopAt) { r.stopped = true; a.onStop(i); }
+        const impactAt = quick ? quick.start + quick.duration : r.stopAt;
+        const landingElapsed = a.time - impactAt;
+        r.strip.y = landingElapsed < 0
+          ? quick ? quickStopOffset(quick.offset, a.time - quick.start, quick.duration) : reelOffset(r.steps * CH, a.time, r.stopAt, r.reduced)
+          : reelBounceOffset(landingElapsed, CH, r.reduced);
+        if (!r.impacted && landingElapsed >= 0) { r.impacted = true; a.onStop(i); }
+        if (landingElapsed >= (r.reduced ? 0 : REEL_BOUNCE_MS)) r.stopped = true;
       });
       if (this.reels.every(r => r.stopped)) { this.active = null; this.setStops(a.stops); a.resolve(); }
     }
@@ -238,7 +243,7 @@ export class SlotScene {
   finish() {
     if (!this.active) return;
     const a = this.active; this.active = null;
-    this.reels.forEach((r,i)=>{if(!r.stopped){r.stopped=true;a.onStop(i);}});
+    this.reels.forEach((r,i)=>{if(!r.stopped){r.stopped=true;if(!r.impacted){r.impacted=true;a.onStop(i);}}});
     this.setStops(a.stops); a.resolve();
     this.particles.forEach(p => p.g.destroy()); this.particles = [];
   }

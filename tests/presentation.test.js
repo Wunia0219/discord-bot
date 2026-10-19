@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reelAnimation, reelOffset, reelSpeed, quickStopAnimation, quickStopOffset, roundFeedbackTiming, REEL_SETTLE_MS, WIN_HOLD_MS, WinCycle } from '../src/ui/presentation.js';
+import { reelAnimation, reelOffset, reelSpeed, quickStopAnimation, quickStopOffset, reelBounceOffset, REEL_BOUNCE_MS, roundFeedbackTiming, REEL_SETTLE_MS, WIN_HOLD_MS, WinCycle } from '../src/ui/presentation.js';
 import { REEL_STRIPS, INITIAL_STOPS, gridFromStops } from '../src/game/slot-math.js';
 import { WinSymbolPop, SYMBOL_POP_MS } from '../src/ui/presentation.js';
 
@@ -75,6 +75,45 @@ test('animation preserves actual starting and landing windows at reel wraps and 
       }
     }
   });
+});
+
+test('each reel lands with the original downward overshoot and smaller upward rebound',()=>{
+  for(const cell of [96,136,180])for(const fps of [30,60,120]){
+    const samples=[];
+    for(let elapsed=0;elapsed<REEL_BOUNCE_MS;elapsed+=1000/fps){
+      const offset=reelBounceOffset(elapsed,cell);
+      samples.push(offset);
+      // Guard cells keep both sides of the reel mask filled during the rebound.
+      assert.ok(-cell+offset<=0);
+      assert.ok(4*cell+offset>=3*cell);
+    }
+    assert.ok(Math.max(...samples)>cell*.09,'the downward overshoot must be visible');
+    assert.ok(Math.min(...samples)<-cell*.01,'the reel must rebound upward before settling');
+    assert.ok(Math.abs(Math.min(...samples))<Math.max(...samples),'the rebound should be smaller than the impact');
+    assert.equal(reelBounceOffset(-1,cell),0);
+    assert.equal(reelBounceOffset(0,cell),0);
+    assert.equal(reelBounceOffset(REEL_BOUNCE_MS,cell),0);
+    assert.equal(reelBounceOffset(REEL_BOUNCE_MS+1000,cell),0);
+  }
+});
+
+test('normal and quick stops share the landing bounce, while reduced motion skips it',()=>{
+  for(const reduced of [false,true]){
+    const impacts=REEL_STRIPS.map((strip,reel)=>{
+      const normal=reelAnimation(strip,INITIAL_STOPS[reel],0,reel,reduced);
+      const speed=reelSpeed(normal.steps*136,0,normal.stopAt,reduced);
+      const quick=quickStopAnimation(strip,0,normal.names,-normal.steps*136,speed,reel,136);
+      for(const impactAt of [normal.stopAt,Math.min(quick.duration,normal.stopAt)]){
+        const at=elapsed=>reelBounceOffset(elapsed-impactAt,136,reduced);
+        assert.equal(at(impactAt),0);
+        assert.equal(at(impactAt+REEL_BOUNCE_MS),0);
+        if(reduced){assert.equal(at(impactAt+40),0);assert.equal(at(impactAt+140),0);}
+        else {assert.ok(at(impactAt+40)>0);assert.ok(at(impactAt+140)<0);}
+      }
+      return Math.min(quick.duration,normal.stopAt)+(reduced?0:REEL_BOUNCE_MS);
+    });
+    assert.ok(impacts.every((time,reel)=>!reel||time>=impacts[reel-1]),'the bounce must preserve left-to-right stops');
+  }
 });
 
 test('quick stop preserves every visible symbol and its exact fractional position before braking',()=>{
