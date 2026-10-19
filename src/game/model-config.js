@@ -2,5 +2,5 @@
 export const PAYOUTS=Object.freeze([[20,100,500],[15,75,250],[10,50,150],[8,40,100],[5,15,40],[5,12,30],[4,10,25],[3,8,20],[20,100,500]].map(Object.freeze));
 export const THEORETICAL_RTP=0.96;
 export const MAXIMUM_MULTIPLIER=2700;
-export const BIG_WIN_MEAN_SPINS=300.20201093652605;
+export const BIG_WIN_MEAN_SPINS=70.62051071380172;
 export const INITIAL_STOPS=Object.freeze([7,12,29,19,64]);

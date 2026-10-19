@@ -20,6 +20,14 @@ Discord 測試使用 `npm run activity:serve`：建置後，由 4188 的 Node �
 
 健康檢查為 `/healthz`。本機及公開通道應回報相同模型 `circus-243-v2`。載入失敗先檢查 4188 程序與通道，再檢查 Mapping；登入失敗檢查 Application ID、後端設定及群成員資格。不同瀏覽器來源的 localStorage 不會匯入伺服器錢包。
 
+### 手機試玩
+
+在 Developer Portal 的本應用程式中，進入 **Activities → Settings → Supported Platforms**，勾選 **iOS** 與 **Android** 並儲存，保留原本的桌面平台。若手機顯示「This Activity is not currently available on this OS」，先確認此設定；Discord 會在載入遊戲前檢查支援平台。[Discord 官方說明](https://github.com/discord/discord-api-docs/blob/main/developers/activities/development-guides/local-development.mdx#launch-your-application-from-the-discord-client)
+
+手機與桌面共用目前的 Activity URL Mapping、Interactions Endpoint 及本群帳號錢包，不需另建手機網址。儲存平台設定後，在手機 Discord 關閉原 Activity，再從應用程式入口重新啟動；測試直向、橫向、音效、自動旋轉，以及切到背景後返回。
+
+本機瀏覽器可用 `http://127.0.0.1:4188/?platform=mobile` 搭配手機尺寸預覽版面；此預覽使用瀏覽器本機籌碼，並非 Discord 登入驗收。真正的手機登入、觸控和裝置效能仍須在 iOS／Android Discord 驗收。
+
 ## 錢包與指令
 
 錢包主鍵為伺服器 ID＋經 Discord 驗證的帳號 ID。同群跨裝置同步，不同群分開。停點與派彩由後端產生；扣注、派彩、紀錄及操作去重在同一 SQLite 交易中完成。

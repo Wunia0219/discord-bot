@@ -2,6 +2,11 @@
   "model": "circus-243-v2",
   "sha256": "514680cb90d0625b3cb3535c52b2c3c02da3bb59c7af8de14f4be2e4b33b1e89",
   "sourceSha256": "55fa1a06e1800ab44ebdbc9a09a8ac92298776321798431c852857cfdb0dcec5",
+  "winThresholds": {
+    "big": 10,
+    "super": 30,
+    "mega": 100
+  },
   "reels": [
     [
       "H1",
@@ -423,26 +428,26 @@
     ],
     "standardDeviationTotalBet": 3.2680894297968184,
     "tails": {
-      "20": {
-        "count": 4317093,
-        "probability": 0.003331090277777778,
-        "meanSpins": 300.20201093652605
+      "10": {
+        "count": 18351609,
+        "probability": 0.01416019212962963,
+        "meanSpins": 70.62051071380172
       },
-      "50": {
-        "count": 686474,
-        "probability": 0.0005296867283950617,
-        "meanSpins": 1887.9083548685019
+      "30": {
+        "count": 1858168,
+        "probability": 0.0014337716049382717,
+        "meanSpins": 697.4611552884346
       },
-      "200": {
-        "count": 42862,
-        "probability": 0.00003307253086419753,
-        "meanSpins": 30236.573188371985
+      "100": {
+        "count": 192947,
+        "probability": 0.00014887885802469136,
+        "meanSpins": 6716.870435922819
       }
     },
     "tierCounts": {
-      "big": 3630619,
-      "super": 643612,
-      "mega": 42862
+      "big": 16493441,
+      "super": 1665221,
+      "mega": 192947
     },
     "symbols": {
       "scarab": {

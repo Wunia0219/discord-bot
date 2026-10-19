@@ -1,6 +1,11 @@
 {
   "model": "circus-243-v2",
   "sha256": "514680cb90d0625b3cb3535c52b2c3c02da3bb59c7af8de14f4be2e4b33b1e89",
+  "winThresholds": {
+    "big": 10,
+    "super": 30,
+    "mega": 100
+  },
   "lengths": [
     60,
     60,
@@ -98,26 +103,26 @@
     ],
     "standardDeviationTotalBet": 3.2680894297968184,
     "tails": {
-      "20": {
-        "count": 4317093,
-        "probability": 0.003331090277777778,
-        "meanSpins": 300.20201093652605
+      "10": {
+        "count": 18351609,
+        "probability": 0.01416019212962963,
+        "meanSpins": 70.62051071380172
       },
-      "50": {
-        "count": 686474,
-        "probability": 0.0005296867283950617,
-        "meanSpins": 1887.9083548685019
+      "30": {
+        "count": 1858168,
+        "probability": 0.0014337716049382717,
+        "meanSpins": 697.4611552884346
       },
-      "200": {
-        "count": 42862,
-        "probability": 0.00003307253086419753,
-        "meanSpins": 30236.573188371985
+      "100": {
+        "count": 192947,
+        "probability": 0.00014887885802469136,
+        "meanSpins": 6716.870435922819
       }
     },
     "tierCounts": {
-      "big": 3630619,
-      "super": 643612,
-      "mega": 42862
+      "big": 16493441,
+      "super": 1665221,
+      "mega": 192947
     },
     "symbols": {
       "scarab": {
@@ -167,31 +172,31 @@
       "stops": [
         0,
         4,
-        4,
+        3,
         16,
         0
       ],
-      "payout": 400
+      "payout": 200
     },
     "super": {
       "stops": [
         0,
         4,
-        3,
-        15,
-        15
+        4,
+        17,
+        0
       ],
-      "payout": 1000
+      "payout": 600
     },
     "mega": {
       "stops": [
         0,
         4,
-        4,
+        3,
         16,
         15
       ],
-      "payout": 4000
+      "payout": 2000
     },
     "none": {
       "stops": [

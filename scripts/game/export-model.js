@@ -2,10 +2,12 @@ import { readFileSync,writeFileSync,mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { MODEL_VERSION,REEL_CODES,SYMBOLS,SYMBOL_CODES,SYMBOL_NAMES,PAYTABLE,BET_DIVISOR } from '../../src/game/slot-math.js';
+import { WIN_THRESHOLDS } from '../../src/game/win-tier.js';
 const read=name=>JSON.parse(readFileSync(new URL('../../docs/data/'+name,import.meta.url)));
 const report=read('math-report.json'),sessions=read('session-report.json'),reference=read('model-source.json');
 assert.equal(report.sha256,createHash('sha256').update(JSON.stringify({MODEL_VERSION,REEL_CODES,PAYTABLE,BET_DIVISOR})).digest('hex'));
 assert.equal(sessions.modelSha256,report.sha256);
+assert.deepEqual(report.winThresholds,WIN_THRESHOLDS);
 const pct=n=>(n*100).toFixed(4)+'%',e=report.exact,s=sessions.observed;
 const symbols=SYMBOLS.slice(0,8).map(symbol=>`| ${SYMBOL_CODES[symbol]} ${SYMBOL_NAMES[symbol]} | ${pct(e.symbols[symbol].roundFrequency)} | ${pct(e.symbols[symbol].payoutShare)} |`).join('\n');
 const payouts=SYMBOLS.map(symbol=>`| ${SYMBOL_CODES[symbol]} ${SYMBOL_NAMES[symbol]} | ${PAYTABLE[symbol].join(' | ')} |`).join('\n');
@@ -48,7 +50,7 @@ ${payouts}
 |---|---:|---:|
 ${symbols}
 
-不同圖標可在同一回合得分，回合率不能相加成總中獎率。BIG／SUPER／MEGA 門檻保留 20／50／200 倍；最高獎由可達盤面產生，沒有結算後截斷。
+不同圖標可在同一回合得分，回合率不能相加成總中獎率。BIG／SUPER／MEGA 演出門檻為 ${Object.values(WIN_THRESHOLDS).join('／')} 倍總下注；只影響演出分級，派彩及圖標頻率保持原值。最高獎由可達盤面產生，沒有結算後截斷。
 
 ## 驗證與重現
 
@@ -62,5 +64,5 @@ ${symbols}
 `;
 writeFileSync(new URL('../../docs/game-math.md',import.meta.url),document);
 const out=new URL('../../output/',import.meta.url);mkdirSync(out,{recursive:true});
-writeFileSync(new URL('jokers-circus-243.json',out),JSON.stringify({model:MODEL_VERSION,sha256:report.sha256,sourceSha256:reference.sourceSha256,reels:REEL_CODES,paytable:Object.fromEntries(SYMBOLS.map(s=>[SYMBOL_CODES[s],PAYTABLE[s]])),betDivisor:BET_DIVISOR,scoring:'243 ways; left-to-right, longest award per symbol; no Scatter; W on reels 3..5',exact:e},null,2)+'\n');
+writeFileSync(new URL('jokers-circus-243.json',out),JSON.stringify({model:MODEL_VERSION,sha256:report.sha256,sourceSha256:reference.sourceSha256,winThresholds:WIN_THRESHOLDS,reels:REEL_CODES,paytable:Object.fromEntries(SYMBOLS.map(s=>[SYMBOL_CODES[s],PAYTABLE[s]])),betDivisor:BET_DIVISOR,scoring:'243 ways; left-to-right, longest award per symbol; no Scatter; W on reels 3..5',exact:e},null,2)+'\n');
 console.log('Updated current game-math.md and output/jokers-circus-243.json');

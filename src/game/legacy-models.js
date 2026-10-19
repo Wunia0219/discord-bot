@@ -8,7 +8,14 @@ const PAYLINES=Object.freeze([[1,1,1,1,1],[0,0,0,0,0],[2,2,2,2,2],[0,1,2,1,0],[2
 function legacyModel(definition){
   const REEL_CODES=Object.freeze(definition.reels.map(Object.freeze)),REEL_STRIPS=makeReels(REEL_CODES);
   const PAYTABLE=Object.freeze(Object.fromEntries(SYMBOLS.map((s,i)=>[s,Object.freeze(definition.payouts[i])])));
-  if(definition.scoring==='ways')return Object.freeze({MODEL_VERSION:definition.version,REEL_CODES,REEL_STRIPS,SYMBOLS,PAYTABLE,verification:Object.freeze(definition.verification),validateStops:stops=>validateReelStops(REEL_STRIPS,stops),gridFromStops:stops=>gridFromReels(REEL_STRIPS,stops),drawStops:next=>REEL_STRIPS.map(r=>uniformStop(r.length,next)),evaluateGrid:(grid,bet)=>evaluateWays(grid,bet,PAYTABLE,definition.betDivisor)});
+  if(definition.scoring==='ways'){
+    const evaluateGrid=(grid,bet)=>{
+      const result=evaluateWays(grid,bet,PAYTABLE,definition.betDivisor);
+      // Preserve archived presentation metadata when current WIN thresholds change.
+      return {...result,tier:result.payout>=bet*200?'mega':result.payout>=bet*50?'super':result.payout>=bet*20?'big':null};
+    };
+    return Object.freeze({MODEL_VERSION:definition.version,REEL_CODES,REEL_STRIPS,SYMBOLS,PAYTABLE,verification:Object.freeze(definition.verification),validateStops:stops=>validateReelStops(REEL_STRIPS,stops),gridFromStops:stops=>gridFromReels(REEL_STRIPS,stops),drawStops:next=>REEL_STRIPS.map(r=>uniformStop(r.length,next)),evaluateGrid});
+  }
   function evaluateLine(symbols){
     let best={symbol:null,count:0,multiplier:0};
     for(const symbol of SYMBOLS){
