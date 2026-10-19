@@ -22,14 +22,14 @@ test('reward audit survives more than 50 spins, paginates and links corrections'
  for(let i=0;i<60;i++)s.spin(guild,target,20,randomUUID());
  const first=handleCommand(historyCommand(),s).data;
  assert.equal(first.flags,64);assert.deepEqual(first.allowed_mentions,{parse:[]});assert.equal(first.embeds[0].fields.length,10);
- assert.match(first.embeds[0].title,/發放與更正/);assert.doesNotMatch(JSON.stringify(first),/遊戲結算/);
+ assert.match(first.embeds[0].title,/發放與收回/);assert.doesNotMatch(JSON.stringify(first),/遊玩紀錄/);
  const cursor=Number(first.embeds[0].description.match(/填入 (\d+)/)[1]);
  const second=handleCommand(historyCommand([{name:'早於編號',value:cursor}]),s).data.embeds[0];
- assert.equal(second.fields.length,5);assert.match(JSON.stringify(second),/已更正/);assert.match(JSON.stringify(second),/對應原紀錄/);
+ assert.equal(second.fields.length,5);assert.match(JSON.stringify(second),/已收回/);assert.match(JSON.stringify(second),/對應發放/);
  assert.ok(second.fields.some(f=>f.name.startsWith(`#${grant.entry.id}｜`)));
- assert.match(second.description,/已無更早/);
+ assert.match(second.description,/最早一筆/);
  const game=handleCommand(historyCommand([{name:'分類',value:'game'}]),s).data.embeds[0];
- assert.equal(game.fields.length,10);assert.ok(game.fields.every(f=>f.name.includes('遊戲結算')));
+ assert.equal(game.fields.length,10);assert.ok(game.fields.every(f=>f.name.includes('遊玩紀錄')));
 });
 test('game and checkin summaries cover full selected Taipei calendar period and isolate members',t=>{
  let now=Date.parse('2026-10-17T15:59:59Z');
@@ -49,21 +49,51 @@ test('game and checkin summaries cover full selected Taipei calendar period and 
 });
 test('cards preserve privacy, colors, empty states and Discord text limits',t=>{
  const s=new WalletStore({guildIds:[guild],environment:'production'});t.after(()=>s.close());
- assert.match(handleCommand(historyCommand(),s).data.embeds[0].description,/尚無紀錄/);
+ assert.match(handleCommand(historyCommand(),s).data.embeds[0].description,/還沒有發放或收回/);
  for(let i=0;i<10;i++)s.grant(guild,user,target,1,'*'.repeat(200),randomUUID());
  const card=handleCommand(historyCommand(),s).data.embeds[0];
- const size=card.title.length+card.description.length+card.footer.text.length+card.fields.reduce((n,f)=>n+f.name.length+f.value.length,0);
- assert.ok(size<=6000);assert.ok(card.fields.every(f=>f.value.length<=1024));assert.equal(card.color,0x3498db);
- const invalid=handleCommand(historyCommand([{name:'分類',value:'summary'},{name:'早於編號',value:1}]),s).data.embeds[0];assert.equal(invalid.color,0xe74c3c);
+ const size=card.author.name.length+card.title.length+card.description.length+card.footer.text.length+card.fields.reduce((n,f)=>n+f.name.length+f.value.length,0);
+ assert.ok(size<=6000);assert.ok(card.fields.every(f=>f.value.length<=1024));assert.equal(card.color,0xd6b775);
+ const invalid=handleCommand(historyCommand([{name:'分類',value:'summary'},{name:'早於編號',value:1}]),s).data.embeds[0];assert.equal(invalid.color,0xc85c76);
  const checkin=historyCommand();checkin.data={name:'簽到'};
- assert.equal(handleCommand(checkin,s).data.embeds[0].color,0x2ecc71);
- assert.equal(handleCommand(checkin,s).data.embeds[0].color,0xf39c12);
+ assert.equal(handleCommand(checkin,s).data.embeds[0].color,0x68a880);
+ assert.equal(handleCommand(checkin,s).data.embeds[0].color,0xc99456);
 });
 test('admin command permissions are enforced on the server, including configured roles and guild isolation',t=>{
  const s=new WalletStore({guildIds:[guild],environment:'production'});t.after(()=>s.close());
  const i={type:2,id:'1561284960986599700',guild_id:guild,member:{user:{id:user},roles:[],permissions:'0'},data:{name:'籌碼管理',resolved:{members:{[target]:{}},users:{[target]:{bot:false}}},options:[{name:'發放',options:[{name:'成員',value:target},{name:'數量',value:500},{name:'原因',value:'測試'}]}]}};
- assert.match(handleCommand(i,s).data.embeds[0].description,/只有伺服器管理員/);assert.equal(s.state(guild,target).balance,0);
- i.member.roles=['role'];assert.match(handleCommand(i,s,['role']).data.embeds[0].description,/已發放/);assert.equal(s.state(guild,target).balance,500);
- assert.match(handleCommand(i,s,['role']).data.embeds[0].description,/未重複發放/);
- i.guild_id='123456789012345678';assert.match(handleCommand(i,s,['role']).data.embeds[0].description,/尚未開放/);
+ assert.match(handleCommand(i,s).data.embeds[0].description,/需要管理員/);assert.equal(s.state(guild,target).balance,0);
+ i.member.roles=['role'];assert.match(handleCommand(i,s,['role']).data.embeds[0].description,/500.*籌碼/);assert.equal(s.state(guild,target).balance,500);
+ assert.match(handleCommand(i,s,['role']).data.embeds[0].description,/沒有再加一次/);
+ i.guild_id='123456789012345678';assert.match(handleCommand(i,s,['role']).data.embeds[0].description,/有開放遊戲的群/);
+});
+
+test('unknown and provider failures never reach players as raw diagnostic text',()=>{
+ const command={type:2,guild_id:guild,member:{user:{id:user}},data:{name:'籌碼'}};
+ for(const status of [undefined,400,503]){
+   const store={environment:'test',validate:()=>{},state:()=>{throw Object.assign(new Error('sqlite-secret-path / provider-token / internal-request-id'),{status});}};
+   const response=handleCommand(command,store);
+   assert.equal(response.data.flags,64);
+   assert.deepEqual(response.data.allowed_mentions,{parse:[]});
+   assert.equal(response.data.embeds[0].title,'剛剛卡住了');
+   assert.match(response.data.embeds[0].description,/再試一次/);
+   assert.doesNotMatch(JSON.stringify(response),/sqlite|provider-token|internal-request-id|測試環境/);
+ }
+});
+
+test('duplicate management replies label the original change and never present it as a current balance',t=>{
+ const store=new WalletStore({guildIds:[guild],environment:'production',spinDelay:0});t.after(()=>store.close());
+ const grant={...historyCommand(),id:randomUUID(),data:{...historyCommand().data,options:[{name:'發放',options:[{name:'成員',value:target},{name:'數量',value:1000},{name:'原因',value:'@everyone **獎勵**'}]}]}};
+ const first=handleCommand(grant,store).data.embeds[0];
+ assert.equal(first.title,'籌碼送到了');
+ store.spin(guild,target,20,randomUUID());
+ const balance=store.state(guild,target).balance;
+ const duplicate=handleCommand(grant,store).data.embeds[0];
+ assert.equal(duplicate.title,'這筆已經發過了');
+ assert.match(duplicate.description,/沒有再加一次/);
+ assert.deepEqual(duplicate.fields,first.fields);
+ assert.equal(duplicate.fields[0].name,'這筆發放前後');
+ assert.doesNotMatch(duplicate.fields[2].value,/@everyone/);
+ assert.equal(store.state(guild,target).balance,balance);
+ assert.equal(store.history(guild,target).filter(entry=>entry.kind==='grant').length,1);
 });

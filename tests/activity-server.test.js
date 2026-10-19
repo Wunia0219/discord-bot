@@ -80,3 +80,22 @@ test('wallet HTTP routes require verified sessions, isolate callers and settle c
  assert.equal(store.history(guild,id).filter(e=>e.kind==='spin').length,2);
  assert.equal((await request('/api/interactions',post({type:2}))).status,401);
 });
+
+test('announcement failures cannot fail a settled spin or trust client identity/result fields', async t => {
+  const guild='1441097301685698703',store=new WalletStore({guildIds:[guild]});t.after(()=>store.close());
+  const session={guild,user:id,profile:{name:'Discord 驗證的名稱'}};
+  const { mock }=await import('node:test');
+  const warning=mock.method(console,'warn',()=>{});t.after(()=>warning.mock.restore());
+  let queued;
+  const wallet={store,service:{authorize:async()=>session},highlights:{enqueue:(verified,roundId)=>{
+    queued={verified,roundId};throw new Error('webhook-not-available');
+  }}};
+  const request=await fixture(t,{wallet});
+  const response=await request('/api/spin',post({bet:20,requestId:'11111111-2222-3333-4444-555555555555',userId:'forged',payout:999999,name:'forged'}));
+  assert.equal(response.status,200);
+  const result=await response.json();
+  assert.equal(queued.verified,session);assert.equal(queued.roundId,result.round.id);
+  assert.equal(store.history(guild,id).filter(entry=>entry.kind==='spin').length,1);
+  assert.equal(warning.mock.callCount(),1);
+  assert.ok(!JSON.stringify(result).includes('webhook'));
+});

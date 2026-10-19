@@ -16,7 +16,8 @@ const server = createActivityServer({
 server.requestTimeout = 15000;
 server.headersTimeout = 10000;
 server.listen(port, process.env.HOST || '127.0.0.1', () => {
+  wallet?.highlights?.start();
   console.log(`Activity server: http://127.0.0.1:${port} (OAuth ${configured ? 'configured' : 'not configured'})`);
 });
-const shutdown=()=>{server.close(()=>{wallet?.store.close();process.exit(0);});setTimeout(()=>process.exit(1),10000).unref();};
+const shutdown=()=>{server.close(async()=>{await wallet?.highlights?.close();wallet?.store.close();process.exit(0);});setTimeout(()=>process.exit(1),10000).unref();};
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);

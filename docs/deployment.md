@@ -43,6 +43,23 @@ Discord 測試使用 `npm run activity:serve`：建置後，由 4188 的 Node �
 
 管理操作需 Administrator 或明確設定的 `CHIP_ADMIN_ROLE_IDS`，並符合 Discord 指令權限。回覆僅操作者可見；互動入口驗證 Ed25519 簽章、Application ID 與時間窗。帳本禁止修改與刪除，餘額全程為非負整數。
 
+## Discord 啟動與精彩得獎公告
+
+啟動入口使用 `APP_HANDLER`，後端對已開放群的真人成員回覆 `LAUNCH_ACTIVITY`（12），不額外貼遊戲邀請卡。完成後端更新並確認 Interactions Endpoint 正常，再執行 `npm run activity:configure-launch`。腳本只 PATCH 現有全域 Activity 入口的 `handler:1` 並重新讀取確認，不覆蓋名稱、平台或其他指令；重複執行安全。既有 Discord 邀請訊息不會自動刪除。參考 [Discord Entry Point handlers](https://docs.discord.com/developers/interactions/application-commands#entry-point-handlers)。
+
+中獎公告集中在專用文字頻道，沿用遊戲 30／100 倍總下注的 SUPER／MEGA 門檻；同局只公告最高級別，BIG 不公告。卡片顯示群內暱稱（其次為 Discord 顯示名稱）、得獎級別及「本局總獎勵 ÷ 總下注」倍率，不顯示下注、派彩金額、餘額、帳號 ID。公告不提及成員、角色或 everyone，建立訊息時抑制推送通知。
+
+設定方式：
+
+1. 在已開放的 Discord 伺服器建立專用**文字頻道**，例如 `🎪・精彩得獎`。
+2. 頻道設定 → 整合 → Webhook → 新增 Webhook，選定此頻道並複製網址。此網址包含發訊密鑰，只放在本機／主機秘密設定，不貼到聊天或 Git。
+3. 在 `.env.server.local` 填入 `DISCORD_HIGHLIGHTS_WEBHOOK_URL`。目前只有一個 allowed guild 時可省略 `DISCORD_HIGHLIGHTS_GUILD_ID`；有多個時必須明確指定。每個服務目前支援一個公告目的地，只接收指定群結果。
+4. 重啟後端並重新開啟 Activity。沒有設定 Webhook 時公告維持關閉，遊戲照常運作。首次發送前會向 Discord 核對 Webhook 確實屬於指定群；不符時拒絕發送。僅有 client secret／指令授權無法用來發送這類背景公告。
+
+同一頻道固定 10 分鐘視窗內更新同一則訊息，最多每 10 秒更新一次，保留最近 5 次及視窗內總次數；視窗結束後的下一次得獎才建立新卡。SUPER 香檳金、MEGA 玫瑰紅，保留原生 Discord 卡片結構，無須玩家另開外部頁面。
+
+公告只讀取後端已提交的回合，名稱來自經 Discord 驗證的 session，忽略客戶端聲稱的名稱及得分。佇列與訊息 ID 存在同一個 SQLite 檔案內的獨立表，依群與回合 ID 去重；公告發送不等待在開轉請求內，失敗不影響已結算的籌碼。429 依重試時間稍候、已刪除卡片可重建。重啟後續用原訊息 ID；超過 15 分鐘的待發事件過期，不補貼舊戰報。若建立訊息的網路回應不明，保守跳過該批並暫停本視窗的新卡，避免重新發送造成洗版；這類少量公告可能略過，遊戲紀錄仍完整。Webhooks 的建立與編輯欄位參考 [Discord 官方文件](https://docs.discord.com/developers/resources/webhook#execute-webhook)。
+
 ## 部署與備份
 
 後續部署可使用現有的 Netlify 與 Firebase 帳號；實際部署時再依後端執行環境及資料持久化需求選擇配置。

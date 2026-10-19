@@ -111,11 +111,9 @@ dialog.rules-dialog {
 .rules-facts strong small { font: 16px 'Noto Sans TC', sans-serif; margin-left: 5px; }
 .rules-dialog #dialog-body .rules-facts p { font-size: 13px; margin: 0; }
 .game-rules > .rules-version { display: flex; justify-content: space-between; gap: 16px; margin: 0 32px; padding: 16px 0 20px; border-top: 1px solid #e4b86626; color: #cfb6c1; font: 11px Georgia, serif; letter-spacing: 1px; }
-.rules-more { margin-top: 24px; padding: 0 20px 20px; border: 1px solid #b58b5650; border-radius: 12px; background: #2b1d3066; }
-.rules-more:not([open]) { padding-bottom: 0; }
-.rules-more > summary { min-height: 52px; padding: 14px 0; color: #ead0a6; font-size: 14px; cursor: pointer; }
-.rules-more > summary:focus-visible { outline: 2px solid var(--rules-gold); outline-offset: 4px; }
-.rules-more .rules-facts { margin: 0 0 16px; }
+.rules-basics { margin-top: 24px; padding: 20px; border: 1px solid #b58b5650; border-radius: 12px; background: #2b1d3066; }
+.rules-basics > h4 { margin: 0 0 16px; color: #ead0a6; font-size: 16px; font-weight: 600; }
+.rules-basics .rules-facts { margin: 0 0 16px; }
 
 @media (max-width: 600px) {
   dialog.rules-dialog { width: calc(100% - 16px); height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px); max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px); border-radius: 16px; }
@@ -165,7 +163,7 @@ dialog.rules-dialog {
   .rules-tier strong small { display: block; font-size: 12px; margin-top: 4px; }
   .rules-tier > span { font-size: 11px; }
   .game-rules > .rules-version { margin-inline: 16px; }
-  .rules-more { padding-inline: 16px; }
+  .rules-basics { padding: 18px 16px; }
   .rules-facts { gap: 12px; }
   .rules-facts article { padding: 16px 4px; }
   .rules-facts article > strong { font-size: 32px; }

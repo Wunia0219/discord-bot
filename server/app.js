@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { resolve, relative, extname, sep, isAbsolute } from 'node:path';
 import { validSignature, handleCommand } from './commands.js';
+import { privateReply } from './bot-replies.js';
 import { MODEL_VERSION } from '../src/game/slot-math.js';
 
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.webp':'image/webp', '.png':'image/png', '.svg':'image/svg+xml', '.json':'application/json', '.woff2':'font/woff2' };
@@ -47,7 +48,7 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
         let interaction;try{interaction=JSON.parse(raw.toString('utf8'));}catch{return json(res,400,{error:'無效的請求。'});}
         if(interaction.type===1)return json(res,200,{type:1});
         if(interaction.application_id!==clientId)return json(res,403,{error:'應用程式不符。'});
-        if(!wallet)return json(res,200,{type:4,data:{content:'籌碼服務尚未開啟。',flags:64}});
+        if(!wallet)return json(res,200,privateReply(null,'過一會兒再試試。如果一直連不上，請找管理員幫忙看看。','籌碼暫時連不上','warning'));
         return json(res,200,handleCommand(interaction,wallet.store,wallet.adminRoles));
       }
       if (path === '/api/token') {
@@ -89,7 +90,10 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
         if(path==='/api/ledger')return json(res,200,{entries:wallet.store.history(guild,user,Number(new URL(req.url,'http://localhost').searchParams.get('before')||Number.MAX_SAFE_INTEGER))});
         const body=await readJson(req);
         if(path==='/api/checkin')return json(res,200,wallet.store.checkin(guild,user));
-        return json(res,200,wallet.store.spin(guild,user,body?.bet,body?.requestId));
+        const result=wallet.store.spin(guild,user,body?.bet,body?.requestId);
+        try { wallet.highlights?.enqueue(session,result.round.id); }
+        catch { console.warn('Discord highlights: could not queue result'); }
+        return json(res,200,result);
       }
       if (path.startsWith('/api/')) return json(res, 404, { error:'找不到此功能。' });
       if (!['GET', 'HEAD'].includes(req.method)) return json(res, 405, { error:'不支援此操作。' });

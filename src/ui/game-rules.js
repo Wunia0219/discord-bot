@@ -50,7 +50,7 @@ function playPanel(bet) {
 }
 
 function gameFacts() {
-  return `<details class="rules-more"><summary>更多遊戲資訊</summary><div class="rules-facts"><article><span>理論返還率</span><strong>${Number((THEORETICAL_RTP * 100).toFixed(4))}<small>%</small></strong><p>這是長期平均值，不代表每次遊玩都會拿回相同比例的籌碼。</p></article><article><span>最高獎勵</span><strong>${fmt(MAXIMUM_MULTIPLIER)}<small>倍</small></strong><p>以總下注計算，實際獎勵依中獎圖標與組合而定。</p></article></div><p>籌碼僅供遊戲使用，不能購買、轉讓或兌換現金。</p></details>`;
+  return `<section class="rules-basics" aria-labelledby="rules-basics-title"><h4 id="rules-basics-title">遊戲基本資訊</h4><div class="rules-facts"><article><span>理論返還率</span><strong>${Number((THEORETICAL_RTP * 100).toFixed(4))}<small>%</small></strong><p>這是長期平均值，不代表每次都能拿回 ${Number((THEORETICAL_RTP * 100).toFixed(4))}% 的籌碼。</p></article><article><span>最高倍率</span><strong>${fmt(MAXIMUM_MULTIPLIER)}<small>倍</small></strong><p>以這局的總下注計算，實際拿到多少，要看中獎圖標和組合。</p></article></div><p>籌碼是遊戲裡用的，不能購買、轉讓，也不能換成現金。</p></section>`;
 }
 
 export function createGameRules(bet) {
