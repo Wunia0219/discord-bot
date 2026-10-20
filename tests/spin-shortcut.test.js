@@ -20,13 +20,13 @@ function fixture(){
 
 test('Space starts the game from focused history, rules, sound and bet controls without activating them',()=>{
   const h=fixture();
-  for(const name of ['all-history','help','sound','bet','max-bet','auto-spin']){
+  for(const name of ['all-history','help','sound','music','bet','max-bet','auto-spin']){
     const button={name,closest:selector=>selector==='header,summary'?button:null};
     assert.equal(h.press('keydown',button).defaultPrevented,true,name+' must not retain native Space activation');
     assert.equal(h.press('keyup',button).defaultPrevented,true,name+' must not activate on key release');
     h.finish();
   }
-  assert.equal(h.starts,6);assert.equal(h.stops,0);
+  assert.equal(h.starts,7);assert.equal(h.stops,0);
   const enter=h.press('keydown',{}, {key:'Enter',code:'Enter'});
   assert.equal(enter.defaultPrevented,false,'Enter retains native button activation');
 });

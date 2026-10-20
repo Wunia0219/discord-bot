@@ -7,11 +7,12 @@ import { roundRecords } from './ui/player-records.js';
 import './style.css';
 import { SlotScene } from './ui/scene.js';
 import { Sound } from './ui/audio.js';
+import { MUSIC_SOURCE } from './ui/audio-cues.js';
+import { presentRoundWin } from './ui/round-win.js';
 import { connectActivity } from './platform/discord-activity.js';
 import { connectLocalWallet } from './platform/local-wallet.js';
 import { createLoadingScreen } from './ui/loading.js';
 import { BigWinPresentation } from './ui/big-win.js';
-import { winTier } from './game/win-tier.js';
 import { createGameRules } from './ui/game-rules.js';
 import { SpinControls } from './ui/spin-controls.js';
 import { installSpinShortcut } from './ui/spin-shortcut.js';
@@ -52,7 +53,7 @@ const KEY='kemet-slot-preview-v2';
 let state, storageAvailable=true;
 try { state=readState(localStorage.getItem(KEY)); } catch { state=freshState();storageAvailable=false; }
 let bet=100, busy=false, presenting=false, ready=false, countAnimation=0, payoutAnimation=0, celebrationTimer=0;
-const scene=new SlotScene(), sound=new Sound();
+const scene=new SlotScene(), sound=new Sound({musicUrl:MUSIC_SOURCE,onStateChange:renderAudio});
 const bigWin=new BigWinPresentation($('#app'));
 let activityMode='browser', activityUser=null, walletClient=null, claiming=false, toastTimer=0;
 const controls=new SpinControls({
@@ -71,8 +72,10 @@ const controls=new SpinControls({
 const motion=matchMedia('(prefers-reduced-motion: reduce)');scene.reduced=motion.matches;motion.addEventListener('change',()=>scene.reduced=motion.matches);
 const signed=n=>(n>0?'+':'')+fmt(n);
 function save(next) { if(walletClient){if((next.revision||0)>=(state.revision||0))state=next;return;}state=next;try{localStorage.setItem(KEY,JSON.stringify(state));}catch{storageAvailable=false;} }
-const playerBar=createPlayerBar({icon,version:APP_VERSION,onCheckin:claimDaily,onHistory:showHistory,onRules:showRules,onSound:toggleSound});
+const playerBar=createPlayerBar({icon,version:APP_VERSION,onCheckin:claimDaily,onHistory:showHistory,onRules:showRules,onSound:toggleSound,onMusic:toggleMusic});
 $('#player-header').append(playerBar.element);
+function renderAudio(){playerBar.audio(sound.state);}
+renderAudio();
 function renderPlayer(){playerBar.update({user:activityUser,connected:!!walletClient,localTest:activityMode==='local',ready,busy,claiming,claimed:state.claimed,daily:state.daily,storageAvailable});}
 function notifyPlayer(message,tone='success'){
   const toast=$('#player-toast');clearTimeout(toastTimer);
@@ -140,7 +143,7 @@ function celebrate(kind,amount) {
   const milestone=kind==='milestone';
   if(!milestone){
     bigWin.show(amount,scene.reduced,kind);
-    scene.celebrate(true,true);sound.win(true);
+    scene.celebrate(true,true);
     celebrationTimer=setTimeout(hideCelebration,4500);
     return;
   }
@@ -150,7 +153,7 @@ function celebrate(kind,amount) {
   $('#celebration-amount').textContent=milestone?'12,000':`+${fmt(amount)}`;
   $('#celebration-note').textContent=milestone?'第一枚馬戲團徽章，已為你收藏。':'這一刻，傳說再次閃耀。';
   $('#celebration').classList.add('show');$('.game-panel').classList.add('big-win');
-  scene.celebrate(!milestone,!milestone);sound.win(true);
+  scene.celebrate(!milestone,!milestone);sound.win('big');
   celebrationTimer=setTimeout(hideCelebration,4500);
 }
 async function spin() {
@@ -167,7 +170,7 @@ async function spin() {
       result('上一局的結果已找回',`獲得 ${fmt(r.payout)} 籌碼，沒有再次扣除下注。可在遊玩紀錄查看。`);
       return;
     }
-    sound.tone(220,.2);
+    sound.spin();
     setBitmapNumber($('#balance'),fmt(r.before-r.bet));
     result('轉輪開始，準備揭曉。',`本局下注 ${fmt(r.bet)}`);
     const animation=scene.spin(r.stops,i=>sound.stop(i));
@@ -178,9 +181,7 @@ async function spin() {
     renderState();animateBalance(r.before-r.bet,state.balance);presentWins(r);showPayout(r.payout,true);
     const symbols=r.wins.length?r.wins.map(w=>`${SYMBOL_NAMES[w.symbol]} ${w.count} 連・${w.ways} 組`).join('、'):'這局沒有連出中獎組合';
     result(r.payout?`這局獲得 ${fmt(r.payout)} 籌碼`:'這局沒有得獎',`${symbols}｜籌碼變化 ${signed(r.net)}`);
-    const tier=winTier(r.payout,r.bet);
-    if(tier)celebrate(tier,r.payout);
-    else if(r.payout>r.bet){scene.celebrate();sound.win(false);}
+    const tier=presentRoundWin(r,{sound,celebrate,celebrateSmall:()=>scene.celebrate()});
     const timing=roundFeedbackTiming(r,tier);nextDelay=timing.autoDelay;
     if(r.milestone){clearTimeout(celebrationTimer);celebrationTimer=setTimeout(()=>celebrate('milestone',12000),tier?4500:1800);}
     // Space can shorten reel travel, but cannot cut off the resulting win.
@@ -216,11 +217,22 @@ async function claimDaily(){
   finally{claiming=false;setBusy(busy);}
 }
 async function toggleSound(){
+  const button=$('#sound');button.disabled=true;button.setAttribute('aria-busy','true');
   try{
-    if(sound.enabled)sound.enabled=false;
-    else if(!await sound.enable()){notifyPlayer('暫時無法播放音效，請稍後再試。','info');return;}
-    playerBar.sound(sound.enabled);if(sound.enabled)sound.tone(659,.2);
+    const enable=!sound.enabled;
+    const enabled=await sound.setEffectsEnabled(enable);
+    if(enable&&!enabled)notifyPlayer('暫時無法播放音效，請稍後再試。','info');
+    if(enabled)sound.win('return');
   }catch{notifyPlayer('暫時無法播放音效，請稍後再試。','info');}
+  finally{renderAudio();button.setAttribute('aria-busy','false');}
+}
+async function toggleMusic(){
+  if(!sound.musicAvailable)return;
+  const button=$('#music');button.disabled=true;button.setAttribute('aria-busy','true');
+  try{
+    const enable=!sound.musicEnabled;
+    if(!await sound.setMusicEnabled(enable)&&enable)notifyPlayer('暫時無法播放音樂，請稍後再試。','info');
+  }finally{renderAudio();button.setAttribute('aria-busy','false');}
 }
 $('#max-bet').addEventListener('click',()=>{if(!busy)document.querySelector('[data-bet="500"]').click();});
 $('#spin').addEventListener('click',()=>spin());
@@ -236,8 +248,8 @@ $('#close-dialog').addEventListener('click',()=>$('#dialog').close());
 $('#dialog').addEventListener('click',e=>{if(e.target===$('#dialog')){const r=$('#dialog').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)$('#dialog').close();}});
 
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden){controls.stopAuto();controls.stopCurrent();scene.finish();if(ready)scene.app.stop();sound.context?.suspend();}
-  else {if(ready)scene.app.start();if(sound.enabled)sound.context?.resume().catch(()=>{});refreshWallet();}
+  if(document.hidden){controls.stopAuto();controls.stopCurrent();scene.finish();if(ready)scene.app.stop();sound.setVisible(false);}
+  else {if(ready)scene.app.start();sound.setVisible(true);refreshWallet();}
 });
 renderState();
 // History restores the wallet and reels, but a new visit has no current win.

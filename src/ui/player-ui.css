@@ -24,11 +24,23 @@
 .daily-checkin.is-loading { opacity: 1; }
 .daily-checkin.is-loading > svg { animation: rotate 1.2s linear infinite; }
 .daily-checkin[hidden], .player-tools [hidden] { display: none; }
-.player-tools { grid-column: 3; display: flex; align-items: center; height: var(--player-control-height); gap: 4px; padding: 5px; border: 1px solid #c99b5b36; border-radius: 12px; background: #2b1d2dd9; box-shadow: inset 0 1px 0 #ffe4b50a; }
-.player-tools .utility, .player-tools .icon-button { flex: none; padding: 0; width: 44px; height: 44px; min-height: 44px; border-radius: 9px; }
+.player-tools { grid-column: 3; display: flex; align-items: center; height: var(--player-control-height); gap: 8px; padding: 3px 5px; border: 1px solid #c99b5b36; border-radius: 12px; background: #2b1d2dd9; box-shadow: inset 0 1px 0 #ffe4b50a; }
+.player-tools .utility, .player-tools .icon-button { flex: none; padding: 0; width: 48px; height: 48px; min-height: 48px; border-radius: 9px; }
 .player-tools .utility svg, .player-tools .icon-button svg { width: 20px; height: 20px; }
 .player-tools .utility span { display: none; }
 .player-tools .game-version { display: flex; align-items: center; justify-content: center; min-width: 64px; height: 44px; margin-right: 4px; padding: 0 10px; border-right: 1px solid #c99b5b30; font-size: 12px; color: #dcc39e; }
+.audio-controls { display: flex; flex: none; align-items: center; gap: 8px; padding-inline: 8px; border-inline: 1px solid #c99b5b30; }
+.audio-toggle { display: flex; align-items: center; justify-content: center; gap: 7px; flex: none; width: auto; min-width: 76px; min-height: 48px; padding: 4px 6px; border: 1px solid transparent; border-radius: 9px; color: #ead8cb; }
+.audio-toggle > svg { width: 18px; height: 18px; }
+.audio-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; white-space: nowrap; font-size: 12px; line-height: 1.35; }
+.audio-copy small { font-size: 11px; color: #d9c0b9; }
+.audio-toggle:hover:not(:disabled) { background: #e7be7114; border-color: #e7be714d; }
+.audio-toggle:active:not(:disabled) { background: #e7be7126; }
+.audio-toggle[aria-pressed=true] { color: #ffe0a2; border-color: #f4d28b70; background: #9a703d38; }
+.audio-toggle[aria-pressed=true] small { color: #c8e8c7; }
+.audio-toggle:disabled { opacity: 1; cursor: default; color: #c1b1bf; background: #ffffff04; }
+.audio-toggle:disabled small { color: #c1b1bf; }
+.audio-toggle[aria-busy=true] { cursor: progress; }
 .player-toast { position: fixed; z-index: 30; bottom: calc(var(--safe-bottom) + 20px); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; width: max-content; max-width: calc(100% - 32px); padding: 14px 20px; border: 1px solid #d7b471; border-radius: 12px; color: #fff0d1; background: #302332f5; box-shadow: 0 8px 32px #0d071888; font-size: 14px; line-height: 1.6; pointer-events: none; }
 .player-toast > span:first-child { flex: none; color: #b6e9bf; line-height: 0; }
 .player-toast[data-tone=info] > span:first-child { color: #f5d28c; }
@@ -74,8 +86,8 @@ dialog.records-dialog { width: min(800px, calc(100% - 32px)); max-width: 800px; 
 .notice-action { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 24px; margin-top: 16px; border: 1px solid #e0b66a; border-radius: 8px; color: #2b1a28; background: linear-gradient(#f6dfa9, #d9ad62); font-size: 14px; }
 
 @media (max-width: 700px) {
-  .header.header { height: 128px; padding: 8px 12px; }
-  .player-bar { grid-template-columns: minmax(0, 1fr) 140px; grid-template-rows: 56px 48px; gap: 8px 12px; }
+  .header.header { height: auto; min-height: 132px; padding: 8px 12px; }
+  .player-bar { grid-template-columns: minmax(0, 1fr) 140px; grid-template-rows: 56px auto; gap: 8px 12px; }
   .player-identity { grid-column: 1; grid-row: 1; gap: 8px; }
   .player-avatar { width: 40px; height: 40px; }
   .player-avatar svg { width: 19px; height: 19px; }
@@ -85,9 +97,11 @@ dialog.records-dialog { width: min(800px, calc(100% - 32px)); max-width: 800px; 
   .daily-checkin > svg { width: 18px; height: 18px; }
   .daily-checkin strong { font-size: 12px; }
   .daily-checkin small { font-size: 11px; }
-  .player-tools { grid-column: 1/-1; grid-row: 2; justify-content: flex-end; gap: 8px; height: 48px; padding: 1px 4px; width: 100%; border-radius: 11px; }
-  .player-tools .game-version { margin-right: auto; padding-left: 8px; }
-  .player-tools .utility, .player-tools .icon-button { width: 44px; height: 44px; min-height: 44px; }
+  .player-tools { grid-column: 1/-1; grid-row: 2; justify-content: flex-end; flex-wrap: wrap; gap: 8px; height: auto; min-height: 52px; padding: 1px 4px; width: 100%; border-radius: 11px; }
+  .player-tools .game-version { margin-right: auto; min-width: 46px; padding: 0 4px; font-size: 11px; }
+  .player-tools .utility, .player-tools .icon-button { width: 48px; height: 48px; min-height: 48px; }
+  .audio-controls { padding-inline: 0; border-inline: 0; }
+  .audio-toggle { width: auto; min-width: 64px; gap: 5px; padding-inline: 2px; }
   dialog.records-dialog { width: calc(100% - 16px); height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px); max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px); }
   .records-dialog .dialog-head { padding: 10px 16px; }
   .records-dialog #dialog-body { padding: 18px 16px; }
@@ -100,19 +114,21 @@ dialog.records-dialog { width: min(800px, calc(100% - 32px)); max-width: 800px; 
   .player-toast { bottom: calc(var(--safe-bottom) + 12px); width: calc(100% - 32px); padding: 12px 16px; }
 }
 @media (max-width: 360px) {
-  .header.header { height: 136px; padding-inline: 8px; }
+  .header.header { height: auto; min-height: 140px; padding-inline: 8px; }
   .player-avatar { width: 32px; height: 32px; }
-  .player-bar { grid-template-columns: minmax(0, 1fr) 124px; grid-template-rows: 64px 48px; column-gap: 8px; }
+  .player-bar { grid-template-columns: minmax(0, 1fr) 124px; grid-template-rows: 64px auto; column-gap: 8px; }
   .player-identity { height: 64px; }
   .player-identity-text > span { font-size: 11px; }
   .daily-checkin { width: 124px; }
   .daily-checkin > svg { display: none; }
+  .player-tools .game-version { display: none; }
 }
 @media (max-height: 500px) and (min-width: 701px) {
-  .header.header { height: 64px; padding-block: 8px; }
-  .player-bar { --player-control-height: 48px; }
+  .header.header { height: 72px; padding-block: 8px; }
+  .player-bar { --player-control-height: 56px; }
   .player-avatar { width: 36px; height: 36px; }
   .player-identity-text strong { font-size: 13px; }
-  .player-tools .utility { width: 44px; padding: 0; }
+  .player-tools .utility { width: 48px; padding: 0; }
   .player-tools .utility span { display: none; }
 }
+@media (prefers-reduced-motion: reduce) { .audio-toggle { transition: none; } }
