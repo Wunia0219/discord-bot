@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>錢包本機驗收 · Joker’s Circus</title>
+<style>
+:root{color-scheme:light;--bg:#f6f7fb;--surface:#fff;--ink:#202338;--muted:#50586c;--line:#d8dce6;--accent:#4f46e5;--soft:#eeedff;--good:#17653a;--bad:#a12532;--warn:#755215;font:16px/1.65 system-ui,"Microsoft JhengHei",sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink)}a{color:var(--accent);text-underline-offset:3px}button,select,textarea{font:inherit}button,a,select,summary{touch-action:manipulation}button,select,summary{cursor:pointer}button,.button{min-height:44px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);padding:9px 16px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px}button:hover,.button:hover{background:var(--soft)}.primary{background:var(--accent);color:white;border-color:var(--accent)}.primary:hover{background:#3730a3}.button:focus-visible,button:focus-visible,summary:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:3px}button:disabled{cursor:wait;opacity:.65}.skip{position:absolute;left:16px;top:-100px;background:white;padding:12px;z-index:3}.skip:focus{top:8px}
+.wrap{max-width:1120px;margin:auto;padding:32px 32px 72px}.eyebrow{font-size:13px;letter-spacing:.1em;color:var(--muted);margin:0 0 12px}.top{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}h1{font-size:30px;line-height:1.25;margin:0 0 12px}h2{font-size:21px;margin:0 0 12px}h3{font-size:17px;margin:0 0 6px}p{margin:0 0 12px}.sub{max-width:680px;color:var(--muted)}.meta{font-size:14px;color:var(--muted)}.meta strong{color:var(--ink)}.live{display:inline-flex;align-items:center;gap:8px;font-size:14px;padding:6px 12px;border:1px solid var(--line);border-radius:20px;white-space:nowrap;background:var(--surface)}.dot{height:8px;width:8px;border-radius:50%;background:var(--warn)}.live[data-ready=true] .dot{background:var(--good)}.actions{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0}.notice{padding:16px 20px;border-left:3px solid var(--accent);background:var(--soft);margin:24px 0}.notice p:last-child{margin:0}.section{margin-top:36px}.account-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}.account{padding:20px;border-right:1px solid var(--line);min-width:0}.account:last-child{border:0}.account p{color:var(--muted);font-size:14px;min-height:48px}.amount{font-size:27px;font-weight:650;font-variant-numeric:tabular-nums;margin:10px 0 3px}.account .meta{font-size:13px;margin-bottom:16px}.account a{font-size:14px}
+.section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.section-head p{color:var(--muted);font-size:14px}.progress{min-width:190px;font-size:14px;text-align:right}.progress strong{font-size:21px;color:var(--ink)}progress{display:block;width:100%;height:8px;accent-color:var(--accent);margin-top:6px}.checklist{border-top:1px solid var(--line);margin-top:16px}.case{border-bottom:1px solid var(--line);background:var(--surface)}summary{padding:19px 16px;display:flex;gap:14px;align-items:center;list-style:none;min-height:64px}summary::-webkit-details-marker{display:none}summary:before{content:'+';font-size:20px;width:14px;color:var(--muted);flex-shrink:0}.case[open] summary:before{content:'−'}.case-id{color:var(--muted);font:13px ui-monospace,monospace}.case-title{flex:1;font-weight:600}.badge{font-size:12px;white-space:nowrap;padding:3px 8px;border-radius:4px;background:var(--bg);color:var(--muted)}.badge[data-status=pass]{color:var(--good);background:#eaf6ee}.badge[data-status=fail]{color:var(--bad);background:#fff0f1}.badge[data-status=blocked]{color:var(--warn);background:#fff7df}.case-body{padding:0 22px 24px 58px;max-width:900px}.case-body ol{padding-left:24px;margin:8px 0 16px}.case-body li{padding-left:3px;margin:5px 0}.expected{background:var(--bg);padding:14px 16px;border-radius:6px}.expected strong{display:block;font-size:13px;color:var(--muted);margin-bottom:3px}.hint{font-size:14px;color:var(--muted);margin-top:10px}.case-fields{display:grid;grid-template-columns:150px 1fr;gap:16px;margin-top:16px}label{font-size:14px;display:block}select,textarea{display:block;width:100%;background:white;color:var(--ink);border:1px solid #9ba3b5;border-radius:5px;padding:9px;margin-top:6px;min-height:44px}textarea{resize:vertical;min-height:96px;line-height:1.5}.status-line{font-size:13px;color:var(--muted);min-height:24px}.footer{margin-top:32px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}.footer li{margin:6px 0}.error{color:var(--bad)}
+@media(max-width:800px){.account-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.account:nth-child(2){border-right:0}.account:nth-child(-n+2){border-bottom:1px solid var(--line)}.top{display:block}.live{margin-top:10px}.wrap{padding:24px 20px 50px}}
+@media(max-width:480px){h1{font-size:26px}.wrap{padding-inline:16px}.account{padding:15px}.account p{min-height:70px}.account a{padding-inline:10px;font-size:13px}.amount{font-size:24px}.section-head{display:block}.progress{text-align:left;max-width:240px;margin:14px 0}.case-fields{grid-template-columns:1fr}.case-body{padding-left:20px;padding-right:20px}summary{gap:8px;padding-inline:12px}.case-title{font-size:15px}.case-id{font-size:12px}.badge{font-size:11px;padding:2px 5px}.notice{padding:14px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<a class="skip" href="#cases">跳到測試項目</a>
+<main class="wrap">
+  <div class="eyebrow">JOKER’S CIRCUS / LOCAL ACCEPTANCE</div>
+  <div class="top"><div><h1>錢包本機驗收</h1><p class="sub">先確認正常遊玩的流程，再測帳號隔離與餘額不足。每項都有操作步驟與預期結果，完成後記下你的觀察。</p><p class="meta" id="environment">正在確認測試環境…</p></div><div class="live" id="connection" role="status"><span class="dot" aria-hidden="true"></span><span id="connection-text">連線確認中</span></div></div>
+  <div class="actions"><a class="button primary" id="start" href="/?wallet=local&player=qa-a" target="_blank" rel="noopener">開啟玩家 A 遊戲 ↗</a><button id="refresh" type="button">更新錢包狀態</button><button id="export" type="button" disabled>匯出測試紀錄 JSON</button></div>
+  <div class="notice"><p><strong>本輪操作會持續保留。</strong>先做 W01、W02，再依序往下測。低餘額與零餘額玩家請先保留原狀，留到 W07、W08 使用。</p><p class="meta">各帳號分開記帳，更新狀態不會重設進度。這一階段只連到本機資料庫。</p></div>
+  <section class="section" aria-labelledby="accounts-title"><h2 id="accounts-title">四種測試情境</h2><p class="meta">下方顯示目前餘額。更新狀態只會讀取資料，不會簽到或下注。</p><div class="account-grid" id="accounts"></div><p class="status-line" id="updated"></p></section>
+  <section class="section" id="cases" aria-labelledby="cases-title"><div class="section-head"><div><h2 id="cases-title">照著這個順序測試</h2><p>W01–W10 可自行操作；W11–W12 需要我協助中斷、重啟與驗帳。<br>「未測試」保留原狀，實際操作後再標記結果。</p></div><div class="progress" aria-live="polite"><strong id="passed">0</strong><span id="total"> / 12 通過</span><div id="other-counts">尚未開始驗收</div><progress id="progress" max="12" value="0" aria-label="手動驗收通過進度"></progress></div></div><div class="checklist" id="checklist"></div></section>
+  <div class="actions"><button id="export-bottom" type="button" disabled>匯出測試紀錄 JSON</button></div><p class="status-line" id="saved" role="status">你的驗收結果保存在這個瀏覽器；完成後請匯出一份紀錄。</p>
+  <div class="footer"><h3>這一輪的範圍</h3><ul><li>本頁驗收的是本機錢包，不代表 Discord 真帳號、手機實機、群組權限或公告推播已通過。</li><li>重複請求、台灣午夜換日、不同群組隔離與資料庫一致性有自動測試；不能用「按一次感覺正常」代替這些檢查。</li><li>目前有五個資料庫連線／100 位玩家的自動一致性測試，還沒有完成百人同時使用瀏覽器的負載驗收。</li><li>遇到問題請填：使用帳號、操作步驟、預期與實際結果、發生時間。可把截圖檔名寫在備註，再將紀錄交給我。</li><li>要重做完整驗收，請告訴我「建立新一輪測試環境」；不會在這頁刪除或清空現有帳本。</li></ul></div>
+</main>
+<script>
+'use strict';
+const $=selector=>document.querySelector(selector), fmt=value=>Number(value).toLocaleString('en-US');
+const labels={pending:'未測試',pass:'通過',fail:'失敗',blocked:'待協助'};
+let overview=null, records={}, storageKey='', mounted=false;
+function el(tag,text,className){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(className)node.className=className;return node;}
+function notify(text,error=false){$('#saved').textContent=text;$('#saved').classList.toggle('error',error);}
+function loadRecords(){
+  try {const saved=JSON.parse(localStorage.getItem(storageKey)||'{}');records={};
+    for(const item of overview.cases){const record=saved[item.id];if(record&&Object.hasOwn(labels,record.status))records[item.id]={status:record.status,notes:typeof record.notes==='string'?record.notes.slice(0,2000):'',updatedAt:record.updatedAt||null};}
+  } catch {records={};notify('無法讀取先前的驗收結果，請保留匯出的紀錄。',true);}
+}
+function saveRecord(id,status,notes){
+  records[id]={status,notes,updatedAt:new Date().toISOString()};
+  try{localStorage.setItem(storageKey,JSON.stringify(records));notify('已儲存驗收結果 · '+new Date().toLocaleTimeString('zh-TW'));}
+  catch{notify('瀏覽器無法儲存，請用「匯出測試紀錄」保留結果。',true);}
+  updateProgress();
+}
+function updateProgress(){
+  const counts={pending:0,pass:0,fail:0,blocked:0};
+  for(const item of overview.cases){const status=records[item.id]?.status||'pending';counts[status]++;const badge=$(`#badge-${item.id}`);if(badge){badge.textContent=labels[status];badge.dataset.status=status;}}
+  $('#passed').textContent=counts.pass;$('#total').textContent=` / ${overview.cases.length} 通過`;$('#progress').max=overview.cases.length;$('#progress').value=counts.pass;
+  $('#other-counts').textContent=`${counts.pending} 未測試 · ${counts.fail} 失敗 · ${counts.blocked} 待協助`;
+}
+function renderCases(){
+  const fragment=document.createDocumentFragment();
+  overview.cases.forEach((item,index)=>{
+    const box=el('details',undefined,'case');box.open=index===0;
+    const summary=el('summary');summary.append(el('span',item.id,'case-id'),el('span',item.title,'case-title'));
+    const badge=el('span','未測試','badge');badge.id=`badge-${item.id}`;summary.append(badge);box.append(summary);
+    const body=el('div',undefined,'case-body'), account=overview.profiles.find(profile=>profile.key===item.account);
+    const link=el('a',`開啟${account.name} ↗`);link.href=account.url;link.target='_blank';link.rel='noopener';body.append(link);
+    const steps=el('ol');item.steps.forEach(text=>steps.append(el('li',text)));body.append(steps);
+    const expected=el('div',undefined,'expected');expected.append(el('strong','預期結果'),el('span',item.expected));body.append(expected);
+    if(item.note)body.append(el('p',item.note,'hint'));
+    const fields=el('div',undefined,'case-fields'),statusLabel=el('label',`${item.id} 測試結果`),status=el('select');status.setAttribute('aria-label',`${item.id} 測試結果`);
+    for(const [value,label] of Object.entries(labels)){const option=el('option',label);option.value=value;status.append(option);}status.value=records[item.id]?.status||'pending';statusLabel.append(status);
+    const noteLabel=el('label',`${item.id} 問題與觀察`),notes=el('textarea');notes.setAttribute('aria-label',`${item.id} 問題與觀察`);notes.maxLength=2000;notes.rows=3;notes.placeholder='操作／預期／實際／發生時間（可附截圖檔名）';notes.value=records[item.id]?.notes||'';noteLabel.append(notes);
+    status.addEventListener('change',()=>saveRecord(item.id,status.value,notes.value));notes.addEventListener('input',()=>saveRecord(item.id,status.value,notes.value));fields.append(statusLabel,noteLabel);body.append(fields);box.append(body);fragment.append(box);
+  });$('#checklist').replaceChildren(fragment);updateProgress();
+}
+function renderProfiles(){
+  const fragment=document.createDocumentFragment();
+  for(const profile of overview.profiles){
+    const box=el('article',undefined,'account');box.append(el('h3',profile.name),el('p',profile.purpose),el('div',fmt(profile.balance),'amount'),el('div',`初始 ${fmt(profile.initialBalance)} · ${profile.claimed?'今日已簽到':'尚未簽到'} · ${profile.rounds} 局`,'meta'));
+    const link=el('a','開啟遊戲 ↗','button');link.href=profile.url;link.target='_blank';link.rel='noopener';link.setAttribute('aria-label',`開啟${profile.name}遊戲`);box.append(link);fragment.append(box);
+  }$('#accounts').replaceChildren(fragment);
+}
+async function refresh(){
+  const button=$('#refresh');if(button.disabled)return;button.disabled=true;button.textContent='讀取中…';
+  try {
+    const response=await fetch('/api/local-test',{cache:'no-store',signal:AbortSignal.timeout(8000)});if(!response.ok)throw new Error();
+    const next=await response.json();if(!next.ok||next.environment!=='test')throw new Error();
+    if(overview&&next.runId!==overview.runId){$('#connection').dataset.ready=false;$('#connection-text').textContent='測試資料已切換';notify('後端已換成另一輪資料，請先匯出本頁紀錄，再重新整理。',true);return;}
+    overview=next;storageKey=`circus-wallet-acceptance-v1:${overview.runId}`;
+    $('#environment').textContent=`v${overview.version} · backend 分支本機驗收 · 每日簽到 ${fmt(overview.daily)} · 輪次 ${overview.runId.slice(0,8)}`;
+    $('#connection').dataset.ready=true;$('#connection-text').textContent='後端與資料庫已就緒';renderProfiles();
+    if(!mounted){loadRecords();renderCases();mounted=true;$('#export').disabled=false;$('#export-bottom').disabled=false;}
+    $('#updated').textContent='錢包狀態更新於 '+new Date().toLocaleTimeString('zh-TW')+'，每 15 秒自動更新。';
+  } catch {$('#connection').dataset.ready=false;$('#connection-text').textContent='暫時無法連線';$('#updated').textContent='請確認本機後端已啟動，再按「更新錢包狀態」。已有的驗收筆記仍可匯出。';}
+  finally{button.disabled=false;button.textContent='更新錢包狀態';}
+}
+function exportResults(){
+  if(!overview)return;
+  const result={title:'Joker’s Circus 本機錢包手動驗收',version:overview.version,environment:'local-test',runId:overview.runId,exportedAt:new Date().toISOString(),walletSnapshotAt:$('#updated').textContent,profiles:overview.profiles,
+    cases:overview.cases.map(item=>({...item,...(records[item.id]||{status:'pending',notes:'',updatedAt:null})}))};
+  const url=URL.createObjectURL(new Blob([JSON.stringify(result,null,2)],{type:'application/json'})),link=el('a');link.href=url;link.download=`wallet-acceptance-${overview.runId.slice(0,8)}-${new Date().toISOString().replace(/[:.]/g,'-')}.json`;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);notify('已送出 JSON 下載，請確認瀏覽器的下載檔案。');
+}
+$('#refresh').addEventListener('click',refresh);$('#export').addEventListener('click',exportResults);$('#export-bottom').addEventListener('click',exportResults);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});refresh();setInterval(()=>{if(!document.hidden)refresh();},15000);
+</script>
+</body></html>

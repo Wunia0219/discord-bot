@@ -25,15 +25,6 @@ export class Highlights {
     this.running = null;
     this.destinationVerified = false;
     this.destinationRetryAt = 0;
-    store.db.exec(`
-      CREATE TABLE IF NOT EXISTS highlight_events(
-        guild TEXT NOT NULL, round_id TEXT NOT NULL, name TEXT NOT NULL,
-        tier TEXT NOT NULL, multiplier REAL NOT NULL, occurred INTEGER NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending', PRIMARY KEY(guild,round_id));
-      CREATE INDEX IF NOT EXISTS highlight_pending ON highlight_events(guild,status,occurred);
-      CREATE TABLE IF NOT EXISTS highlight_boards(
-        guild TEXT PRIMARY KEY, message_id TEXT, started INTEGER NOT NULL,
-        total INTEGER NOT NULL, entries TEXT NOT NULL, next_attempt INTEGER NOT NULL);`);
     // A process may have stopped after Discord accepted a POST. Do not post it again.
     store.db.prepare("UPDATE highlight_events SET status='uncertain' WHERE guild=? AND status='sending'").run(guild);
   }

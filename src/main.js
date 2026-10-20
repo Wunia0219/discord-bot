@@ -8,11 +8,13 @@ import './style.css';
 import { SlotScene } from './ui/scene.js';
 import { Sound } from './ui/audio.js';
 import { connectActivity } from './platform/discord-activity.js';
+import { connectLocalWallet } from './platform/local-wallet.js';
 import { createLoadingScreen } from './ui/loading.js';
 import { BigWinPresentation } from './ui/big-win.js';
 import { winTier } from './game/win-tier.js';
 import { createGameRules } from './ui/game-rules.js';
 import { SpinControls } from './ui/spin-controls.js';
+import { installSpinShortcut } from './ui/spin-shortcut.js';
 import { roundFeedbackTiming } from './ui/presentation.js';
 import { setBitmapNumber } from './ui/bitmap-number.js';
 import { installResponsiveLayout } from './ui/responsive-layout.js';
@@ -71,7 +73,7 @@ const signed=n=>(n>0?'+':'')+fmt(n);
 function save(next) { if(walletClient){if((next.revision||0)>=(state.revision||0))state=next;return;}state=next;try{localStorage.setItem(KEY,JSON.stringify(state));}catch{storageAvailable=false;} }
 const playerBar=createPlayerBar({icon,version:APP_VERSION,onCheckin:claimDaily,onHistory:showHistory,onRules:showRules,onSound:toggleSound});
 $('#player-header').append(playerBar.element);
-function renderPlayer(){playerBar.update({user:activityUser,connected:!!walletClient,ready,busy,claiming,claimed:state.claimed,daily:state.daily,storageAvailable});}
+function renderPlayer(){playerBar.update({user:activityUser,connected:!!walletClient,localTest:activityMode==='local',ready,busy,claiming,claimed:state.claimed,daily:state.daily,storageAvailable});}
 function notifyPlayer(message,tone='success'){
   const toast=$('#player-toast');clearTimeout(toastTimer);
   toast.replaceChildren();const text=document.createElement('span');text.textContent=message;
@@ -226,16 +228,8 @@ $('#spin').addEventListener('click',()=>spin());
 document.addEventListener('pointerdown',()=>{document.documentElement.dataset.input='pointer';},true);
 document.addEventListener('keydown',event=>{
   if(event.key==='Tab')document.documentElement.dataset.input='keyboard';
-  if(event.code!=='Space'&&event.key!==' ')return;
-  if(event.defaultPrevented||event.isComposing||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey||document.hidden||$('#dialog').open)return;
-  // Account/navigation buttons keep native Space activation. A keyboard-focused
-  // bet also keeps its native action; clicking a bet still allows rapid Space spins.
-  if(event.target.closest?.('header,summary'))return;
-  if(document.documentElement.dataset.input==='keyboard'&&event.target.closest?.('button:not(#spin)'))return;
-  if(event.target.closest?.('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]'))return;
-  event.preventDefault();
-  if(!event.repeat)controls.space();
-});
+},true);
+installSpinShortcut({target:document,controls,isBlocked:()=>document.hidden,isModalOpen:()=>$('#dialog').open});
 $('#auto-spin').addEventListener('click',()=>controls.toggleAuto());
 document.querySelectorAll('[data-bet]').forEach(b=>b.addEventListener('click',()=>{if(busy)return;bet=Number(b.dataset.bet);document.querySelectorAll('[data-bet]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));}));
 $('#close-dialog').addEventListener('click',()=>$('#dialog').close());
@@ -253,7 +247,7 @@ async function startGame() {
   const loading = createLoadingScreen();
   loading.update(8, '正在喚醒馬戲團');
   try {
-    const activity=await connectActivity();
+    const activity=await connectLocalWallet(window.location)||await connectActivity();
     activityMode=activity.mode;
     activityUser=activity.user || null;
     if(activity.session){walletClient=createWalletClient(activity.session);state=(await walletClient.state()).state;renderState();}

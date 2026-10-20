@@ -23,13 +23,13 @@ export function createPlayerBar({ icon, version, onCheckin, onHistory, onRules, 
   });
   return {
     element,
-    update({ user, connected = false, ready = false, busy = false, claiming = false, claimed = false, daily = 500, storageAvailable = true }) {
+    update({ user, connected = false, localTest = false, ready = false, busy = false, claiming = false, claimed = false, daily = 500, storageAvailable = true }) {
       const name = user ? user.global_name || user.username : '訪客玩家';
       const nameNode = element.querySelector('#player-name');
       nameNode.textContent = name;
       nameNode.title = user ? `${name} (@${user.username})` : name;
       const idNode = element.querySelector('#player-id');
-      idNode.textContent = user ? `ID ${user.id}` : storageAvailable ? '進度保存在這台裝置' : '離開後不會保留進度';
+      idNode.textContent = localTest ? '測試帳號・進度保存在本機錢包' : user ? `ID ${user.id}` : storageAvailable ? '進度保存在這台裝置' : '離開後不會保留進度';
       element.querySelector('.player-identity').classList.toggle('is-connected', !!user);
       const nextAvatarUrl = avatarUrlForUser(user);
       if (nextAvatarUrl !== avatarUrl) {

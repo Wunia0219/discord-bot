@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { createActivityServer } from '../server/app.js';
 import { WalletStore } from '../server/wallet.js';
 import { WalletService } from '../server/wallet-service.js';
+import { createWalletClient } from '../src/platform/wallet-client.js';
 
 const id='1561284960986599626';
 async function fixture(t, options={}) {
@@ -19,6 +20,33 @@ async function fixture(t, options={}) {
   return (path,options)=>fetch(base+path,options);
 }
 const post = (body, origin=`https://${id}.discordsays.com`) => ({method:'POST',headers:{'Content-Type':'application/json',Origin:origin},body:JSON.stringify(body)});
+
+test('readiness checks the actual wallet database and stays separate from process liveness',async t=>{
+  const disabled=await fixture(t);
+  assert.equal((await disabled('/healthz')).status,200);
+  assert.equal((await disabled('/readyz')).status,503);
+  const store=new WalletStore({guildIds:['1441097301685698703']});t.after(()=>store.close());
+  const request=await fixture(t,{wallet:{store}});
+  const ready=await request('/readyz');
+  assert.equal(ready.status,200);assert.equal(ready.headers.get('cache-control'),'no-store');
+  assert.deepEqual(await ready.json(),{ok:true});
+  const head=await request('/readyz',{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
+  assert.equal((await request('/readyz',{method:'POST'})).status,405);
+  store.close();
+  const unavailable=await request('/readyz');assert.equal(unavailable.status,503);
+  assert.deepEqual(await unavailable.json(),{ok:false});
+  assert.equal((await request('/healthz')).status,200);
+});
+
+test('the configured local backend port is allowed without trusting arbitrary request origins',async t=>{
+  let exchanges=0;
+  const request=await fixture(t,{localPort:4189,fetchImpl:async()=>{
+    exchanges++;return Response.json({access_token:'access-test',scope:'identify'});
+  }});
+  assert.equal((await request('/api/token',post({code:'code'},'http://127.0.0.1:4189'))).status,200);
+  assert.equal((await request('/api/token',post({code:'code'},'http://127.0.0.1:4190'))).status,403);
+  assert.equal(exchanges,1);
+});
 
 test('backend exchanges an app-specific code and returns only the short-lived access token with no-store',async t=>{
   const request=await fixture(t,{fetchImpl:async(url,opts)=>{
@@ -79,6 +107,50 @@ test('wallet HTTP routes require verified sessions, isolate callers and settle c
  const retry=await request('/api/spin',next);assert.equal(retry.status,200);
  assert.equal(store.history(guild,id).filter(e=>e.kind==='spin').length,2);
  assert.equal((await request('/api/interactions',post({type:2}))).status,401);
+});
+
+test('separate device sessions share wallet, checkin and rounds in both directions', async t => {
+  let now=Date.parse('2026-10-20T02:00:00Z');
+  const guild='1441097301685698703';
+  const store=new WalletStore({guildIds:[guild],clock:()=>now});t.after(()=>store.close());
+  const service=new WalletService(store,{clock:()=>now,fetchImpl:async(url,options)=>{
+    assert.ok(['Bearer provider-desktop','Bearer provider-mobile'].includes(options.headers.Authorization));
+    return Response.json(url.endsWith('/users/@me')?{id}:{user:{id},pending:false});
+  }});
+  const request=await fixture(t,{wallet:{store,service,adminRoles:[]},fetchImpl:async(url,options)=>
+    Response.json({access_token:'provider-'+options.body.get('code'),expires_in:3600,scope:'identify guilds.members.read'})});
+  async function device(code) {
+    const response=await request('/api/token',post({code,guildId:guild}));
+    assert.equal(response.status,200);
+    const {session}=await response.json();
+    return {session,client:createWalletClient(session,request,null,{clock:()=>now,wait:async ms=>{now+=ms;}})};
+  }
+  const desktop=await device('desktop'),mobile=await device('mobile');
+  assert.notEqual(desktop.session.token,mobile.session.token);
+  assert.equal(desktop.session.userId,mobile.session.userId);
+  assert.equal(desktop.session.guildId,mobile.session.guildId);
+  assert.deepEqual((await desktop.client.state()).state,(await mobile.client.state()).state);
+
+  const desktopRound=await desktop.client.spin(100);
+  assert.deepEqual((await mobile.client.state()).state,desktopRound.state);
+  const mobileCheckin=await mobile.client.checkin();
+  assert.equal(mobileCheckin.state.claimed,true);
+  assert.deepEqual((await desktop.client.state()).state,mobileCheckin.state);
+  const repeatedCheckin=await desktop.client.checkin();
+  assert.equal(repeatedCheckin.duplicate,true);
+  assert.equal(repeatedCheckin.state.balance,mobileCheckin.state.balance);
+
+  now+=2000;
+  const mobileRound=await mobile.client.spin(20);
+  const desktopView=(await desktop.client.state()).state;
+  assert.deepEqual(desktopView,mobileRound.state);
+  assert.deepEqual(desktopView.history.map(round=>round.id),[mobileRound.round.id,desktopRound.round.id]);
+  assert.equal(desktopView.balance,10500+desktopRound.round.net+mobileRound.round.net);
+  const desktopLedger=await desktop.client.ledger(),mobileLedger=await mobile.client.ledger();
+  assert.deepEqual(desktopLedger,mobileLedger);
+  const entries=store.history(guild,id);
+  assert.equal(entries.filter(entry=>entry.kind==='spin').length,2);
+  assert.equal(entries.filter(entry=>entry.kind==='checkin').length,1);
 });
 
 test('announcement failures cannot fail a settled spin or trust client identity/result fields', async t => {

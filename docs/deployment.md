@@ -22,6 +22,32 @@ Discord 測試使用 `npm run activity:serve`：建置後，由 4188 的 Node �
 
 健康檢查為 `/healthz`。本機及公開通道應回報相同模型 `circus-243-v2`。載入失敗先檢查 4188 程序與通道，再檢查 Mapping；登入失敗檢查 Application ID、後端設定及群成員資格。不同瀏覽器來源的 localStorage 不會匯入伺服器錢包。
 
+## 錢包後端本機開發
+
+目前沿用 `backend` 分支，遊戲版本維持 0.2.3。這一階段使用本機服務與獨立資料檔，先完成驗收再選擇正式主機。不要因開發分支存在就假設 Netlify 不會建置；後續如需推送或建立 PR，應先確認 Netlify 的 Branch deploys 與 Deploy Previews 設定。本機編輯、建置和自動測試本身不會觸發 Netlify 部署。
+
+1. 以 `deploy/backend.env.example` 建立被 Git 忽略的 `.env.backend.local`。填入同一 Discord 應用程式的後端憑證及明確的 `ALLOWED_GUILD_IDS`，不能把 Client Secret 放到任何 `VITE_` 設定。
+2. 開發環境固定使用 `APP_ENV=test`、`DATABASE_PATH=data/backend.sqlite`、`BACKUP_DIRECTORY=backups/backend`、`HOST=127.0.0.1`、`PORT=4189`，與既有 `.env.server.local`／4188 服務分開。得獎公告 Webhook 預設留空；只有要測試公告時才設定專用頻道。
+3. `npm run backend:init` 建立或升級開發資料庫，沒有初始化任何玩家、簽到或籌碼。`npm run backend:dev` 啟動並監看程式變更；`npm run backend:start` 則為一般啟動。
+4. `http://127.0.0.1:4189/healthz` 只檢查 HTTP 程序存活；`/readyz` 會實際讀取錢包資料庫，資料庫停用、關閉或版本／環境不符時回傳 503。公開健康回覆不包含帳號、餘額、連線路徑或憑證。
+5. `npm run backend:check` 使用唯讀連線與同一份讀取快照，檢查 SQLite 完整性、關聯、帳本前後餘額連續性、錢包餘額與帳本是否相符、JSON 格式及帳本保護。輸出僅有環境、結構版本、各表筆數及彙總異常，不會自動修復、升級或建立不存在的資料庫；檢查失敗以非零狀態結束。
+
+資料結構由 `server/database.js` 以 `PRAGMA user_version` 管理：第 1 版為錢包、流水、回合與去重資料，第 2 版為得獎公告佇列。舊版已有資料但尚未標示結構版本的本專案資料庫，會在確認 `settings.environment` 相符後，以單一交易升級，不重建玩家、不重算已結算回合，也不重發測試籌碼。升級失敗會回復結構變更；環境不符、不是本專案的資料檔或結構版本比程式更新時，拒絕開啟。正式資料升級前仍需先備份並停止使用舊版程式的寫入。
+
+### 開發資料庫備份與還原
+
+`npm run backend:backup` 先檢查來源，再以 `VACUUM INTO` 建立包含已提交 WAL 內容的一致快照，最後對備份重新驗帳。即使正在執行服務，也不應直接複製單一 `.sqlite` 檔案來代替此操作。[SQLite 的 VACUUM INTO 說明](https://www.sqlite.org/lang_vacuum.html#vacuum_with_an_into_clause)
+
+還原指令範例：
+
+```powershell
+npm run backend:restore -- --from backups/backend/test-某次備份.sqlite --to data/backend-restored.sqlite
+```
+
+還原只會建立全新的檔案，任何已存在的目的檔案都會被拒絕，不會覆蓋原本或執行中的資料庫；測試與正式環境也不能互相還原。確認還原檔驗帳通過後，停止 4189 開發服務，將 `.env.backend.local` 的 `DATABASE_PATH` 改為還原檔路徑，再重新啟動。原資料庫保留到驗收完成後再依資料保存政策處理，且不會自動合併兩邊的新舊回合。
+
+這些管理工具都要求明確的 `APP_ENV=test` 或 `production`。在正式主機可以直接使用環境變數配合 `node scripts/admin/init-db.js`、`check-db.js`、`backup-db.js`、`restore-db.js`，不需要複製本機憑證檔。
+
 ### 手機試玩
 
 在 Developer Portal 的本應用程式中，進入 **Activities → Settings → Supported Platforms**，勾選 **iOS** 與 **Android** 並儲存，保留原本的桌面平台。若手機顯示「This Activity is not currently available on this OS」，先確認此設定；Discord 會在載入遊戲前檢查支援平台。[Discord 官方說明](https://github.com/discord/discord-api-docs/blob/main/developers/activities/development-guides/local-development.mdx#launch-your-application-from-the-discord-client)
@@ -91,6 +117,8 @@ Dockerfile 提供 Node 24 建置與執行環境，執行期保留目前及歷史
 使用單一服務實例及持久磁碟 `/app/data`。正式設定 `APP_ENV=production`、獨立 `DATABASE_PATH`、正式群 allowlist，使用固定 HTTPS 網址更新兩個 Discord 端點；不要複製測試 DB 作為正式錢包。SQLite 不能讓多個獨立容器各持有不同副本。固定主機與 Docker 雲端部署需在實際環境驗收。
 
 本機執行 `npm run db:backup`；主機使用 `node scripts/admin/backup-db.js`，可設定 `BACKUP_DIRECTORY`。腳本使用 `VACUUM INTO` 保存含已提交 WAL 的一致快照，不應只複製運作中的主檔。
+
+管理腳本先驗證來源及環境，再檢查備份內容；指令需設定明確的 `APP_ENV`。`restore-db.js --from <備份> --to <新檔案>` 永遠不覆蓋既有目的檔，驗收通過後由維運人員停機切換資料庫路徑。
 
 還原前停止服務並保留現有資料庫及 WAL／SHM 副本；驗證快照後放入新的資料庫路徑，再啟動並重新登入。不得把 test 快照作為 production。備份腳本不會自動刪除或上傳備份。
 

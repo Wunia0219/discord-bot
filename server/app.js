@@ -4,6 +4,7 @@ import { resolve, relative, extname, sep, isAbsolute } from 'node:path';
 import { validSignature, handleCommand } from './commands.js';
 import { privateReply } from './bot-replies.js';
 import { MODEL_VERSION } from '../src/game/slot-math.js';
+import { isLocalTestRequest } from './local-test-wallet.js';
 
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.webp':'image/webp', '.png':'image/png', '.svg':'image/svg+xml', '.json':'application/json', '.woff2':'font/woff2' };
 const json = (res, status, data) => {
@@ -32,13 +33,40 @@ async function readJson(req) {
 }
 
 // Only built game files are served. Project sources and .env files are never exposed.
-export function createActivityServer({ clientId, clientSecret, publicKey, wallet=null, distDir = resolve('dist'), fetchImpl = fetch } = {}) {
+export function createActivityServer({ clientId, clientSecret, publicKey, wallet=null, localPort=4188, distDir = resolve('dist'), fetchImpl = fetch } = {}) {
+  if(!Number.isInteger(localPort)||localPort<1||localPort>65535)throw new Error('Invalid local port');
   let activeExchanges = 0;
-  const allowedOrigins = new Set([`https://${clientId}.discordsays.com`, 'http://127.0.0.1:4187', 'http://127.0.0.1:4188']);
+  const allowedOrigins = new Set([`https://${clientId}.discordsays.com`, 'http://127.0.0.1:4187', 'http://127.0.0.1:4188', `http://127.0.0.1:${localPort}`]);
   return createServer(async (req, res) => {
     try {
       const path = new URL(req.url, 'http://localhost').pathname;
+      if(wallet?.localTest&&!isLocalTestRequest(req))return json(res,403,{error:'此測試服務只限這台電腦使用。'});
+      if(wallet?.localTest&&path==='/'&&['GET','HEAD'].includes(req.method)&&new URL(req.url,'http://localhost').searchParams.get('wallet')!=='local'){
+        res.writeHead(302,{Location:'/?wallet=local','Cache-Control':'no-store'});return res.end();
+      }
+      if(path==='/wallet-test'||path==='/api/local-test'){
+        if(!wallet?.localTest)return json(res,404,{error:'找不到此功能。'});
+        if(!['GET','HEAD'].includes(req.method))return json(res,405,{error:'請使用 GET 或 HEAD。'});
+        if(path==='/api/local-test')return json(res,200,wallet.localOverview());
+        const page=await readFile(new URL('./local-test.html',import.meta.url));
+        res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Content-Length':page.length,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"});
+        return res.end(req.method==='HEAD'?undefined:page);
+      }
+      if(path==='/api/local-session'){
+        if(!wallet?.localTest)return json(res,404,{error:'找不到此功能。'});
+        if(req.method!=='POST')return json(res,405,{error:'請使用 POST。'});
+        // Require an exact origin as well as loopback/Host checks for session creation.
+        if(req.headers.origin!==`http://127.0.0.1:${req.socket.localPort}`)return json(res,403,{error:'不允許的登入來源。'});
+        const body=await readJson(req);
+        return json(res,200,wallet.service.createLocal(body?.profile));
+      }
+      if(wallet?.localTest&&['/api/token','/api/interactions'].includes(path))return json(res,404,{error:'本機測試入口不提供 Discord 登入。'});
       if(path==='/healthz')return json(res,200,{ok:true,model:MODEL_VERSION});
+      if(path==='/readyz'){
+        if(!['GET','HEAD'].includes(req.method))return json(res,405,{error:'請使用 GET 或 HEAD。'});
+        const ready=wallet?.store.isReady()===true;
+        return json(res,ready?200:503,{ok:ready});
+      }
       if(path==='/api/interactions'){
         if(req.method!=='POST')return json(res,405,{error:'請使用 POST。'});
         let size=0;const chunks=[];
@@ -81,7 +109,7 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
       }
       if(['/api/wallet','/api/spin','/api/checkin','/api/ledger'].includes(path)){
         if(!wallet)return json(res,503,{error:'帳號籌碼尚未開啟。'});
-        if(req.headers.origin&&!allowedOrigins.has(req.headers.origin))return json(res,403,{error:'不允許的來源。'});
+        if(!wallet.localTest&&req.headers.origin&&!allowedOrigins.has(req.headers.origin))return json(res,403,{error:'不允許的來源。'});
         const write=path==='/api/spin'||path==='/api/checkin';
         if(req.method!==(write?'POST':'GET'))return json(res,405,{error:'不支援此操作。'});
         const session=await wallet.service.authorize(req.headers.authorization);

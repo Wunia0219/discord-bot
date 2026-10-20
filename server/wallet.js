@@ -1,4 +1,4 @@
-import { DatabaseSync } from 'node:sqlite';
+import { DATABASE_VERSION, openWalletDatabase } from './database.js';
 import { randomInt, randomUUID } from 'node:crypto';
 import { BETS, roundFromStops, REEL_STRIPS } from '../src/game/index.js';
 
@@ -14,23 +14,15 @@ export class WalletStore {
     if (!guildIds.length || guildIds.some(id=>!snowflake(id))) throw new Error('Explicit guild allowlist required');
     for(const value of [daily,grantMax,grantDaily]) if(!Number.isSafeInteger(value)||value<=0||value>MAX_BALANCE) throw new Error('Invalid wallet limits');
     Object.assign(this,{environment,guildIds:new Set(guildIds),daily,grantMax,grantDaily,clock,spinDelay});
-    this.db=new DatabaseSync(filename);
-    this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;
-      CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS wallets(guild TEXT NOT NULL,user TEXT NOT NULL,balance INTEGER NOT NULL CHECK(balance>=0 AND balance<=1000000000000),milestone INTEGER NOT NULL DEFAULT 0,last_spin INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(guild,user));
-      CREATE TABLE IF NOT EXISTS ledger(id INTEGER PRIMARY KEY AUTOINCREMENT,guild TEXT NOT NULL,user TEXT NOT NULL,kind TEXT NOT NULL,delta INTEGER NOT NULL,before INTEGER NOT NULL,after INTEGER NOT NULL,actor TEXT,reason TEXT NOT NULL,time TEXT NOT NULL,day TEXT NOT NULL,reference TEXT,FOREIGN KEY(guild,user) REFERENCES wallets(guild,user));
-      CREATE INDEX IF NOT EXISTS ledger_user ON ledger(guild,user,id DESC);
-      CREATE INDEX IF NOT EXISTS ledger_admin_day ON ledger(guild,actor,day,kind);
-      CREATE UNIQUE INDEX IF NOT EXISTS reversal_once ON ledger(guild,reference) WHERE kind='reversal';
-      CREATE TABLE IF NOT EXISTS operations(guild TEXT NOT NULL,key TEXT NOT NULL,fingerprint TEXT NOT NULL,result TEXT NOT NULL,PRIMARY KEY(guild,key));
-      CREATE TABLE IF NOT EXISTS rounds(guild TEXT NOT NULL,user TEXT NOT NULL,id TEXT NOT NULL,data TEXT NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(guild,user,id));
-      CREATE INDEX IF NOT EXISTS rounds_user ON rounds(guild,user,created DESC);
-      CREATE TRIGGER IF NOT EXISTS ledger_no_update BEFORE UPDATE ON ledger BEGIN SELECT RAISE(ABORT,'ledger is append only'); END;
-      CREATE TRIGGER IF NOT EXISTS ledger_no_delete BEFORE DELETE ON ledger BEGIN SELECT RAISE(ABORT,'ledger is append only'); END;`);
-    this.db.prepare('INSERT OR IGNORE INTO settings VALUES(?,?)').run('environment',environment);
-    if(this.db.prepare('SELECT value FROM settings WHERE key=?').get('environment').value!==environment){this.db.close();throw new Error('Refusing to mix test and production databases');}
+    this.db=openWalletDatabase(filename,environment);
   }
-  close(){this.db.close();}
+  close(){if(this.db.isOpen)this.db.close();}
+  isReady(){
+    try {
+      return this.db.prepare("SELECT value FROM settings WHERE key='environment'").get()?.value===this.environment
+        && this.db.prepare('PRAGMA user_version').get().user_version===DATABASE_VERSION;
+    } catch { return false; }
+  }
   assertGuild(guild){if(!this.guildIds.has(guild))throw problem(403,'此伺服器尚未開放遊戲。','GUILD_CLOSED');}
   validate(guild,user){this.assertGuild(guild);if(!snowflake(user))throw problem(400,'無效的玩家。','PLAYER_INVALID');}
   tx(fn){this.db.exec('BEGIN IMMEDIATE');try{const result=fn();this.db.exec('COMMIT');return result;}catch(error){this.db.exec('ROLLBACK');throw error;}}
