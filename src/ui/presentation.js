@@ -75,12 +75,12 @@ export function quickStopOffset(offset, elapsed, duration) {
   return offset * remaining ** 2;
 }
 
-export function roundFeedbackTiming(round, tier) {
+export function roundFeedbackTiming(round, tier, minimumDuration = 0) {
   const regularDelay = tier ? (round.milestone ? 9800 : 5200) : round.milestone ? 7000 : round.wins.length ? Math.min(4000, round.wins.length * WIN_HOLD_MS) : 650;
   // Protect the count-up and one full pass of ordinary wins. Big-win and
   // milestone sequences retain their full existing presentation durations.
   const hold = tier ? (round.milestone ? 9000 : 4500) : round.milestone ? 6300 : round.wins.length * WIN_HOLD_MS;
-  return { hold, autoDelay: Math.max(0, regularDelay - hold) };
+  return { hold, autoDelay: Math.max(0, regularDelay - hold, minimumDuration - hold) };
 }
 
 // Owned by the render loop: pausing the scene also pauses win presentation.

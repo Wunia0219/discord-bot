@@ -1,6 +1,6 @@
 {
   "tool": "built-in image_gen",
-  "reference": "art/dealer/win-design/expression-target-reference.png",
+  "reference": "art/dealer/win-design/expression-target-reference.webp",
   "cropSource": [
     500,
     50,
@@ -9,19 +9,19 @@
   ],
   "usedSources": [
     {
-      "file": "joy-expression-generated.png",
+      "file": "joy-expression-generated.webp",
       "prompt": "Use case: identity-preserve edit. Asset: joyous/flirtatious facial-expression key art for an adult male casino host game sprite. Input image is the exact edit target, a square crop from the approved painted character master. Preserve this same person, exact tilted head pose, camera, facial geometry, eye centers, jaw silhouette, black/white hair split, left red iris and right golden iris, earrings, collar and skin lighting. Change ONLY his inner facial expression: he looks directly into the player's eyes with clear delighted affection and a charming, subtly seductive happy smile; lift the cheeks naturally and let the lips part just enough to show a restrained sliver of upper teeth. Both eyes remain open and maintain direct gaze. The happiness must read more strongly than the input's faint neutral smile. Adult elegant host, not goofy, no exaggerated anime grin, no new blush marks, no tongue. Keep brows, nose and mouth anchored to the same locations, preserve the same style and fine painted skin detail. Everything outside the inner face must match the source. One face only, same square framing and occupancy, no grid, no text, no additional effects. Preserve existing transparency."
     },
     {
-      "file": "wink-expression-generated.png",
+      "file": "wink-expression-generated.webp",
       "prompt": "Use case: identity-preserve edit. This is the joyous-expression key art of an ADULT male host, and you must preserve its exact framing, tilted pose, face size, eyes/nose/mouth positions, skin lighting and happy smile. Make ONLY one tiny expression change: he gives the player a brief charming wink with the viewer-left RED eye naturally closed, with a relaxed upper eyelid and a gently lifted cheek; his viewer-right GOLD eye stays open looking directly at the player. Keep his same restrained open happy smile, same hint of upper teeth, identical nose, jawline, hair strands, earrings, collar and all clothing. No closed gold eye, no second character, no head tilt change, no marks/hearts/blush/effects or text. Same square composition. Preserve transparency."
     },
     {
-      "file": "warm-expression-generated.png",
+      "file": "warm-expression-generated.webp",
       "prompt": "Identity-preserve edit for the exact adult male host facial-expression target. Preserve the exact image framing, head tilt, feature centers, jaw silhouette, hair, earrings, collar, skin tones and lighting. Change ONLY the mouth/cheeks to a warm closed-lip smile intermediate between a faint neutral smile and this joyful tooth-showing smile: mouth corners gently lifted, lips lightly together with NO visible teeth, charming and warmly pleased, soft natural cheek lift. Both red and gold eyes remain open looking at player and in identical positions. No change of identity, head shape or camera; no effects/text/marks. One face, same square composition and transparency."
     },
     {
-      "file": "half-eye-expression-generated.png",
+      "file": "half-eye-expression-generated.webp",
       "prompt": "Precise single-feature edit to this adult male host face. Keep the whole image, happy mouth, head tilt, framing, face dimensions and viewer-right gold eye EXACTLY unchanged. The viewer-left red eye must remain OPEN, visibly showing its RED IRIS AND BLACK PUPIL. Lower that red eye's upper eyelid only slightly, to give a seductive relaxed HALF-OPEN gaze: the visible vertical eye opening is around 60 percent of its present height, but the iris and pupil MUST remain clearly visible. Do NOT close the eye or replace it with a closed curve. This is an open-eye intermediate animation drawing, not a completed wink. One face, same crop, same lighting and transparency; no other changes."
     }
   ],

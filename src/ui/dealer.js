@@ -10,8 +10,8 @@ export class Dealer {
   request=0;action='idle';desired='idle';future=null;elapsed=0;disposed=false;
   visible=true;
 
-  constructor({resolvePage=page=>page.file,resolution=1,motionManifest=null}={}){
-    Object.assign(this,{resolvePage,resolution,motionManifest});
+  constructor({resolvePage=page=>page.file,resolution=1,motionManifest=null,uploadTextures=async()=>{}}={}){
+    Object.assign(this,{resolvePage,resolution,motionManifest,uploadTextures});
     this.cacheId=++nextDealerId;
     this.standin={url:standinUrl,status:'idle',texture:null,task:null,scale:1,error:null};
   }
@@ -36,6 +36,7 @@ export class Dealer {
         await sheet.parse();return {sheet,url};
       }));
       const textures=dealerFrameSequence(clip,this.motionManifest.fps).map(({key,pageIndex,durationMs})=>({texture:sheets[pageIndex].sheet.textures[key],time:durationMs}));
+      await this.uploadTextures(textures.map(frame=>frame.texture));
       const result={...clip,frames:textures.length,durationMs:textures.reduce((sum,frame)=>sum+frame.time,0),sheets,textures};this.cache.set(name,result);
       if(this.disposed){await this.release(name);throw new Error('Dealer disposed');}
       return result;
@@ -69,6 +70,7 @@ export class Dealer {
     this.sprite=new AnimatedSprite({textures:idle.textures,autoUpdate:false,loop:true,animationSpeed:1});
     this.sprite.anchor.set(...this.motionManifest.anchor);
     this.sprite.label='命運荷官';this.sprite.eventMode='none';
+    this.sprite.visible=this.visible;
     this.sprite.play();
     if(this.motionManifest.clips.win)this.preload('win');
     return this.sprite;
@@ -117,13 +119,14 @@ export class Dealer {
   layout(width){
     if(!this.sprite||this.disposed)return;
     const {x,y,scale}=dealerPlacement(width);
-    this.sprite.position.set(x,y);this.sprite.scale.set(scale*(this.motionManifest?1:this.standin.scale));
+    const assetScale=this.motionManifest?256/(this.motionManifest.frameSize[0]*this.resolution):this.standin.scale;
+    this.sprite.position.set(x,y);this.sprite.scale.set(scale*assetScale);
   }
 
   setVisible(visible){
     if(this.disposed)return;
     this.visible=visible;this.future=null;
-    if(!this.motionManifest&&this.sprite)this.sprite.visible=visible;
+    if(this.sprite)this.sprite.visible=visible;
     this.play('idle',{restart:true});
   }
 

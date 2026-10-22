@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
+import { inspectSettlements } from './database-audit.js';
 
 const migrations = [
   {
@@ -134,6 +135,9 @@ export function inspectWalletDatabase(filename, environment) {
         ON w.guild=r.guild AND w.user=r.user WHERE w.user IS NULL`).get().count) issues.push('Rounds without a wallet');
     }
     if (current.tables.has('operations') && db.prepare('SELECT COUNT(*) count FROM operations WHERE NOT json_valid(result)').get().count) issues.push('Invalid operation JSON');
+    if (['rounds', 'ledger', 'operations'].every(table => current.tables.has(table))) {
+      issues.push(...inspectSettlements(db));
+    }
     db.exec('ROLLBACK');
     return { ok: issues.length === 0, environment, schemaVersion: current.version, latestSchemaVersion: DATABASE_VERSION, needsMigration: current.version < DATABASE_VERSION, counts, issues };
   } finally {

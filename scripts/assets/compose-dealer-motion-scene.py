@@ -68,7 +68,7 @@ def main():
     logo = art(main_atlas, main_data, 'logo-long.png')
     canvas.alpha_composite(logo.resize((500, round(logo.height * 500 / logo.width)),
                                        Image.Resampling.LANCZOS), (530, 30))
-    canvas.save(OUT / 'motion-scene-background.png')
+    canvas.save(OUT / 'motion-scene-background.webp', lossless=True, method=6, exact=True)
 
     # Only the left cabinet border can overlap this companion. Leave all reels,
     # logo and right frame out of the foreground. The entire contact forearm,
@@ -81,11 +81,11 @@ def main():
     contact_protection = (280, 258, 430, 416)
     mask_draw.rectangle(contact_protection, fill=0)
     # Clear hidden RGB as well; a transparent layer should not carry a second
-    # copy of the full background or waste its PNG payload on invisible pixels.
+    # copy of the full background or waste its WebP payload on invisible pixels.
     foreground = Image.composite(canvas, Image.new('RGBA', (W, H)),
                                  mask.point(lambda alpha: 255 if alpha else 0))
     foreground.putalpha(mask)
-    foreground.save(OUT / 'motion-scene-foreground.png')
+    foreground.save(OUT / 'motion-scene-foreground.webp', lossless=True, method=6, exact=True)
     assert foreground.getchannel('A').crop(contact_protection).getextrema() == (0, 0)
     assert foreground.getchannel('A').crop((gx, 0, W, H)).getextrema() == (0, 0)
 
@@ -98,8 +98,8 @@ def main():
     position = [padded_origin[0] + hd_size[0] * .5 * host_scale,
                 padded_origin[1] + 1600 * host_scale]
     placement = {'canvas': [W, H], 'position': position, 'scale': host_scale * 2,
-                 'background': '/art/dealer/rebuild/motion-scene-background.png',
-                 'foreground': '/art/dealer/rebuild/motion-scene-foreground.png'}
+                 'background': '/art/dealer/rebuild/motion-scene-background.webp',
+                 'foreground': '/art/dealer/rebuild/motion-scene-foreground.webp'}
     report = {'status': 'scene layering draft; motion occlusion still requires review',
               'placement': {'scene': placement}, 'runtimeFrameSize': runtime_size,
               'sourceFrameSize': hd_size, 'anchor': [.5, 1600 / 1664],
@@ -114,10 +114,10 @@ def main():
                          'Original static concept is preserved; all scene layers are newly composed from original game art.']}
     (OUT / 'motion-scene-placement.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf8')
 
-    mask.save(CHECK / 'scene-occlusion-mask.png')
+    mask.save(CHECK / 'scene-occlusion-mask.webp', lossless=True, method=6, exact=True)
     # These still composites verify positioning/occlusion, not motion quality.
     for index in (0, 44, 107):
-        path = ROOT / f'art/dealer/v4/frames/win/win-{index:03}.png'
+        path = ROOT / f'art/dealer/v4/frames/win/win-{index:03}.webp'
         if not path.exists():
             continue
         actor = Image.open(path).convert('RGBA')
@@ -126,15 +126,15 @@ def main():
         preview.alpha_composite(actor.resize(tuple(round(value * host_scale) for value in hd_size),
                                             Image.Resampling.LANCZOS), tuple(round(value) for value in padded_origin))
         preview.alpha_composite(foreground)
-        preview.save(CHECK / f'scene-composite-{index:03}.png')
+        preview.save(CHECK / f'scene-composite-{index:03}.webp', lossless=True, method=6, exact=True)
         if index == 0:
-            preview.crop((245, 230, 448, 485)).save(CHECK / 'scene-contact-detail.png')
+            preview.crop((245, 230, 448, 485)).save(CHECK / 'scene-contact-detail.webp', lossless=True, method=6, exact=True)
     # Verify the overlay cannot alter an empty scene through repeated alpha.
     combined = canvas.copy()
     combined.alpha_composite(foreground)
     assert combined.tobytes() == canvas.tobytes()
-    print(json.dumps({'background': str(OUT / 'motion-scene-background.png'),
-                      'foreground': str(OUT / 'motion-scene-foreground.png'),
+    print(json.dumps({'background': str(OUT / 'motion-scene-background.webp'),
+                      'foreground': str(OUT / 'motion-scene-foreground.webp'),
                       'placement.scene': placement, 'protectedBox': contact_protection}, ensure_ascii=False))
 
 

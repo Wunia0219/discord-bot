@@ -3,23 +3,25 @@
   "status": "static-composition-proposal, not completed animation",
   "tool": "built-in image_gen",
   "master": {
-    "file": "host-master.png",
+    "file": "host-master.webp",
     "nativeSize": [
       1024,
       1536
     ],
     "mode": "RGBA",
-    "sha256": "190d1cfc7b2986c38d3b2b7d54a517f7f8d865994c7a1fb32afbd7f3eb634447",
+    "sha256": "d72ecebc859e0838951e78f8117bc8f19017defa0ce564185ee3770c96707652",
     "prompt": "host-master-prompt.txt",
-    "builtInOutputFilename": "exec-f56710fd-53db-428c-b0c2-42e8f3c1b3e2.png"
+    "builtInOutputFilename": "exec-f56710fd-53db-428c-b0c2-42e8f3c1b3e2.png",
+    "originalPngSha256": "190d1cfc7b2986c38d3b2b7d54a517f7f8d865994c7a1fb32afbd7f3eb634447",
+    "encoding": "exact lossless WebP; decoded RGBA preserved from PNG"
   },
   "references": [
-    "../references/portrait-reference.png",
+    "../references/portrait-reference.webp",
     "../generated/dealer-full-body-v2.png",
-    "machine-frame-reference.png"
+    "machine-frame-reference.webp"
   ],
   "composition": {
-    "file": "concept-composite.png",
+    "file": "concept-composite.webp",
     "assembler": "scripts/assets/compose-dealer-concept.py",
     "geometry": "composition.json",
     "machineArtUnchanged": true,

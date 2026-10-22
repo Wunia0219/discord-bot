@@ -53,7 +53,7 @@ def blink(t,center):
  return 0 if d>.12 else ease(1-d/.12)
 
 def eye_patch(master):
- path=ART/'source/eyes-closed-generated.png'
+ path=ART/'source/eyes-closed-generated.webp'
  if not path.exists():return None
  p=Image.open(path).convert('RGBA').resize((169,112),Image.Resampling.LANCZOS)
  # Only cover the two eye sockets; retain brows, nose, skin and hair elsewhere.
@@ -67,8 +67,8 @@ def eye_patch(master):
 
 
 def make_parts():
- master=Image.open(ROOT/'art/dealer/rebuild/host-master.png').convert('RGBA')
- under=Image.open(ART/'source/occlusion-underpaint.png').convert('RGBA')
+ master=Image.open(ROOT/'art/dealer/rebuild/host-master.webp').convert('RGBA')
+ under=Image.open(ART/'source/occlusion-underpaint.webp').convert('RGBA')
  if master.size!=SIZE or under.size!=SIZE:raise ValueError('Source geometry changed; do not auto-register')
  masks={'arm-left':poly(POLYS['arm-left'])}
  parts={}
@@ -81,7 +81,7 @@ def make_parts():
  parts['_continuous-body-source']=Image.composite(under,master,left_hole)
  dest=ART/'parts';dest.mkdir(parents=True,exist_ok=True)
  for name,img in parts.items():
-  if img is not None and not name.startswith('_'):img.save(dest/(name+'.png'),compress_level=3)
+  if img is not None and not name.startswith('_'):img.save(dest/(name+'.webp'),lossless=True, quality=100, method=6, exact=True)
  return parts
 
 def motion(clip,t,duration):
@@ -152,7 +152,7 @@ def contact_sheet(frames,indices,path,leg=False):
   p=p.copy();p.thumbnail((w,h),Image.Resampling.LANCZOS)
   x=j%4*w+(w-p.width)//2;y=j//4*(h+28)
   out.paste(p,(x,y),p);draw.text((j%4*w+8,y+h+5),f'{i:02d} / {i/FPS:.3f}s',fill=(241,213,167))
- out.save(path)
+ out.save(path, lossless=True, method=6, exact=True)
 
 def main():
  ap=argparse.ArgumentParser();ap.add_argument('--clip',choices=['idle'],default='idle');ap.add_argument('--draft',action='store_true');ap.add_argument('--frame',type=int)
@@ -161,14 +161,14 @@ def main():
  directory=ART/'frames'/args.clip;directory.mkdir(parents=True,exist_ok=True);CHECK.mkdir(parents=True,exist_ok=True)
  report=[];pics={}
  for i in indices:
-  image,data=render(parts,args.clip,i,count);image.save(directory/f'{args.clip}-{i:03}.png',compress_level=3)
+  image,data=render(parts,args.clip,i,count);image.save(directory/f'{args.clip}-{i:03}.webp',lossless=True, quality=100, method=6, exact=True)
   report.append(data)
   if args.draft or i in [0,5,12,20,29,38,47,59] or i==count-1:pics[i]=image
   print(f'{args.clip} {i+1}/{count}',flush=True) if i%15==0 else None
- (ART/'rig-source.json').write_text(json.dumps({'sourceSize':SIZE,'canvas':HD,'pad':PAD,'fps':FPS,'restJoints':REST,'sourcePolygons':POLYS,'renderMethod':'same painted master; continuous premultiplied body sampling with rigid head-neck-collar core and bounded cloth transition; intact rigid free arm; approved lean frozen','sources':['art/dealer/rebuild/host-master.png','art/dealer/v4/source/occlusion-underpaint.png','art/dealer/v4/source/eyes-closed-generated.png'],'legMotion':'original crossed stance retained; foot/leg IK rejected in visual review and excluded from these frames','motionRevision':4,'continuousBodyR4':'Single source-coordinate surface, no fixed/moving neck image blend; pivot620425; idle body angle-.425 max. Right support joints and legs fixed; rough mask cloth overlaps have measured subpixel movement.','status':'candidate motion, requires individual frame and actual browser review'},ensure_ascii=False,indent=2)+'\n',encoding='utf8')
+ (ART/'rig-source.json').write_text(json.dumps({'sourceSize':SIZE,'canvas':HD,'pad':PAD,'fps':FPS,'restJoints':REST,'sourcePolygons':POLYS,'renderMethod':'same painted master; continuous premultiplied body sampling with rigid head-neck-collar core and bounded cloth transition; intact rigid free arm; approved lean frozen','sources':['art/dealer/rebuild/host-master.webp','art/dealer/v4/source/occlusion-underpaint.webp','art/dealer/v4/source/eyes-closed-generated.webp'],'legMotion':'original crossed stance retained; foot/leg IK rejected in visual review and excluded from these frames','motionRevision':4,'continuousBodyR4':'Single source-coordinate surface, no fixed/moving neck image blend; pivot620425; idle body angle-.425 max. Right support joints and legs fixed; rough mask cloth overlaps have measured subpixel movement.','status':'candidate motion, requires individual frame and actual browser review'},ensure_ascii=False,indent=2)+'\n',encoding='utf8')
  (CHECK/f'{args.clip}-rig.json').write_text(json.dumps({'clip':args.clip,'fps':FPS,'count':count,'renderedFrames':indices,'maxBoneError':max(v['boneError'] for row in report for v in row.values() if isinstance(v,dict) and 'boneError'in v),'maxSupportDisplacement':max(row['supportFootDisplacement'] for row in report),'maxContactSlipPx':max(row['contactSlipPx'] for row in report),'frames':report},ensure_ascii=False,indent=2)+'\n',encoding='utf8')
- contact_sheet(pics,list(pics),CHECK/f'{args.clip}-contact.png')
- contact_sheet(pics,list(pics),CHECK/f'{args.clip}-legs.png',True)
+ contact_sheet(pics,list(pics),CHECK/f'{args.clip}-contact.webp')
+ contact_sheet(pics,list(pics),CHECK/f'{args.clip}-legs.webp',True)
  print('Rendered',len(indices),'source-space rig frames; not new drawings')
 
 if __name__=='__main__':main()

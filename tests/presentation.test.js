@@ -181,6 +181,16 @@ test('feedback protects all winning-symbol pops and count-ups while retaining ex
   assert.deepEqual(timing(1,true),{hold:6300,autoDelay:700});
   assert.deepEqual(timing(1,true,'mega'),{hold:9000,autoDelay:800});
 });
+test('automatic spins wait for the complete dealer gesture without extending the manual spin lock',()=>{
+  for(const count of [1,2,3]){
+    const round={wins:Array(count).fill({}),milestone:false};
+    const normal=roundFeedbackTiming(round,null),withDealer=roundFeedbackTiming(round,null,3600);
+    assert.equal(withDealer.hold,normal.hold);
+    assert.ok(withDealer.hold+withDealer.autoDelay>=3600);
+    assert.equal(withDealer.autoDelay,Math.max(normal.autoDelay,3600-normal.hold));
+  }
+});
+
 test('line display proceeds in order with the original individual payouts and loops',()=>{
   const cycle=new WinCycle(),seen=[];
   const wins=[{line:1,payout:50},{line:7,payout:25},{line:12,payout:100}];

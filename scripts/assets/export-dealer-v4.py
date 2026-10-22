@@ -1,6 +1,6 @@
 """Export supplied RGBA animation drawings without generating or deforming art.
 
-Input PNG files are ordered naturally by their filenames. Every drawing must
+Input WebP files are ordered naturally by their filenames. Every drawing must
 already use the shared 1152x1664 canvas, with at least 16 transparent pixels on
 all sides. The only resize is one 1152x1664 -> 576x832 runtime downsample.
 
@@ -93,8 +93,8 @@ def inspect_sources(paths, clip, status, allow_duplicates=False, duplicate_note=
         try:
             with Image.open(path) as image:
                 record.update({'size': list(image.size), 'mode': image.mode, 'format': image.format})
-                if image.format != 'PNG' or image.mode != 'RGBA' or image.size != SOURCE_SIZE:
-                    errors.append(f'{path.name}: expected RGBA PNG {SOURCE_SIZE[0]}x{SOURCE_SIZE[1]}, got {image.format} {image.mode} {image.size}')
+                if image.format != 'WEBP' or image.mode != 'RGBA' or image.size != SOURCE_SIZE:
+                    errors.append(f'{path.name}: expected RGBA WebP {SOURCE_SIZE[0]}x{SOURCE_SIZE[1]}, got {image.format} {image.mode} {image.size}')
                     records.append(record)
                     continue
                 image.load()
@@ -131,7 +131,7 @@ def inspect_sources(paths, clip, status, allow_duplicates=False, duplicate_note=
             'frames': records, 'errors': errors, 'numericalChecksPassed': not errors,
             'manifestUpdated': False,
             'scope': 'Numerical source integrity and full-canvas silhouette checks only. No claim of natural motion, consistent anatomy, identity or artistic completion.',
-            'processing': 'No generation, pose deformation, interpolation, per-frame crop or registration. Runtime frames are resized exactly once from supplied HD PNGs.'}
+            'processing': 'No generation, pose deformation, interpolation, per-frame crop or registration. Runtime frames are resized exactly once from supplied HD WebPs.'}
 
 
 def stage_image(picture, destination, image_format, run_id, staged, **options):
@@ -174,7 +174,7 @@ def export_pages(paths, clip_name, status, run_id, staged, allow_duplicates, dup
                 'durationMs': duration,
             }
         basename = f'{clip_name}-{start // capacity:03}'
-        stage_image(hd, ART / f'{basename}.png', 'PNG', run_id, staged, compress_level=3)
+        stage_image(hd, ART / f'{basename}.webp', 'WEBP', run_id, staged, lossless=True, quality=100, method=6, exact=True)
         stage_image(runtime, OUT / f'{basename}.webp', 'WEBP', run_id, staged,
                     lossless=True, quality=100, method=4, exact=True)
         entry['pages'].append({'file': f'{basename}.webp', 'frames': rects,
@@ -188,7 +188,7 @@ def export_pages(paths, clip_name, status, run_id, staged, allow_duplicates, dup
 def arguments():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--frames-dir', required=True, type=Path,
-                        help='Directory containing completed same-canvas RGBA PNG drawings, naturally sorted by filename')
+                        help='Directory containing completed same-canvas RGBA WebP drawings, naturally sorted by filename')
     parser.add_argument('--clip', required=True, choices=tuple(CLIPS))
     parser.add_argument('--fps', type=int, default=30,
                         help='V4 contract is fixed at 30 fps; other values are refused')
@@ -206,9 +206,9 @@ def main():
     directory = args.frames_dir.resolve()
     if not directory.is_dir():
         raise ValueError(f'Frames directory does not exist: {directory}')
-    paths = sorted((path for path in directory.iterdir() if path.is_file() and path.suffix.casefold() == '.png'), key=natural_key)
+    paths = sorted((path for path in directory.iterdir() if path.is_file() and path.suffix.casefold() == '.webp'), key=natural_key)
     if not paths:
-        raise ValueError(f'No source PNG frames found in {directory}')
+        raise ValueError(f'No source WebP frames found in {directory}')
     # Validate existing v4 metadata before encoding any output. Never read v3
     # or the historical root-level dealer manifest.
     merged_manifest(args.clip)

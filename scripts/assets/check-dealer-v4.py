@@ -3,7 +3,7 @@
 Example (run only after all frames and rig reports have been rendered):
   python scripts/assets/check-dealer-v4.py --allow-duplicates
 
-Reads 96 retained idle / 108 new win PNGs and their renderer-produced
+Reads 96 retained idle / 108 new win WebPs and their renderer-produced
 rig JSON. Writes one integrity report; it never exports atlases or modifies art,
 rig data, placement, or manifests. Metrics cannot certify natural motion or
 visual quality. Speed spikes and seam differences are diagnostic review flags.
@@ -106,7 +106,7 @@ def series_metrics(samples, factor=8, floor=3):
 
 
 def rendered_index(path, fallback):
-    match = re.search(r'(\d+)\.png$', path.name, re.IGNORECASE)
+    match = re.search(r'(\d+)\.webp$', path.name, re.IGNORECASE)
     return int(match.group(1)) if match else fallback
 
 
@@ -426,15 +426,15 @@ def main():
     endpoints, frame_paths = {}, {}
     for clip in args.clips:
         directory = args.frames_root / clip
-        paths = sorted((path for path in directory.glob('*.png') if path.is_file()), key=exporter.natural_key)
+        paths = sorted((path for path in directory.glob('*.webp') if path.is_file()), key=exporter.natural_key)
         indices = [rendered_index(path, index) for index, path in enumerate(paths)]
         expected_indices = list(range(EXPECTED[clip]))
         if indices != expected_indices:
-            errors.append(f'{clip}: PNG frame sequence is not exactly 0..{EXPECTED[clip] - 1}; present={indices}')
+            errors.append(f'{clip}: WebP frame sequence is not exactly 0..{EXPECTED[clip] - 1}; present={indices}')
         try:
             integrity = exporter.inspect_sources(paths, clip, 'draft', args.allow_duplicates)
         except (OSError, ValueError) as error:
-            integrity = {'frames': [], 'errors': [f'Could not inspect PNG sources: {error}']}
+            integrity = {'frames': [], 'errors': [f'Could not inspect WebP sources: {error}']}
         errors.extend(f'{clip}: {error}' for error in integrity['errors'])
         valid_frames = bool(paths and len(paths) == len(integrity['frames']) and all('sha256DecodedRGBA' in row for row in integrity['frames']))
         pixel_report = pixel_continuity(paths, args.spike_factor) if valid_frames else {'available': False}

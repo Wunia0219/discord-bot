@@ -2,7 +2,7 @@
 
 Artist-generated facial keys are composited inside the original facial skin
 before the common body coordinate map. No neck/head plate is pasted on top.
-The full free arm is sampled once; source PNGs share idle's canvas/anchor.
+The full free arm is sampled once; source WebPs share idle's canvas/anchor.
 """
 import argparse
 import hashlib
@@ -39,7 +39,7 @@ def ramp(t,a,b):
 def face_keys():
  result={}
  for name in ('warm','joy','half-eye','wink'):
-  with Image.open(DESIGN/f'{name}-expression-generated.png') as image:
+  with Image.open(DESIGN/f'{name}-expression-generated.webp') as image:
    result[name]=image.convert('RGBA').resize((256,256),Image.Resampling.LANCZOS)
  mask=Image.new('L',(256,256));d=ImageDraw.Draw(mask)
  # Boundary lies inside facial skin; original jaw/hair/collar silhouette stays.
@@ -114,10 +114,10 @@ def expression_probes(parts,keys,directory):
  width=256;height=280;sheet=Image.new('RGB',(width*4,height*3),(29,28,39));draw=ImageDraw.Draw(sheet)
  for i,t in enumerate(times):
   source,info=expression_at(parts['_continuous-body-source'],keys,t)
-  crop=source.crop(FACE_BOX);crop.save(directory/f'face-{i:02}.png')
+  crop=source.crop(FACE_BOX);crop.save(directory/f'face-{i:02}.webp', lossless=True, method=6, exact=True)
   x=i%4*width;y=i//4*height;sheet.paste(crop,(x,y),crop)
   draw.text((x+5,y+258),f'{t:.3f}s {info["eye"]}',fill=(245,218,177))
- sheet.save(directory/'expression-contact.png')
+ sheet.save(directory/'expression-contact.webp', lossless=True, method=6, exact=True)
 
 def main():
  ap=argparse.ArgumentParser();ap.add_argument('--probe',action='store_true');ap.add_argument('--faces-only',action='store_true');args=ap.parse_args()
@@ -130,7 +130,7 @@ def main():
  indices=[0,8,14,23,31,42,44,46,50,53,65,80,96,107] if args.probe else list(range(COUNT))
  rows=[];pics={}
  for i in indices:
-  image,data=render(idle,parts,keys,i);image.save(directory/f'win-{i:03}.png',compress_level=3)
+  image,data=render(idle,parts,keys,i);image.save(directory/f'win-{i:03}.webp',lossless=True, quality=100, method=6, exact=True)
   rows.append(data)
   if args.probe or i in (0,14,31,44,50,65,80,107):pics[i]=image
   if i%15==0:print(f'win {i+1}/{COUNT}',flush=True)
@@ -140,7 +140,7 @@ def main():
   'maxSupportDisplacement':max(r['supportFootDisplacement'] for r in rows),'frames':rows}
  report_path=directory/'win-rig.json' if args.probe else ART.parents[2]/'test-results/dealer-v4/win-rig.json'
  report_path.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf8')
- idle.contact_sheet(pics,list(pics),directory/'win-contact.png' if args.probe else QA/'win-contact.png')
+ idle.contact_sheet(pics,list(pics),directory/'win-contact.webp' if args.probe else QA/'win-contact.webp')
  print('Rendered',len(rows),'new win samples; idle sources not modified.',flush=True)
 
 if __name__=='__main__':main()

@@ -1,4 +1,5 @@
 import { Application, Assets, Container, Graphics, Sprite, Texture, Rectangle } from 'pixi.js';
+import 'pixi.js/prepare';
 import { SYMBOLS, SYMBOL_FRAMES, INITIAL_STOPS, REEL_STRIPS, gridFromStops } from '../game/index.js';
 import { reelAnimation, reelOffset, reelSpeed, quickStopAnimation, quickStopOffset, reelBounceOffset, REEL_BOUNCE_MS, WinCycle, WinSymbolPop } from './presentation.js';
 import { Dealer } from './dealer.js';
@@ -9,6 +10,9 @@ import mainUrl from '../../images/main.webp';
 import symbolsUrl from '../../images/symbols.webp';
 import backgroundUrl from '../../images/jokers-circus/circus-background.webp';
 import winFrameUrl from '../../images/fx/circus-win-frame.webp';
+import dealerManifest from '../../images/dealer/v4/dealer.json';
+
+const dealerPages = import.meta.glob('../../images/dealer/v4/*.webp', {eager:true, query:'?url', import:'default'});
 
 const W = 1200, H = 760;
 const GRID = { x: 255, y: 228, w: 690, h: 408 };
@@ -54,7 +58,11 @@ export class SlotScene {
       return [s, texture];
     }));
     this.app.stage.addChild(new Graphics().rect(GRID.x, GRID.y, GRID.w, GRID.h).fill(0x10172d));
-    this.dealer=new Dealer();
+    this.dealer=new Dealer({
+      motionManifest:dealerManifest,
+      resolvePage:page=>dealerPages['../../images/dealer/v4/'+page.file],
+      uploadTextures:textures=>this.app.renderer.prepare.upload(textures),
+    });
     try{await this.dealer.init();}
     catch(error){console.warn('Dealer artwork unavailable:',error.message);}
     const frame = this.addArt('circus-reel-frame.png', GRID.x - 80 * GRID.w / 607, GRID.y - 90 * GRID.h / 335, 768 * GRID.w / 607);
@@ -205,6 +213,7 @@ export class SlotScene {
   }
   prepareDealer(round){this.dealer?.preload(dealerClipForRound(round));}
   reactToRound(round){this.dealer?.play(dealerClipForRound(round),{reduced:this.reduced});}
+  dealerFeedbackDuration(round){return dealerClipForRound(round)==='win'?this.dealer?.motionManifest?.clips.win?.durationMs??0:0;}
   reactToMilestone(){this.dealer?.play('idle',{reduced:this.reduced});}
   setDealerVisible(visible){this.dealer?.setVisible(visible);}
   celebrate(big = false, showLine = true) {

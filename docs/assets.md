@@ -7,25 +7,17 @@
 - `images/fonts/circus-gold.webp`＋`.fnt`：HUD、大獎共用的金色數字，含逗號及正負號，DOM 保留可讀文字。
 - `images/fx/circus-win-frame.webp`：紅金得獎外框。
 - `images/jokers-circus/circus-background.webp`：背景。
-- `images/dealer/dealer-standin.webp`：主遊戲目前使用的單張人物原畫，無動畫圖集依賴。本機 R6 候選只保留 `idle` 待機與 `win` 喜悅回饋，尚未接入主遊戲或部署；來源、尺寸及驗收範圍見 [角色動畫](dealer-animation.md)。
+- `images/dealer/v4/dealer.json` 與同目錄 WebP 圖集：主遊戲使用的 idle（96 格／3.2 秒）及 win（108 格／3.6 秒）人物動畫。idle 循環，小獎獲利時播放 win 並回待機；大獎沿用 WIN 演出。詳見 [角色動畫](dealer-animation.md)。
 
-同目錄 PNG 是可編修的母檔，保留供重新匯出。`npm run assets:webp` 以原尺寸編碼；圖集、字體與外框無損，背景品質 90。壓縮檢查資料輸出至被忽略的 `test-results/`。
+專案內 PNG 母檔已經驗證轉存並刪除。人物原畫、參考、原幀、HD 圖集及 QA 截圖改存 exact lossless WebP；現有遊戲圖集、字體與外框也為無損 WebP，背景沿用品質 90。`npm run assets:webp` 會驗證轉檔後的尺寸與透明度，無損項目另驗證完整 RGBA，再刪除 PNG；清單輸出至被忽略的 `test-results/image-compression.json`。第三方套件及 Git 內部不在清理範圍。
 
-`scripts/assets/build-circus-font.py` 用 Windows 的 Georgia Bold 產生數字圖集；字型檔不打包進專案。Python 素材工具需要 Pillow，遊戲建置與伺服器執行只需要 Node。
+`scripts/assets/build-circus-font.py` 用 Windows Georgia Bold 產生 WebP 數字圖集；字型檔不打包進專案。素材產生器、人物圖集匯出器與檢查器均使用 WebP，Python 工具需要 Pillow；遊戲建置與伺服器執行只需要 Node。
 
-## 荷官 R6 原幀與候選圖集
-
-`art/dealer/v4/frames/idle/` 的 96 張 PNG 與 `art/dealer/v4/sheets/` 的 24 張待機 HD PNG 全部保留，另新增共 120 張 exact lossless WebP，完整解碼 RGBA（含透明像素隱藏 RGB）與原 PNG 一致，這批衍生檔比 PNG 小 29.809%。轉存不代表可以刪除原稿；原待機 runtime 也保持原檔。
-
-R6 `win` 維持 108 個時間樣本／3.6 秒／30fps，HD PNG 與 runtime WebP 各 27 頁，有 107 張不同解碼 RGBA。共用原幀畫布 1152×1664，不逐格裁切縮放；每頁 2×2，HD 為 2304×3328，runtime 從原幀只縮一次至每格 576×832，分頁為 1152×1664 lossless WebP。Manifest 沿用 `images/dealer/v4/dealer.json`，格式版本 4、動作修訂 6，只含 `idle`／`win`。獨立 `previews/win-r6.webp` 為 108 個編碼影格／3600ms，解碼樣本可見 RGBA 與一次縮圖來源一致。
-
-R6 沿用人物母圖、四張表情 key、嘴唇輪廓配準及連續空間映射，只將完整自由臂峰值由 15° 改為 6.5°，以 body beta(3,5)／arm beta(3,4) 消除定格，手臂峰值較身體延遲約 191ms。108 幀是渲染取樣，不能寫成 108 張新原畫。舊倚框／小獎 253 個淘汰圖檔及 3 個未使用 parts 已刪除，現用依賴與原始參考保留。
-
-R5 的靜態及工程通過不代表自然度合格；使用者退回節奏後，R6 座標、固定接觸、首尾與待機保護已核對，本輪匯出 checker 為 0 error／0 review flag。頭頸、左肩完整臂及全身顯示覆核涵蓋 108 張，腰披風／支撐平台／腿靴另抽查 6 張；修正 GPU 準備後的本機正常／半速、逐幀、單次及融合場景檢查亦完成。本輪證據集中於 `test-results/dealer-win/r6/`；手掌步距／加速度是 rig 幾何標記差分，並非像素追蹤。詳細索引、來源尺寸裁切的顯示限制及後續使用者確認見 [角色動畫](dealer-animation.md)。本輪沒有改動錢包或部署 Netlify。
+程式及 JSON 內如 `spin-button.png`、`H1.png` 是沿用的圖集內部圖塊名稱，不代表載入 PNG 檔案。Discord 頭貼也使用官方 CDN WebP 路徑。
 
 ## 構圖與互動
 
-桌面以 1160×824 的整組機台與單排控制列等比例縮放；手機依方向使用直向多排或橫向配置。Discord platform 優先於瀏覽器輸入裝置判斷，安全區與方向解鎖集中在 `responsive-layout.js`。
+桌面以 1160×740 的整組機台與單排控制列等比例縮放；手機依方向使用直向多排或橫向配置。Discord platform 優先於瀏覽器輸入裝置判斷，安全區與方向解鎖集中在 `responsive-layout.js`。
 
 每輪向下移動且速度不受輪帶長度影響。`presentation.js` 管理減速、960ms 雙彈動及每 1.6 秒輪播的得獎圖標；`scene.js` 依結算資料中的 cells 標示所有有效格子，不再套用固定賠線。
 

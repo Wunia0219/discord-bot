@@ -184,7 +184,8 @@ async function spin() {
     result(r.payout?`這局獲得 ${fmt(r.payout)} 籌碼`:'這局沒有得獎',`${symbols}｜籌碼變化 ${signed(r.net)}`);
     const tier=presentRoundWin(r,{sound,celebrate,celebrateSmall:()=>scene.celebrate()});
     scene.reactToRound(r);
-    const timing=roundFeedbackTiming(r,tier);nextDelay=timing.autoDelay;
+    // Let the authored gesture return to its neutral pose before AUTO SPIN.
+    const timing=roundFeedbackTiming(r,tier,scene.dealerFeedbackDuration(r));nextDelay=timing.autoDelay;
     if(r.milestone){clearTimeout(celebrationTimer);celebrationTimer=setTimeout(()=>celebrate('milestone',12000),tier?4500:1800);}
     // Space can shorten reel travel, but cannot cut off the resulting win.
     if(timing.hold&&!document.hidden)await new Promise(resolve=>setTimeout(resolve,timing.hold));

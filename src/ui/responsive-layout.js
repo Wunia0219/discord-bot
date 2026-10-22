@@ -1,5 +1,5 @@
 const DESKTOP_WIDTH = 1160;
-const DESKTOP_HEIGHT = 824;
+const DESKTOP_HEIGHT = 740;
 
 export function gameLayoutMode(search, touchOnly) {
   const platform = new URLSearchParams(search).get('platform');

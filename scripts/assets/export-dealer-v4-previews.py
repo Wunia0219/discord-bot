@@ -1,4 +1,4 @@
-"""Encode numbered revision previews from supplied v4 PNG frame sequences.
+"""Encode numbered revision previews from supplied v4 WebP frame sequences.
 
 Exactly one HD-to-preview downsample is performed per supplied frame. No pose
 generation, cropping, registration, reversed playback or atlas export occurs.
@@ -117,9 +117,9 @@ def inspect_preview(path, frames, durations, sample_indices):
 def export_clip(name, frames_root, output_root, revision):
     count = COUNTS[name]
     directory = frames_root / name
-    paths = [directory / f'{name}-{index:03}.png' for index in range(count)]
+    paths = [directory / f'{name}-{index:03}.webp' for index in range(count)]
     if not all(path.exists() for path in paths):
-        raise ValueError(f'{name}: all {count} source PNG frames are required')
+        raise ValueError(f'{name}: all {count} source WebP frames are required')
     frames, source_records, frame_hashes = [], [], []
     for index, path in enumerate(paths):
         source_records.append({'frame': index, 'file': str(path), 'sha256': file_hash(path)})
@@ -182,18 +182,18 @@ def main():
     args = parser.parse_args()
     report_path = args.report or ROOT / f'test-results/dealer-v4/revision-{args.revision}/webp-preview-export.json'
     reports = {name: export_clip(name, args.frames_root, args.output_root, args.revision) for name in args.clips}
-    # Recheck earlier clips too: a renderer must not change idle PNGs while
+    # Recheck earlier clips too: a renderer must not change idle WebPs while
     # a subsequent preview is being encoded.
     changed_after_all_exports = [row['file'] for clip in reports.values()
                                  for row in clip['sourceRecords']
                                  if file_hash(Path(row['file'])) != row['sha256']]
     if changed_after_all_exports:
-        raise ValueError(f'Source PNGs changed across the complete export: {changed_after_all_exports}')
+        raise ValueError(f'Source WebPs changed across the complete export: {changed_after_all_exports}')
     result = {'revision': args.revision, 'clips': reports,
               'scope': f'Revision-{args.revision} animated WebP export and decoding verification only; no new drawings or visual/runtime acceptance.',
               'allSourceHashesRecheckedAfterAllExports': True,
               'allSourceHashesStillMatch': True,
-              'sourceStatus': 'Supplied PNG hashes matched both per-clip and after-all-exports checks; source readiness and visual acceptance are established separately.',
+              'sourceStatus': 'Supplied WebP hashes matched both per-clip and after-all-exports checks; source readiness and visual acceptance are established separately.',
               'allDecodedSampleVisibleRgbaExactlyEqual': all(value['allSampleVisibleRgbaExactlyEqual'] for value in reports.values())}
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf8')

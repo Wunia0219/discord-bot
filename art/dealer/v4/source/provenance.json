@@ -1,11 +1,11 @@
 {
   "date": "2026-10-20",
   "identityReferences": [
-    "art/dealer/references/portrait-reference.png",
-    "art/dealer/references/costume-reference.png"
+    "art/dealer/references/portrait-reference.webp",
+    "art/dealer/references/costume-reference.webp"
   ],
   "master": {
-    "path": "art/dealer/rebuild/host-master.png",
+    "path": "art/dealer/rebuild/host-master.webp",
     "nativeSize": [
       1024,
       1536
@@ -14,13 +14,13 @@
     "tool": "built-in image_gen"
   },
   "underpaint": {
-    "path": "art/dealer/v4/source/occlusion-underpaint.png",
+    "path": "art/dealer/v4/source/occlusion-underpaint.webp",
     "prompt": "art/dealer/v4/source/underpaint-prompt.txt",
     "usedFor": "R4: hidden free-left-arm occlusion only. The original master remains continuous across neck, collars, supported arm and cushion. Legacy approved lean retains its original backing and plate assembly.",
     "tool": "built-in image_gen"
   },
   "closedEyeReference": {
-    "path": "art/dealer/v4/source/eyes-closed-generated.png",
+    "path": "art/dealer/v4/source/eyes-closed-generated.webp",
     "prompt": "art/dealer/v4/source/eyes-closed-prompt.txt",
     "usedFor": "two masked eye sockets only; generated crop resized to original reference crop, not extra native detail",
     "tool": "built-in image_gen"

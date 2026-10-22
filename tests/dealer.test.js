@@ -27,15 +27,19 @@ test('legacy dealer clips use natural key order and default frame timing',()=>{
   assert.throws(()=>dealerFrameSequence({...clip,order:['missing']},20),/Unknown dealer drawing/);
 });
 
-test('dealer placement leaves the first reel and control deck clear',()=>{
-  assert.deepEqual(dealerPlacement(1160),{x:137,y:655,scale:1.04});
-  assert.deepEqual(dealerPlacement(970),{x:186,y:645,scale:.60});
-  for(const width of [970,1160]){
-    const {x,y,scale}=dealerPlacement(width);
-    // New 448px authored frames reserve 32px on each side for motion padding.
-    // A separate asset check must verify each actual silhouette fits that box.
-    const right=x+(416/448-.5)*256*scale;
-    assert.ok(right<255,'the visible silhouette must stay left of the first reel');
-    assert.ok(y<=655,'feet remain above the control deck');
+test('the complete dealer silhouette stays inside both viewports and clear of every reel',()=>{
+  assert.deepEqual(dealerPlacement(1320),{x:40,y:680,scale:1.65});
+  assert.deepEqual(dealerPlacement(1020),{x:156,y:660,scale:.85});
+  // Union of the nonzero-alpha bounds across all 204 current idle/win drawings.
+  const bounds={left:70,top:32,right:532,bottom:800};
+  for(const [width,cropX] of [[1320,-140],[1020,65]]){
+    const {x,y,scale}=dealerPlacement(width),factor=256/576*scale;
+    const left=x+(bounds.left-288)*factor,right=x+(bounds.right-288)*factor;
+    const top=y+(bounds.top-800)*factor,bottom=y+(bounds.bottom-800)*factor;
+    assert.ok(left>=cropX+8,'hair, cape and arms must remain inside the visible canvas');
+    assert.ok(right<255,'the complete silhouette must stay left of the first reel');
+    assert.ok(top>=0,'hair must stay in view');
+    assert.ok(bottom<=680,'boots must remain above the control deck');
+    assert.ok(right<=cropX+width,'no horizontal cropping');
   }
 });

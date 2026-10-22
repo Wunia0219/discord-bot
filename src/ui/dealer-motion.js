@@ -7,10 +7,10 @@ export function dealerClipForRound({payout,bet}){
   return payout>bet?'win':'idle';
 }
 
-// The machine's first symbol begins at x=255. Keep the complete companion
-// to its left at either crop size; the reels and controls remain unobstructed.
+// Both layouts reserve a complete full-body area to the left of the reels.
+// Desktop gives the host a larger presence; phones keep every limb in view.
 export function dealerPlacement(sceneWidth){
-  return sceneWidth>=1100?{x:137,y:655,scale:1.04}:{x:186,y:645,scale:.60};
+  return sceneWidth>=1100?{x:40,y:680,scale:1.65}:{x:156,y:660,scale:.85};
 }
 
 // A playback reference can reuse a drawing, for example when a gesture returns

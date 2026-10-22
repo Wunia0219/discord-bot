@@ -32,7 +32,7 @@ for c in range(5):
  if c:draw.line((c*138,8,c*138,gh-8),fill=(100,83,63,255),width=1)
 canvas.alpha_composite(field,(gx,gy))
 # New full-resolution drawing, scaled once for this concept only.
-host=Image.open(OUT/'host-master.png').convert('RGBA')
+host=Image.open(OUT/'host-master.webp').convert('RGBA')
 scale=.42
 host_size=tuple(round(v*scale) for v in host.size)
 host_origin=(-7,112)
@@ -59,8 +59,8 @@ for col,names in enumerate(columns):
   canvas.alpha_composite(p,(gx+col*138+3,gy+row*136+2))
 logo=art(main,main_data,'logo-long.png');logo=logo.resize((500,round(logo.height*500/logo.width)),Image.Resampling.LANCZOS)
 canvas.alpha_composite(logo,(530,30))
-canvas.save(OUT/'concept-composite.png')
+canvas.save(OUT/'concept-composite.webp', lossless=True, method=6, exact=True)
 # A close view for judging texture and the physical contact, not another generated drawing.
-canvas.crop((0,95,490,780)).save(OUT/'concept-contact-detail.png')
+canvas.crop((0,95,490,780)).save(OUT/'concept-contact-detail.webp', lossless=True, method=6, exact=True)
 (OUT/'composition.json').write_text(json.dumps({'status':'static design concept, not a gameplay screenshot or completed animation','canvas':[W,H],'machineTranslation':[180,30],'machineOriginalArt':['images/main.webp','images/symbols.webp','images/jokers-circus/circus-background.webp'],'frameOrigin':frame_origin,'frameSize':frame_size,'hostNativeSize':host.size,'hostScale':scale,'hostOrigin':host_origin,'layerOrder':['background','reel field','host rear/body','existing machine frame','host contact forearm/ledge','original reel symbols','original logo'],'note':'Wider concept layout explores a true left-side host area. Runtime responsive layout has not been changed.'},ensure_ascii=False,indent=2)+'\n',encoding='utf8')
 print('Concept',canvas.size,'Host native',host.size)

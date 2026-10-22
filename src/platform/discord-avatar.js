@@ -2,5 +2,5 @@
 // https://docs.discord.com/developers/reference#image-formatting
 export function discordAvatarUrl(user) {
   if (!/^\d{17,20}$/.test(user?.id || '') || !/^(?:a_)?[a-f0-9]{32}$/i.test(user?.avatar || '')) return null;
-  return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`;
+  return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.webp?size=128`;
 }

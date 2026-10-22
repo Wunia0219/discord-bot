@@ -552,9 +552,9 @@
   },
   "renderMethod": "Retained idle uses exact R4 surface; new win uses contact-centered continuous body field and registered artist facial keys before one body sample, intact free arm. Surface landmarks measured separately from rigid free-arm geometry.",
   "sources": [
-    "art/dealer/rebuild/host-master.png",
-    "art/dealer/v4/source/occlusion-underpaint.png",
-    "art/dealer/v4/source/eyes-closed-generated.png"
+    "art/dealer/rebuild/host-master.webp",
+    "art/dealer/v4/source/occlusion-underpaint.webp",
+    "art/dealer/v4/source/eyes-closed-generated.webp"
   ],
   "legMotion": "original crossed stance retained; foot/leg IK rejected in visual review and excluded from these frames",
   "motionRevision": 6,

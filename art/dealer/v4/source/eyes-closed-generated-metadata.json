@@ -3,14 +3,14 @@
   "calls": 1,
   "intent": "one closed-eye retouch candidate for inspection only; not composited",
   "master": {
-    "path": "art/dealer/rebuild/host-master.png",
+    "path": "art/dealer/rebuild/host-master.webp",
     "size": [
       1024,
       1536
     ]
   },
   "reference": {
-    "path": "art/dealer/v4/source/eyes-open-reference.png",
+    "path": "art/dealer/v4/source/eyes-open-reference.webp",
     "nativeCrop": [
       535,
       98,
@@ -23,7 +23,7 @@
     ]
   },
   "generated": {
-    "path": "art/dealer/v4/source/eyes-closed-generated.png",
+    "path": "art/dealer/v4/source/eyes-closed-generated.webp",
     "size": [
       1540,
       1021
