@@ -3,6 +3,8 @@ dist/
 .env
 .env.*
 !.env.example
+*firebase-adminsdk*.json
+*service-account*.json
 test-results/
 .tools/
 /data/

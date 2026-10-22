@@ -36,8 +36,13 @@ BOT 指令選單、回覆與公告都用群友看得懂的口吻，先說發生�
 | `npm run build` | 建置 `dist/` |
 | `npm run activity:serve` | 建置並啟動 4188 整合服務 |
 | `npm run db:backup` | SQLite 一致快照 |
+| `npm run db:status`／`backend:status` | 本機服務、驗帳、備份與磁碟監控狀態；異常以非零狀態結束 |
 | `npm run backend:init`／`backend:check` | 開發資料庫初始化／唯讀驗帳 |
 | `npm run backend:backup`／`backend:restore -- --from <備份> --to <新檔案>` | 開發資料庫備份／還原至新檔案 |
+
+SQLite 錢包服務啟動後預設每 5 分鐘唯讀驗帳及檢查磁碟，每 6 小時建立驗證過的 SQLite 備份；重啟沿用尚未到期的有效備份。自動備份保留 7 天、至少 3 份、最多 28 份，預設總量上限 256 MiB；超出容量時回報異常並保留既有備份。設定、還原與告警檢查方式見[自動備份與監控](docs/deployment.md#自動備份與監控)。
+
+本機 Node 另支援 `WALLET_BACKEND=firestore`，保留後端算獎、每日簽到、操作去重與管理更正，使用獨立 `.env.firestore.local` 及專案共用的持久額度檔。先執行 `npm run firestore:emulator:setup`、準備 Java 21，再用 `npm run test:firestore` 在官方模擬器驗證；測試不使用雲端讀寫額度。真實專案、憑證、安全規則及驗收流程見[Firestore Spark 接入](docs/deployment.md#firestore-spark-接入)。版本仍為 0.2.5，沒有自動切換現有 SQLite、遷移玩家、升級計費、建立外部監控或部署。
 
 ## 遊戲與操作
 

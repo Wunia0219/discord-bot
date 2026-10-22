@@ -15,9 +15,11 @@ RUN npm run build
 FROM node:24-bookworm-slim
 WORKDIR /app
 COPY package.json ./
+COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY server ./server
 COPY src/game ./src/game
+COPY src/version.js ./src/version.js
 COPY scripts/admin ./scripts/admin
 RUN mkdir -p /app/data /app/backups && chown -R node:node /app
 USER node

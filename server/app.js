@@ -7,6 +7,8 @@ import { MODEL_VERSION } from '../src/game/slot-math.js';
 import { isLocalTestRequest } from './local-test-wallet.js';
 import { discordConfigurationReady } from './discord-config.js';
 import { LoginRateLimit } from './login-rate-limit.js';
+import { randomUUID } from 'node:crypto';
+import {completeDeferredCommand,validInteractionToken} from './deferred-command.js';
 
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.webp':'image/webp', '.png':'image/png', '.svg':'image/svg+xml', '.json':'application/json', '.woff2':'font/woff2' };
 const json = (res, status, data) => {
@@ -35,18 +37,27 @@ async function readJson(req) {
 }
 
 // Only built game files are served. Project sources and .env files are never exposed.
-export function createActivityServer({ clientId, clientSecret, publicKey, wallet=null, localPort=4188, distDir = resolve('dist'), fetchImpl = fetch, loginClock } = {}) {
+export function createActivityServer({ clientId, clientSecret, publicKey, wallet=null, localPort=4188, distDir = resolve('dist'), fetchImpl = fetch, loginClock, operations=null } = {}) {
   if(!Number.isInteger(localPort)||localPort<1||localPort>65535)throw new Error('Invalid local port');
   let activeExchanges = 0;
   const loginRate = new LoginRateLimit({clock:loginClock});
+  const deferredCommands=new Set();
   const loginLimited = (res, delay, message='登入嘗試太頻繁，請稍後再試。') => {
     res.setHeader('Retry-After',String(Math.max(1,Math.ceil(delay/1000))));
     return json(res,429,{error:message});
   };
   const allowedOrigins = new Set([`https://${clientId}.discordsays.com`, 'http://127.0.0.1:4187', 'http://127.0.0.1:4188', `http://127.0.0.1:${localPort}`]);
-  return createServer(async (req, res) => {
+  const server=createServer(async (req, res) => {
+    let route='static',errorCode;
+    if(operations){
+      const requestId=randomUUID(),started=performance.now();res.setHeader('X-Request-Id',requestId);
+      res.once('finish',()=>operations.recordRequest({requestId,route,errorCode,
+        method:['GET','HEAD','POST','OPTIONS'].includes(req.method)?req.method:'OTHER',status:res.statusCode,durationMs:performance.now()-started}));
+    }
     try {
       const path = new URL(req.url, 'http://localhost').pathname;
+      if(['/healthz','/readyz','/api/token','/api/interactions','/api/wallet','/api/spin','/api/checkin','/api/ledger'].includes(path))route=path;
+      else if(path.startsWith('/api/'))route='unknown-api';
       if(wallet?.localTest&&!isLocalTestRequest(req))return json(res,403,{error:'此測試服務只限這台電腦使用。'});
       if(wallet?.localTest&&path==='/'&&['GET','HEAD'].includes(req.method)&&new URL(req.url,'http://localhost').searchParams.get('wallet')!=='local'){
         res.writeHead(302,{Location:'/?wallet=local','Cache-Control':'no-store'});return res.end();
@@ -54,7 +65,7 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
       if(path==='/wallet-test'||path==='/api/local-test'){
         if(!wallet?.localTest)return json(res,404,{error:'找不到此功能。'});
         if(!['GET','HEAD'].includes(req.method))return json(res,405,{error:'請使用 GET 或 HEAD。'});
-        if(path==='/api/local-test')return json(res,200,wallet.localOverview());
+        if(path==='/api/local-test')return json(res,200,await wallet.localOverview());
         const page=await readFile(new URL('./local-test.html',import.meta.url));
         res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Content-Length':page.length,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"});
         return res.end(req.method==='HEAD'?undefined:page);
@@ -71,8 +82,9 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
       if(path==='/healthz')return json(res,200,{ok:true,model:MODEL_VERSION});
       if(path==='/readyz'){
         if(!['GET','HEAD'].includes(req.method))return json(res,405,{error:'請使用 GET 或 HEAD。'});
-        const ready=wallet?.store.isReady()===true
-          && (wallet.localTest===true || discordConfigurationReady({clientId,clientSecret,publicKey}));
+        const ready=(await wallet?.store.isReady())===true
+          && (wallet.localTest===true || discordConfigurationReady({clientId,clientSecret,publicKey}))
+          && (!operations||operations.isReady());
         return json(res,ready?200:503,{ok:ready});
       }
       if(path==='/api/interactions'){
@@ -85,7 +97,13 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
         if(interaction.type===1)return json(res,200,{type:1});
         if(interaction.application_id!==clientId)return json(res,403,{error:'應用程式不符。'});
         if(!wallet)return json(res,200,privateReply(null,'過一會兒再試試。如果一直連不上，請找管理員幫忙看看。','籌碼暫時連不上','warning'));
-        return json(res,200,handleCommand(interaction,wallet.store,wallet.adminRoles));
+        if(wallet.store.backend==='firestore'&&interaction.type===2&&interaction.data?.type!==4){
+          if(!validInteractionToken(interaction.token))return json(res,400,{error:'無效的互動憑證。'});
+          json(res,200,{type:5,data:{flags:64}});
+          const work=completeDeferredCommand(interaction,wallet,{fetchImpl}).catch(()=>console.warn('Discord command reply unavailable'));
+          deferredCommands.add(work);void work.finally(()=>deferredCommands.delete(work));return;
+        }
+        return json(res,200,await handleCommand(interaction,wallet.store,wallet.adminRoles));
       }
       if (path === '/api/token') {
         if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return json(res, 405, { error:'請使用 POST。' }); }
@@ -134,11 +152,11 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
         if(req.method!==(write?'POST':'GET'))return json(res,405,{error:'不支援此操作。'});
         const session=await wallet.service.authorize(req.headers.authorization);
         const {guild,user}=session;
-        if(path==='/api/wallet')return json(res,200,{state:wallet.store.state(guild,user)});
-        if(path==='/api/ledger')return json(res,200,{entries:wallet.store.history(guild,user,Number(new URL(req.url,'http://localhost').searchParams.get('before')||Number.MAX_SAFE_INTEGER))});
+        if(path==='/api/wallet')return json(res,200,{state:await wallet.store.state(guild,user)});
+        if(path==='/api/ledger')return json(res,200,{entries:await wallet.store.history(guild,user,Number(new URL(req.url,'http://localhost').searchParams.get('before')||Number.MAX_SAFE_INTEGER))});
         const body=await readJson(req);
-        if(path==='/api/checkin')return json(res,200,wallet.store.checkin(guild,user));
-        const result=wallet.store.spin(guild,user,body?.bet,body?.requestId);
+        if(path==='/api/checkin')return json(res,200,await wallet.store.checkin(guild,user));
+        const result=await wallet.store.spin(guild,user,body?.bet,body?.requestId);
         try { wallet.highlights?.enqueue(session,result.round.id); }
         catch { console.warn('Discord highlights: could not queue result'); }
         return json(res,200,result);
@@ -157,6 +175,7 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
       res.writeHead(200, { 'Content-Type':types[extname(file)] || 'application/octet-stream', 'Content-Length':data.length, 'X-Content-Type-Options':'nosniff', 'Cache-Control':decoded.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache' });
       res.end(req.method === 'HEAD' ? undefined : data);
     } catch (error) {
+      errorCode=['SQLITE_ERROR','SQLITE_BUSY','SQLITE_FULL','SQLITE_CORRUPT','EIO','EACCES','ENOSPC','ENOENT','ENOTDIR'].includes(error.code)?error.code:'UNEXPECTED_ERROR';
       // Do not echo provider responses, authorization codes, filesystem paths or secrets.
       const status = error.status || (['ENOENT','ENOTDIR'].includes(error.code) ? 404 : 502);
       const cooldown=status===429&&error.code==='SPIN_COOLDOWN';
@@ -165,4 +184,6 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
       else res.end();
     }
   });
+  server.drainCommands=()=>Promise.allSettled([...deferredCommands]);
+  return server;
 }

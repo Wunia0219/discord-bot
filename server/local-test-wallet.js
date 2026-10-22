@@ -16,7 +16,7 @@ export const LOCAL_TEST_PROFILES=[
 const defaultProfile={key:'default',user,name:'本機錢包測試',balance:10000};
 
 // A separate identity provider for loopback development. It cannot create Discord sessions.
-class LocalTestSessions {
+export class LocalTestSessions {
   constructor(store){this.store=store;this.sessions=new Map();}
   createLocal(profileKey='default'){
     const profile=profileKey==='default'?defaultProfile:LOCAL_TEST_PROFILES.find(profile=>profile.key===profileKey);

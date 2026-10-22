@@ -2,7 +2,7 @@ import { DATABASE_VERSION, openWalletDatabase } from './database.js';
 import { randomInt, randomUUID } from 'node:crypto';
 import { BETS, roundFromStops, REEL_STRIPS } from '../src/game/index.js';
 
-export const problem = (status, message, code) => Object.assign(new Error(message), { status, ...(code ? { code } : {}) });
+export const problem = (status, message, code) => Object.assign(new Error(message), { status, walletProblem:true, ...(code ? { code } : {}) });
 export const taipeiDay = now => new Date(now + 8*3600000).toISOString().slice(0,10);
 export const nextCheckin = now => new Date(Date.parse(taipeiDay(now)+'T00:00:00+08:00')+86400000).toISOString();
 const MAX_BALANCE = 1_000_000_000_000;

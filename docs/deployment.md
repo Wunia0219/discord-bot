@@ -62,6 +62,79 @@ npm run backend:restore -- --from backups/backend/test-某次備份.sqlite --to 
 
 這些管理工具都要求明確的 `APP_ENV=test` 或 `production`。在正式主機可以直接使用環境變數配合 `node scripts/admin/init-db.js`、`check-db.js`、`backup-db.js`、`restore-db.js`，不需要複製本機憑證檔。
 
+### 自動備份與監控
+
+`WALLET_ENABLED=true` 時，服務預設啟用 `OPERATIONS_ENABLED=true`。啟動立即檢查，之後每 5 分鐘在獨立 worker 唯讀驗帳、檢查資料庫及備份磁碟剩餘空間、驗證最近備份的 SHA-256；沒有有效備份或距上次成功已滿 6 小時時，建立包含 WAL 的一致快照並重新驗帳。排程不依賴玩家流量，同一程序不重疊執行，重啟會沿用未到期且校驗正確的備份。需要單一實例及持久磁碟；不支援多程序同時維護同一個來源。
+
+自動副本放在 `BACKUP_DIRECTORY/automatic/<來源識別碼>/`，依環境及資料庫絕對路徑隔離。只有剛建立並驗證新備份成功後，才清理此來源具有有效管理清單的舊副本；不刪手動備份、其他來源或無法辨識的檔案。預設保留 7 天、至少 3 份、最多 28 份。最低份數優先於天數，所以低流量或長期停機可能保留較舊副本。
+
+| 設定 | 預設 | 用途 |
+|---|---|---|
+| `BACKUP_INTERVAL_MINUTES` | `360` | 成功備份之間的最短間隔 |
+| `BACKUP_RETENTION_DAYS`／`BACKUP_KEEP_MIN`／`BACKUP_MAX_COUNT` | `7`／`3`／`28` | 自動副本天數及份數 |
+| `BACKUP_MAX_TOTAL_MB` | `256` | 此來源自動目錄中 SQLite 副本的容量上限，單位 MiB |
+| `MONITOR_INTERVAL_SECONDS` | `300` | 背景檢查間隔 |
+| `DISK_MIN_FREE_MB` | `256` | 資料庫及備份磁碟的最低可用空間，單位 MiB |
+
+容量上限會為新副本保留空間；若現有副本加上預估新副本將超標，停止建立並回報 `BACKUP_BUDGET_EXCEEDED`，不為騰出空間先刪除最後良好備份。副本意外超標也只移除該次新檔。操作人員需另存並確認可還原後整理容量，或調整上限。手動備份、主資料庫、WAL、清單與日誌不包含在這個副本上限內；這不是雲端用量或帳單限制。
+
+`operations/status.json` 保存最近驗帳、備份時間、容量、告警及 HTTP 計數。`operations/events.jsonl` 記錄異常、恢復、備份完成及 HTTP 5xx；日誌約 1 MiB 輪替，另保留 2 個舊檔。HTTP 錯誤以伺服器產生的 `X-Request-Id` 關聯，不記權杖、授權碼、請求內容、查詢參數或玩家 ID，不寫出原始例外文字。這些檔案留在被 Git 忽略的備份目錄，不能由靜態網站讀取。
+
+4188 使用 `npm run db:status`，4189 使用 `npm run backend:status`；主機可直接執行 `node scripts/admin/operations-status.js`。指令同時檢查狀態檔是否過期及本機 `/readyz` 是否可連線，異常以非零狀態結束，不把程序停止前留下的綠色檔案當作健康。啟動後首次背景驗帳完成前、資料庫異常、磁碟不足或監控過期時，`/readyz` 回傳 503，公開內容仍僅為 `{ok:false}`；備份失敗會讓管理狀態報警，但不單獨阻止正常錢包結算。`/healthz` 仍只表示 HTTP 程序存活。
+
+目前只提供本機狀態與日誌，沒有向 Email／Discord 發送通知。程式停止、電腦關機或磁碟整個損壞時，程序內排程無法繼續工作；這些同機副本也不能代替異地備份。正式部署後須另外安排外部可用性監控及異地還原驗收，尚未建立任何外部監控或排程。
+
+目前 Firebase 為 Spark 免費方案。本機 SQLite 的監控與備份不使用 Firestore。後續候選為 Netlify 提供前端及受信任 API、Firestore 儲存錢包；UptimeRobot 為可選的公開可用性監控，本輪不接入。Spark 的免費讀寫配額不包含 Firestore 原生備份／PITR，也不能將本機容量上限視為雲端費用保障。[Firestore 配額](https://firebase.google.com/docs/firestore/quotas)、[Firebase 方案](https://firebase.google.com/docs/projects/billing/firebase-pricing-plans)
+
+### Firestore Spark 接入
+
+遊戲版本維持 0.2.5。伺服器可明確選擇 `WALLET_BACKEND=sqlite`（預設）或 `firestore`。Firestore 模式目前限 `HOST=127.0.0.1`；只使用 Firestore Standard 的 `(default)` 資料庫，不需要新增 Firebase 網頁應用程式、Authentication、Cloud Storage 或 UptimeRobot。Discord 身分與伺服器權限仍由原本的 Node 後端驗證，瀏覽器不持有 Google 伺服器憑證，也不能直接修改錢包。
+
+設定流程：
+
+1. 沿用 Spark 專案 `slot-game-203db`。Firestore → 建立資料庫，選 Standard、`(default)`、適合玩家及後端的區域（目前本機候選為台灣 `asia-east1`）與正式版安全規則。區域建立後不能直接修改。
+2. 專案設定 → 服務帳戶 → Firebase Admin SDK → Node.js，產生私密金鑰；JSON 放在版本庫外的私密位置。應使用具 Firestore 所需 IAM 權限的服務身分，不將金鑰貼到聊天、前端、日誌或 Git。
+3. 以 `deploy/firestore.env.example` 建立被忽略的 `.env.firestore.local`，填入後端 Discord 設定、群 allowlist、專案 ID 及 `GOOGLE_APPLICATION_CREDENTIALS` 檔案路徑。憑證的專案 ID 必須與 `FIRESTORE_PROJECT_ID` 完全一致。雲端存取還必須明確設 `FIRESTORE_LIVE_ENABLED=true`；模擬器則只能使用 `demo-` 專案及 `127.0.0.1`。
+4. `npm run firestore:start` 預設使用獨立 4190 連接埠，供本機驗證。命名空間預設 `jokers-circus-test`，資料內同時驗證環境與結構版本；正式與測試資料不能混用。預設不更動既有 4188／4189 服務或 SQLite 資料。
+5. `npm run firestore:status` 讀取私有管理狀態、應用額度及雲端中繼資料。它不初始化錢包，也不建立測試籌碼；不健康時以非零狀態結束。管理狀態不透過公開 API 提供。
+
+正式版安全規則須拒絕瀏覽器對錢包資料的讀寫；Node SDK 經 IAM 存取，不依賴客戶端安全規則。`deploy/firestore.rules` 是官方模擬器測試使用的拒絕存取範本，不會自動發布。既有專案如有其他應用，必須檢查現有規則的廣泛允許條件，不能直接覆蓋其他應用規則。此階段不升級 Blaze、不啟用帳單、不執行 Firebase／網站部署。
+
+#### 額度保護
+
+Firestore 免費配額目前為每日讀取 50,000、寫入 20,000、刪除 20,000、儲存 1 GiB 及每月對外傳輸 10 GiB；每日配額約在美國太平洋時間午夜重置，與遊戲簽到的台灣午夜不同。[官方配額](https://firebase.google.com/docs/firestore/quotas)
+
+後端使用本機 SQLite 額度檔，所有連到同一專案的程序都必須共用 `FIRESTORE_QUOTA_PATH`，不能刪除或改名來重置。預設為 `data/firestore-usage-<專案 ID>.sqlite`。保護採滾動 24 小時加一分鐘緩衝，重啟不清零；同一檔案的多個連線以本機交易合併計數。讀取每次按文件數的 6 倍預留，寫入每次按 2 倍預留，Firestore 交易重試會重新預留；失敗、逾時與結果不明不退還。SDK 內部傳輸重試與 Google 的實際計量可能不同，因此管理狀態明確標示為保守估算，不能當作 Google 的即時帳單或全專案用量。
+
+| 設定 | 預設上限 | 範圍 |
+|---|---|---|
+| `FIRESTORE_READ_BUDGET` | `40000` | 每滾動 24 小時的讀取預留單位 |
+| `FIRESTORE_WRITE_BUDGET` | `15000` | 每滾動 24 小時的寫入預留單位 |
+| `FIRESTORE_EGRESS_MB` | `128` | 每滾動 24 小時取得的 JSON 內容大小，MiB |
+| `FIRESTORE_STORAGE_MB` | `128` | 此後端記錄的文件成長估算，MiB，不隨日期重置 |
+
+額度檔也記錄每個文件內容大小的最高估算；更新同一錢包只預留新增的大小，不把每次覆寫當成永久新增整份文件。估算以 JSON 大小的 4 倍加固定文件空間預留，包含保守索引緩衝，但不等同 Google 的儲存統計。讀取的內容大小在收到回應後累計，單次回應可能跨越門檻；後續網路操作即停止。這不包含 HTTP／gRPC 協定開銷或其他應用程式的流量。
+
+到達額度或無法讀寫額度檔時，拒絕新的遠端操作並回傳自然提示，不排入離線扣款佇列，不換新請求重試，也不顯示假成功。籌碼相關寫入全部在 Firestore 交易內，額度不足而中止不會只扣款未記帳。已提交但回應遺失的操作以原請求編號查回，避免重複扣款。管理查詢使用有上限的分頁及每日分類集合；不做沒有上限的歷史全表查詢、即時訂閱或每次健康檢查的深度驗帳。
+
+玩家錢包文件內只保留最近 100 局快取，輪詢讀取單一文件；5 秒短快取及相同玩家的並發請求合併可降低重複查詢，交易完成立即更新本程序快取。其他程序最多可能看到約 5 秒的快取延遲，簽到與扣款始終經過交易重新確認。完整歷史、帳本、原請求結果與每日摘要分開保存。
+
+Firestore 的 Discord 籌碼指令先回覆僅本人可見的延遲確認，再將完成結果 PATCH 回原回覆，避免雲端交易超過 Discord 的 3 秒初次回應限制。回覆傳送失敗只重試相同結果，不重新執行簽到、發放或扣款；活動啟動入口仍直接回傳啟動回應。互動權杖只留在記憶體，關閉服務會等待已接收指令處理完畢。[Discord 回覆時限](https://github.com/discord/discord-api-docs/blob/main/developers/interactions/receiving-and-responding.mdx)
+
+以上限制只涵蓋這個後端經過額度閘門的操作。控制台、其他伺服器、其他應用及直接使用 IAM 憑證的程式仍會消耗同專案額度；初次接入前要確認現有用量，並留意 Google 控制台。即使未到達本機估算，也可能因 Google 配額、IAM 或網路失敗而拒絕操作。Spark 不自動升級 Blaze。
+
+#### SQLite 資料移入與驗證
+
+`npm run firestore:migrate -- --from <已驗證的 SQLite 快照>` 只讀取來源，在相同環境的空白命名空間建立資料。它保留餘額、原回合及其數學版本、帳本編號、簽到去重、原請求結果、管理額度與更正關聯，不重新結算歷史或重新發放籌碼。先估算整份匯入與完整驗證能否放進應用額度；不足則在開始前拒絕。
+
+每一批文件與進度指標一起交易提交。中斷時目標維持 `importing`，不能啟動玩家服務；以同一來源重跑可接續，不能用不同快照覆蓋。全部建立後逐份讀回比對 JSON，驗證成功才改為可用；已存在玩家資料的命名空間不會覆蓋。匯入僅在明確執行該命令時發生，不由服務啟動自動觸發。切換遊戲前仍須停止來源寫入、保留一致快照並完成實際雲端驗收，兩邊資料不會自動雙向合併。
+
+Firestore 模式不會把雲端錢包當成本機 SQLite 備份，也不會啟動 SQLite 的磁碟／備份 worker。現有 SQLite 自動備份只保護 SQLite 來源，不能涵蓋後續 Firestore 新寫入。Firestore 原生備份與 PITR 需要計費；本輪尚未提供雲端錢包的異地備份排程。得獎公告的 SQLite 佇列也尚未移植，因此 Firestore 模式若設定公告 Webhook 會明確拒絕啟動，避免靜默遺失公告；目前未設定公告的遊戲不受影響。
+
+#### 模擬器驗收
+
+`npm run firestore:emulator:setup` 下載固定版本的 Firebase 官方模擬器並驗證 SHA-256，檔案留在被忽略的 `.tools`。準備 Java 21（或設定 `FIRESTORE_JAVA_PATH`），再執行 `npm run test:firestore`。測試程序只監聽 `127.0.0.1:8787`，使用 `demo-jokers-circus` 及獨立命名空間；結束關閉模擬器，不使用雲端專案憑證、部署或消耗 Firestore 配額。模型驗算、既有 SQLite 與 Discord 回歸仍由 `npm test` 驗證。
+
 ### 手機試玩
 
 在 Developer Portal 的本應用程式中，進入 **Activities → Settings → Supported Platforms**，勾選 **iOS** 與 **Android** 並儲存，保留原本的桌面平台。若手機顯示「This Activity is not currently available on this OS」，先確認此設定；Discord 會在載入遊戲前檢查支援平台。[Discord 官方說明](https://github.com/discord/discord-api-docs/blob/main/developers/activities/development-guides/local-development.mdx#launch-your-application-from-the-discord-client)

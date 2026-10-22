@@ -1,0 +1,109 @@
+import {DatabaseSync} from 'node:sqlite';
+import {createHash} from 'node:crypto';
+import {inspectWalletDatabase} from './database.js';
+import {taipeiDay} from './wallet.js';
+
+const digest=value=>createHash('sha256').update(value).digest('hex');
+const blank=()=>({checkin:{days:0,total:0},game:{rounds:0,bet:0,payout:0,net:0}});
+const category=kind=>({grant:'rewards',reversal:'rewards',checkin:'checkin',spin:'game'}[kind]||'other');
+
+// Read an audited SQLite snapshot; the source is never modified or reopened writable.
+export function firestoreImportPlan(filename,environment){
+  const audit=inspectWalletDatabase(filename,environment);
+  if(!audit.ok)throw new Error('Source database failed verification');
+  if(audit.counts.highlight_events||audit.counts.highlight_boards)throw new Error('Firestore migration of announcement queues is not supported');
+  const db=new DatabaseSync(filename,{readOnly:true}),documents=new Map(),wallets=new Map(),days=new Map(),adminDays=new Map();let nextId=0;
+  const put=(path,data,index={})=>{if(documents.has(path))throw new Error('Duplicate import target');documents.set(path,{path,data,index});};
+  try{
+    db.exec('BEGIN');
+    for(const row of db.prepare('SELECT * FROM wallets ORDER BY guild,user').iterate()){
+      const base=`wallets/${row.guild}_${row.user}`;
+      wallets.set(base,{...row,claimedDay:null,revision:0,history:[],summary:blank(),milestone:!!row.milestone});
+    }
+    for(const entry of db.prepare('SELECT * FROM ledger ORDER BY id').iterate()){
+      nextId=Math.max(nextId,entry.id);const base=`wallets/${entry.guild}_${entry.user}`,wallet=wallets.get(base),id=String(entry.id).padStart(16,'0'),cat=category(entry.kind);
+      wallet.revision=entry.id;
+      for(const name of ['ledger',`entries-${cat}`,`entries-${cat}-${entry.day}`,`entries-all-${entry.day}`])put(`${base}/${name}/${id}`,entry,{id:entry.id});
+      put(`ledger/${entry.id}`,entry);
+      if(entry.kind==='checkin'){
+        wallet.claimedDay=entry.day;wallet.summary.checkin.days++;wallet.summary.checkin.total+=entry.delta;
+        const key=base+'/days/'+entry.day,summary=days.get(key)||blank();summary.checkin.days++;summary.checkin.total+=entry.delta;days.set(key,summary);
+      }
+      if(entry.kind==='reversal')put(`reversals/${entry.reference}`,{entryId:entry.id});
+      if(entry.kind==='grant'){
+        const key=`adminDays/${entry.guild}_${entry.actor}_${entry.day}`;adminDays.set(key,{used:(adminDays.get(key)?.used||0)+entry.delta});
+      }
+    }
+    for(const row of db.prepare('SELECT * FROM rounds ORDER BY created DESC,rowid DESC').iterate()){
+      const round=JSON.parse(row.data),base=`wallets/${row.guild}_${row.user}`,wallet=wallets.get(base);
+      if(wallet.history.length<100)wallet.history.push(round);
+      put(`${base}/rounds/${round.id}`,round);
+      const day=taipeiDay(row.created),key=base+'/days/'+day,summary=days.get(key)||blank();
+      for(const target of [summary,wallet.summary]){target.game.rounds++;target.game.bet+=round.bet;target.game.payout+=round.payout;target.game.net=target.game.payout-target.game.bet;}
+      days.set(key,summary);
+    }
+    for(const row of db.prepare('SELECT * FROM operations ORDER BY guild,key').iterate())put(`operations/${digest(row.guild+'\0'+row.key)}`,{fingerprint:row.fingerprint,result:JSON.parse(row.result)});
+    for(const [path,data] of [...wallets,...days,...adminDays])put(path,data);
+  }finally{db.exec('ROLLBACK');db.close();}
+  const resources=[...documents.values()].sort((a,b)=>a.path.localeCompare(b.path));
+  const fingerprint=digest(JSON.stringify(resources));
+  return {environment,audit,resources,fingerprint,nextId};
+}
+
+// Imports into an empty namespace only. Each chunk and its progress commit atomically.
+// A partial import remains unavailable to players and resumes from that exact chunk.
+export async function importFirestore(store,plan,{batchSize=50}={}){
+  if(store.environment!==plan.environment)throw new Error('Import environment mismatch');
+  if(!Number.isInteger(batchSize)||batchSize<1||batchSize>100)throw new Error('Invalid import batch size');
+  let meta=await store.read(store.meta);
+  if(meta?.importFingerprint===plan.fingerprint&&meta.status==='ready')return {alreadyImported:true,documents:plan.resources.length,fingerprint:plan.fingerprint};
+  if(meta&&!(meta.status==='importing'&&meta.importFingerprint===plan.fingerprint)&&!(meta.status==='ready'&&meta.nextId===0))throw new Error('Firestore namespace is not empty; no existing wallets overwritten');
+  const used=store.quota.status(),remaining=plan.resources.length-(meta?.importDone||0);
+  const storage=plan.resources.map(record=>{
+    const bytes=Buffer.byteLength(JSON.stringify({json:JSON.stringify(record.data),...record.index}));
+    if(bytes>512*1024)throw new Error('Source contains an oversized Firestore document');
+    return {key:digest(store.settings.projectId+':'+store.root.path+'/'+record.path),bytes:bytes*4+512};
+  });
+  // Refuse before starting if this complete import plus its full verification cannot fit.
+  if(used.used.writes+2*(remaining+Math.ceil(remaining/batchSize)+2)>used.limits.writes
+    ||used.used.reads+6*(plan.resources.length+Math.ceil(remaining/batchSize)+10)>used.limits.reads
+    ||used.used.storageBytes+store.quota.estimateGrowth(storage)+65536>used.limits.storageBytes)throw new Error('Insufficient application allowance for complete import and verification');
+  await store.db.runTransaction(async tx=>{
+    const current=await store.read(store.meta,tx);
+    if(current&&!(current.status==='importing'&&current.importFingerprint===plan.fingerprint)&&!(current.status==='ready'&&current.nextId===0))throw new Error('Import target changed');
+    if(!current||current.status==='ready'){
+      store.quota.reserve({reads:6});
+      if(!(await tx.get(store.root.collection('wallets').limit(1))).empty)throw new Error('Firestore namespace is not empty; no existing wallets overwritten');
+    }
+    store.write(tx,store.meta,{version:1,environment:plan.environment,status:'importing',nextId:plan.nextId,
+      importFingerprint:plan.fingerprint,importDone:current?.importDone||0,importTotal:plan.resources.length});
+  },{maxAttempts:3});
+  store.ready=false;
+  for(;;){
+    const complete=await store.db.runTransaction(async tx=>{
+      const current=await store.read(store.meta,tx);
+      if(current.status!=='importing'||current.importFingerprint!==plan.fingerprint)throw new Error('Import state changed');
+      const start=current.importDone,chunk=plan.resources.slice(start,start+batchSize);
+      if(!chunk.length)return true;
+      for(const record of chunk)store.write(tx,store.db.doc(store.root.path+'/'+record.path),record.data,{create:true,index:record.index});
+      store.write(tx,store.meta,{...current,importDone:start+chunk.length});return false;
+    },{maxAttempts:3});
+    if(complete)break;
+  }
+  for(let start=0;start<plan.resources.length;start+=batchSize){
+    const chunk=plan.resources.slice(start,start+batchSize);store.quota.reserve({reads:6*chunk.length});
+    const snapshots=await store.db.getAll(...chunk.map(record=>store.db.doc(store.root.path+'/'+record.path)));
+    for(let i=0;i<chunk.length;i++){
+      if(!snapshots[i].exists||snapshots[i].get('json')!==JSON.stringify(chunk[i].data)
+        ||Object.entries(chunk[i].index).some(([key,value])=>snapshots[i].get(key)!==value))throw new Error('Imported Firestore document failed content verification');
+      store.quota.observe(Buffer.byteLength(snapshots[i].get('json')));
+    }
+  }
+  await store.db.runTransaction(async tx=>{
+    const current=await store.read(store.meta,tx);
+    if(current.status!=='importing'||current.importFingerprint!==plan.fingerprint||current.importDone!==plan.resources.length)throw new Error('Import verification state changed');
+    store.write(tx,store.meta,{...current,status:'ready'});
+  },{maxAttempts:3});
+  store.cache.clear();store.ready=true;store.readyAt=store.clock();
+  return {documents:plan.resources.length,fingerprint:plan.fingerprint,verified:true};
+}

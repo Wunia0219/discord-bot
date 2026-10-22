@@ -8,6 +8,8 @@ import { assertDatabaseEnvironment } from './database.js';
 import { assertDiscordConfiguration } from './discord-config.js';
 
 export function walletConfig(env=process.env){
+  if(env.WALLET_ENABLED==='true'&&env.WALLET_BACKEND==='firestore')return import('./firestore-config.js').then(({firestoreWalletConfig})=>firestoreWalletConfig(env));
+  if(env.WALLET_BACKEND&&!['sqlite','firestore'].includes(env.WALLET_BACKEND))throw new Error('Invalid WALLET_BACKEND');
   if(env.LOCAL_WALLET_TEST==='true')return localTestWalletConfig(env);
   if(env.WALLET_ENABLED!=='true')return null;
   const environment=env.APP_ENV;

@@ -12,6 +12,7 @@ export function privateReply(environment, description, title = '你的籌碼', t
 export function commandError(error, { store, subcommand } = {}) {
   const number = value => value.toLocaleString('en-US');
   const messages = {
+    FIRESTORE_BUDGET: ['今天先休息一下', '服務今天的使用量較高，暫時不能操作籌碼。請稍後再試，或找管理員幫忙看看。'],
     COMMAND_SCOPE: ['回到群裡再試試', '請到有開放遊戲的群組頻道，使用這個指令。'],
     GUILD_CLOSED: ['這個群還沒開放遊戲', '換到有開放遊戲的群再試試，或找群裡的管理員問問。'],
     PLAYER_INVALID: ['重新開啟 Discord 再試試', '這次沒能認出你的帳號，重新開啟 Discord 後再試一次。'],
