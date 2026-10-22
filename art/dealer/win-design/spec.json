@@ -1,0 +1,103 @@
+{
+  "name": "win",
+  "intent": "Adult male host warmly flirts with direct eye contact and unmistakable joy",
+  "sourceFrameSize": [
+    1152,
+    1664
+  ],
+  "sourcePaintingSize": [
+    1024,
+    1536
+  ],
+  "pad": [
+    64,
+    64
+  ],
+  "runtimeFrameSize": [
+    576,
+    832
+  ],
+  "sourceFPS": 30,
+  "candidateSamples": 108,
+  "durationMs": 3600,
+  "playback": "one shot returning to exact idle neutral; not new unrelated loop",
+  "anchor": [
+    0.5,
+    0.9615384615384616
+  ],
+  "expressionReferenceCropSource": [
+    500,
+    50,
+    756,
+    306
+  ],
+  "style": "same painted master identity; black/white hair, red/gold heterochromia, matching skin light and costume",
+  "alpha": "transparent outputs, same canvas and >=16px padding",
+  "invariants": [
+    "idle96 untouched and losslessly encoded",
+    "original crossed feet stable",
+    "whole face/neck/collars remain one connected surface",
+    "complete free arm; no bare wrist/elbow plate cuts",
+    "no independently redrawn full character for each render sample",
+    "no visual sparkles overlay substituting for body emotion"
+  ],
+  "beats": [
+    {
+      "timeMs": [
+        0,
+        450
+      ],
+      "action": "Gentle onset; eye contact and warm smile, no reverse arm preparation."
+    },
+    {
+      "timeMs": [
+        450,
+        1550
+      ],
+      "action": "Continuous connected side tilt with delayed, restrained 6.5-degree dice-arm presentation."
+    },
+    {
+      "timeMs": [
+        1550,
+        2900
+      ],
+      "action": "Rounded turnaround with no extension freeze; arm and body relax while joy and wink stay readable."
+    },
+    {
+      "timeMs": [
+        2900,
+        3600
+      ],
+      "action": "Continuous deceleration to exact retained idle neutral, no long frozen arm tail."
+    }
+  ],
+  "status": "R6 local arm-cadence calibration completed for user aesthetic review",
+  "deployment": "local only",
+  "bodyPeakDegrees": 0.95,
+  "freeArmRelativePeakDegrees": 6.5,
+  "geometrySource": "scripts/assets/dealer_win_body.py",
+  "expressionGeometry": "scripts/assets/dealer_expression_morph.py",
+  "uniqueDecodedSourceFrames": 107,
+  "independentAnimatedWebp": {
+    "file": "images/dealer/v4/previews/win-r6.webp",
+    "codedFrames": 108,
+    "durationMs": 3600,
+    "note": "108 forward time samples; one shared neutral at first/last gives 107 different source RGBA images, not 108 new drawings."
+  },
+  "reviewSummary": "test-results/dealer-win/r6/review-summary.json",
+  "motionRevision": 6,
+  "timingCalibration": {
+    "reason": "R5 hand felt like rehabilitation and choppy compared with retained idle.",
+    "body": "normalized u^3(1-u)^5",
+    "freeArm": "normalized u^3(1-u)^4",
+    "timeDomainSeconds": [
+      0,
+      3.566666666666667
+    ],
+    "bodyPeakTimeSeconds": 1.3375000000000001,
+    "handPeakTimeSeconds": 1.5285714285714287,
+    "initialReversePreparation": false,
+    "extensionHoldInterval": false,
+    "idleFilesAndTiming": "preserved exactly"
+  }
+}

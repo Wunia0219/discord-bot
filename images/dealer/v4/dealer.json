@@ -1,0 +1,5109 @@
+{
+  "version": 4,
+  "fps": 30,
+  "frameSize": [
+    576,
+    832
+  ],
+  "sourceFrameSize": [
+    1152,
+    1664
+  ],
+  "anchor": [
+    0.5,
+    0.9615384615384616
+  ],
+  "clips": {
+    "idle": {
+      "loop": true,
+      "frames": 96,
+      "durationMs": 3200.0,
+      "label": "待機",
+      "status": "local review candidate",
+      "pages": [
+        {
+          "file": "idle-000.webp",
+          "frames": {
+            "idle-0000": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0001": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0002": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0003": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-001.webp",
+          "frames": {
+            "idle-0004": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0005": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0006": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0007": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-002.webp",
+          "frames": {
+            "idle-0008": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0009": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0010": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0011": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-003.webp",
+          "frames": {
+            "idle-0012": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0013": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0014": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0015": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-004.webp",
+          "frames": {
+            "idle-0016": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0017": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0018": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0019": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-005.webp",
+          "frames": {
+            "idle-0020": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0021": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0022": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0023": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-006.webp",
+          "frames": {
+            "idle-0024": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0025": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0026": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0027": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-007.webp",
+          "frames": {
+            "idle-0028": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0029": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0030": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0031": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-008.webp",
+          "frames": {
+            "idle-0032": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0033": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0034": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0035": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-009.webp",
+          "frames": {
+            "idle-0036": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0037": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0038": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0039": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-010.webp",
+          "frames": {
+            "idle-0040": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0041": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0042": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0043": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-011.webp",
+          "frames": {
+            "idle-0044": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0045": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0046": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0047": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-012.webp",
+          "frames": {
+            "idle-0048": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0049": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0050": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0051": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-013.webp",
+          "frames": {
+            "idle-0052": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0053": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0054": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0055": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-014.webp",
+          "frames": {
+            "idle-0056": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0057": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0058": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0059": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-015.webp",
+          "frames": {
+            "idle-0060": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0061": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0062": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0063": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-016.webp",
+          "frames": {
+            "idle-0064": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0065": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0066": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0067": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-017.webp",
+          "frames": {
+            "idle-0068": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0069": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0070": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0071": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-018.webp",
+          "frames": {
+            "idle-0072": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0073": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0074": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0075": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-019.webp",
+          "frames": {
+            "idle-0076": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0077": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0078": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0079": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-020.webp",
+          "frames": {
+            "idle-0080": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0081": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0082": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0083": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-021.webp",
+          "frames": {
+            "idle-0084": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0085": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0086": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0087": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-022.webp",
+          "frames": {
+            "idle-0088": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0089": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0090": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0091": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "idle-023.webp",
+          "frames": {
+            "idle-0092": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0093": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0094": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "idle-0095": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        }
+      ],
+      "order": [
+        "idle-0000",
+        "idle-0001",
+        "idle-0002",
+        "idle-0003",
+        "idle-0004",
+        "idle-0005",
+        "idle-0006",
+        "idle-0007",
+        "idle-0008",
+        "idle-0009",
+        "idle-0010",
+        "idle-0011",
+        "idle-0012",
+        "idle-0013",
+        "idle-0014",
+        "idle-0015",
+        "idle-0016",
+        "idle-0017",
+        "idle-0018",
+        "idle-0019",
+        "idle-0020",
+        "idle-0021",
+        "idle-0022",
+        "idle-0023",
+        "idle-0024",
+        "idle-0025",
+        "idle-0026",
+        "idle-0027",
+        "idle-0028",
+        "idle-0029",
+        "idle-0030",
+        "idle-0031",
+        "idle-0032",
+        "idle-0033",
+        "idle-0034",
+        "idle-0035",
+        "idle-0036",
+        "idle-0037",
+        "idle-0038",
+        "idle-0039",
+        "idle-0040",
+        "idle-0041",
+        "idle-0042",
+        "idle-0043",
+        "idle-0044",
+        "idle-0045",
+        "idle-0046",
+        "idle-0047",
+        "idle-0048",
+        "idle-0049",
+        "idle-0050",
+        "idle-0051",
+        "idle-0052",
+        "idle-0053",
+        "idle-0054",
+        "idle-0055",
+        "idle-0056",
+        "idle-0057",
+        "idle-0058",
+        "idle-0059",
+        "idle-0060",
+        "idle-0061",
+        "idle-0062",
+        "idle-0063",
+        "idle-0064",
+        "idle-0065",
+        "idle-0066",
+        "idle-0067",
+        "idle-0068",
+        "idle-0069",
+        "idle-0070",
+        "idle-0071",
+        "idle-0072",
+        "idle-0073",
+        "idle-0074",
+        "idle-0075",
+        "idle-0076",
+        "idle-0077",
+        "idle-0078",
+        "idle-0079",
+        "idle-0080",
+        "idle-0081",
+        "idle-0082",
+        "idle-0083",
+        "idle-0084",
+        "idle-0085",
+        "idle-0086",
+        "idle-0087",
+        "idle-0088",
+        "idle-0089",
+        "idle-0090",
+        "idle-0091",
+        "idle-0092",
+        "idle-0093",
+        "idle-0094",
+        "idle-0095"
+      ],
+      "sourceFiles": [
+        "idle-000.png",
+        "idle-001.png",
+        "idle-002.png",
+        "idle-003.png",
+        "idle-004.png",
+        "idle-005.png",
+        "idle-006.png",
+        "idle-007.png",
+        "idle-008.png",
+        "idle-009.png",
+        "idle-010.png",
+        "idle-011.png",
+        "idle-012.png",
+        "idle-013.png",
+        "idle-014.png",
+        "idle-015.png",
+        "idle-016.png",
+        "idle-017.png",
+        "idle-018.png",
+        "idle-019.png",
+        "idle-020.png",
+        "idle-021.png",
+        "idle-022.png",
+        "idle-023.png",
+        "idle-024.png",
+        "idle-025.png",
+        "idle-026.png",
+        "idle-027.png",
+        "idle-028.png",
+        "idle-029.png",
+        "idle-030.png",
+        "idle-031.png",
+        "idle-032.png",
+        "idle-033.png",
+        "idle-034.png",
+        "idle-035.png",
+        "idle-036.png",
+        "idle-037.png",
+        "idle-038.png",
+        "idle-039.png",
+        "idle-040.png",
+        "idle-041.png",
+        "idle-042.png",
+        "idle-043.png",
+        "idle-044.png",
+        "idle-045.png",
+        "idle-046.png",
+        "idle-047.png",
+        "idle-048.png",
+        "idle-049.png",
+        "idle-050.png",
+        "idle-051.png",
+        "idle-052.png",
+        "idle-053.png",
+        "idle-054.png",
+        "idle-055.png",
+        "idle-056.png",
+        "idle-057.png",
+        "idle-058.png",
+        "idle-059.png",
+        "idle-060.png",
+        "idle-061.png",
+        "idle-062.png",
+        "idle-063.png",
+        "idle-064.png",
+        "idle-065.png",
+        "idle-066.png",
+        "idle-067.png",
+        "idle-068.png",
+        "idle-069.png",
+        "idle-070.png",
+        "idle-071.png",
+        "idle-072.png",
+        "idle-073.png",
+        "idle-074.png",
+        "idle-075.png",
+        "idle-076.png",
+        "idle-077.png",
+        "idle-078.png",
+        "idle-079.png",
+        "idle-080.png",
+        "idle-081.png",
+        "idle-082.png",
+        "idle-083.png",
+        "idle-084.png",
+        "idle-085.png",
+        "idle-086.png",
+        "idle-087.png",
+        "idle-088.png",
+        "idle-089.png",
+        "idle-090.png",
+        "idle-091.png",
+        "idle-092.png",
+        "idle-093.png",
+        "idle-094.png",
+        "idle-095.png"
+      ],
+      "allowDuplicates": true,
+      "duplicateNote": "R4 continuous source surface; authored neutral endpoint and subtle movement holds retained; render samples are not new drawings.",
+      "uniqueDecodedFrames": 92,
+      "sourceUrl": "/art/dealer/v4/frames/idle/idle-000.webp",
+      "renderMethod": "single original body surface sampled with premultiplied alpha; rigid neck/collars, bounded continuous cloth map; intact shoulder-attached free arm",
+      "motionRevision": 4,
+      "webpSourceFiles": [
+        "idle-000.webp",
+        "idle-001.webp",
+        "idle-002.webp",
+        "idle-003.webp",
+        "idle-004.webp",
+        "idle-005.webp",
+        "idle-006.webp",
+        "idle-007.webp",
+        "idle-008.webp",
+        "idle-009.webp",
+        "idle-010.webp",
+        "idle-011.webp",
+        "idle-012.webp",
+        "idle-013.webp",
+        "idle-014.webp",
+        "idle-015.webp",
+        "idle-016.webp",
+        "idle-017.webp",
+        "idle-018.webp",
+        "idle-019.webp",
+        "idle-020.webp",
+        "idle-021.webp",
+        "idle-022.webp",
+        "idle-023.webp",
+        "idle-024.webp",
+        "idle-025.webp",
+        "idle-026.webp",
+        "idle-027.webp",
+        "idle-028.webp",
+        "idle-029.webp",
+        "idle-030.webp",
+        "idle-031.webp",
+        "idle-032.webp",
+        "idle-033.webp",
+        "idle-034.webp",
+        "idle-035.webp",
+        "idle-036.webp",
+        "idle-037.webp",
+        "idle-038.webp",
+        "idle-039.webp",
+        "idle-040.webp",
+        "idle-041.webp",
+        "idle-042.webp",
+        "idle-043.webp",
+        "idle-044.webp",
+        "idle-045.webp",
+        "idle-046.webp",
+        "idle-047.webp",
+        "idle-048.webp",
+        "idle-049.webp",
+        "idle-050.webp",
+        "idle-051.webp",
+        "idle-052.webp",
+        "idle-053.webp",
+        "idle-054.webp",
+        "idle-055.webp",
+        "idle-056.webp",
+        "idle-057.webp",
+        "idle-058.webp",
+        "idle-059.webp",
+        "idle-060.webp",
+        "idle-061.webp",
+        "idle-062.webp",
+        "idle-063.webp",
+        "idle-064.webp",
+        "idle-065.webp",
+        "idle-066.webp",
+        "idle-067.webp",
+        "idle-068.webp",
+        "idle-069.webp",
+        "idle-070.webp",
+        "idle-071.webp",
+        "idle-072.webp",
+        "idle-073.webp",
+        "idle-074.webp",
+        "idle-075.webp",
+        "idle-076.webp",
+        "idle-077.webp",
+        "idle-078.webp",
+        "idle-079.webp",
+        "idle-080.webp",
+        "idle-081.webp",
+        "idle-082.webp",
+        "idle-083.webp",
+        "idle-084.webp",
+        "idle-085.webp",
+        "idle-086.webp",
+        "idle-087.webp",
+        "idle-088.webp",
+        "idle-089.webp",
+        "idle-090.webp",
+        "idle-091.webp",
+        "idle-092.webp",
+        "idle-093.webp",
+        "idle-094.webp",
+        "idle-095.webp"
+      ]
+    },
+    "win": {
+      "loop": false,
+      "frames": 108,
+      "durationMs": 3600.0000000000005,
+      "label": "中獎・傾心致意",
+      "status": "local R6 arm-cadence review candidate; recorded checks complete",
+      "pages": [
+        {
+          "file": "win-000.webp",
+          "frames": {
+            "win-0000": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0001": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0002": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0003": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-001.webp",
+          "frames": {
+            "win-0004": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0005": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0006": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0007": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-002.webp",
+          "frames": {
+            "win-0008": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0009": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0010": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0011": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-003.webp",
+          "frames": {
+            "win-0012": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0013": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0014": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0015": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-004.webp",
+          "frames": {
+            "win-0016": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0017": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0018": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0019": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-005.webp",
+          "frames": {
+            "win-0020": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0021": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0022": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0023": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-006.webp",
+          "frames": {
+            "win-0024": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0025": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0026": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0027": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-007.webp",
+          "frames": {
+            "win-0028": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0029": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0030": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0031": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-008.webp",
+          "frames": {
+            "win-0032": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0033": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0034": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0035": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-009.webp",
+          "frames": {
+            "win-0036": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0037": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0038": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0039": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-010.webp",
+          "frames": {
+            "win-0040": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0041": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0042": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0043": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-011.webp",
+          "frames": {
+            "win-0044": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0045": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0046": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0047": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-012.webp",
+          "frames": {
+            "win-0048": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0049": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0050": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0051": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-013.webp",
+          "frames": {
+            "win-0052": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0053": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0054": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0055": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-014.webp",
+          "frames": {
+            "win-0056": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0057": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0058": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0059": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-015.webp",
+          "frames": {
+            "win-0060": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0061": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0062": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0063": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-016.webp",
+          "frames": {
+            "win-0064": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0065": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0066": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0067": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-017.webp",
+          "frames": {
+            "win-0068": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0069": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0070": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0071": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-018.webp",
+          "frames": {
+            "win-0072": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0073": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0074": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0075": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-019.webp",
+          "frames": {
+            "win-0076": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0077": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0078": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0079": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-020.webp",
+          "frames": {
+            "win-0080": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0081": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0082": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0083": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-021.webp",
+          "frames": {
+            "win-0084": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0085": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0086": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0087": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-022.webp",
+          "frames": {
+            "win-0088": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0089": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0090": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0091": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-023.webp",
+          "frames": {
+            "win-0092": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0093": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0094": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0095": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-024.webp",
+          "frames": {
+            "win-0096": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0097": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0098": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0099": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-025.webp",
+          "frames": {
+            "win-0100": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0101": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0102": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0103": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        },
+        {
+          "file": "win-026.webp",
+          "frames": {
+            "win-0104": {
+              "frame": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0105": {
+              "frame": {
+                "x": 576,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0106": {
+              "frame": {
+                "x": 0,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            },
+            "win-0107": {
+              "frame": {
+                "x": 576,
+                "y": 832,
+                "w": 576,
+                "h": 832
+              },
+              "sourceSize": {
+                "w": 576,
+                "h": 832
+              },
+              "spriteSourceSize": {
+                "x": 0,
+                "y": 0,
+                "w": 576,
+                "h": 832
+              },
+              "durationMs": 33.333333333333336
+            }
+          },
+          "meta": {
+            "size": {
+              "w": 1152,
+              "h": 1664
+            },
+            "scale": "1"
+          }
+        }
+      ],
+      "order": [
+        "win-0000",
+        "win-0001",
+        "win-0002",
+        "win-0003",
+        "win-0004",
+        "win-0005",
+        "win-0006",
+        "win-0007",
+        "win-0008",
+        "win-0009",
+        "win-0010",
+        "win-0011",
+        "win-0012",
+        "win-0013",
+        "win-0014",
+        "win-0015",
+        "win-0016",
+        "win-0017",
+        "win-0018",
+        "win-0019",
+        "win-0020",
+        "win-0021",
+        "win-0022",
+        "win-0023",
+        "win-0024",
+        "win-0025",
+        "win-0026",
+        "win-0027",
+        "win-0028",
+        "win-0029",
+        "win-0030",
+        "win-0031",
+        "win-0032",
+        "win-0033",
+        "win-0034",
+        "win-0035",
+        "win-0036",
+        "win-0037",
+        "win-0038",
+        "win-0039",
+        "win-0040",
+        "win-0041",
+        "win-0042",
+        "win-0043",
+        "win-0044",
+        "win-0045",
+        "win-0046",
+        "win-0047",
+        "win-0048",
+        "win-0049",
+        "win-0050",
+        "win-0051",
+        "win-0052",
+        "win-0053",
+        "win-0054",
+        "win-0055",
+        "win-0056",
+        "win-0057",
+        "win-0058",
+        "win-0059",
+        "win-0060",
+        "win-0061",
+        "win-0062",
+        "win-0063",
+        "win-0064",
+        "win-0065",
+        "win-0066",
+        "win-0067",
+        "win-0068",
+        "win-0069",
+        "win-0070",
+        "win-0071",
+        "win-0072",
+        "win-0073",
+        "win-0074",
+        "win-0075",
+        "win-0076",
+        "win-0077",
+        "win-0078",
+        "win-0079",
+        "win-0080",
+        "win-0081",
+        "win-0082",
+        "win-0083",
+        "win-0084",
+        "win-0085",
+        "win-0086",
+        "win-0087",
+        "win-0088",
+        "win-0089",
+        "win-0090",
+        "win-0091",
+        "win-0092",
+        "win-0093",
+        "win-0094",
+        "win-0095",
+        "win-0096",
+        "win-0097",
+        "win-0098",
+        "win-0099",
+        "win-0100",
+        "win-0101",
+        "win-0102",
+        "win-0103",
+        "win-0104",
+        "win-0105",
+        "win-0106",
+        "win-0107"
+      ],
+      "sourceFiles": [
+        "win-000.png",
+        "win-001.png",
+        "win-002.png",
+        "win-003.png",
+        "win-004.png",
+        "win-005.png",
+        "win-006.png",
+        "win-007.png",
+        "win-008.png",
+        "win-009.png",
+        "win-010.png",
+        "win-011.png",
+        "win-012.png",
+        "win-013.png",
+        "win-014.png",
+        "win-015.png",
+        "win-016.png",
+        "win-017.png",
+        "win-018.png",
+        "win-019.png",
+        "win-020.png",
+        "win-021.png",
+        "win-022.png",
+        "win-023.png",
+        "win-024.png",
+        "win-025.png",
+        "win-026.png",
+        "win-027.png",
+        "win-028.png",
+        "win-029.png",
+        "win-030.png",
+        "win-031.png",
+        "win-032.png",
+        "win-033.png",
+        "win-034.png",
+        "win-035.png",
+        "win-036.png",
+        "win-037.png",
+        "win-038.png",
+        "win-039.png",
+        "win-040.png",
+        "win-041.png",
+        "win-042.png",
+        "win-043.png",
+        "win-044.png",
+        "win-045.png",
+        "win-046.png",
+        "win-047.png",
+        "win-048.png",
+        "win-049.png",
+        "win-050.png",
+        "win-051.png",
+        "win-052.png",
+        "win-053.png",
+        "win-054.png",
+        "win-055.png",
+        "win-056.png",
+        "win-057.png",
+        "win-058.png",
+        "win-059.png",
+        "win-060.png",
+        "win-061.png",
+        "win-062.png",
+        "win-063.png",
+        "win-064.png",
+        "win-065.png",
+        "win-066.png",
+        "win-067.png",
+        "win-068.png",
+        "win-069.png",
+        "win-070.png",
+        "win-071.png",
+        "win-072.png",
+        "win-073.png",
+        "win-074.png",
+        "win-075.png",
+        "win-076.png",
+        "win-077.png",
+        "win-078.png",
+        "win-079.png",
+        "win-080.png",
+        "win-081.png",
+        "win-082.png",
+        "win-083.png",
+        "win-084.png",
+        "win-085.png",
+        "win-086.png",
+        "win-087.png",
+        "win-088.png",
+        "win-089.png",
+        "win-090.png",
+        "win-091.png",
+        "win-092.png",
+        "win-093.png",
+        "win-094.png",
+        "win-095.png",
+        "win-096.png",
+        "win-097.png",
+        "win-098.png",
+        "win-099.png",
+        "win-100.png",
+        "win-101.png",
+        "win-102.png",
+        "win-103.png",
+        "win-104.png",
+        "win-105.png",
+        "win-106.png",
+        "win-107.png"
+      ],
+      "allowDuplicates": true,
+      "duplicateNote": "R6 continuous eased single arc; preserve exact neutral endpoints, no extension plateau. Render samples are not new painted drawings.",
+      "sourceUrl": "/art/dealer/v4/frames/win/win-000.png",
+      "uniqueDecodedFrames": 107,
+      "motionRevision": 6,
+      "renderMethod": "same artist facial keys and continuous contact-centered body source; single C2 arc, intact 6.5-degree free arm, no reverse preparation or extension plateau"
+    }
+  },
+  "placement": {
+    "scene": {
+      "canvas": [
+        1440,
+        900
+      ],
+      "position": [
+        208.04,
+        757.12
+      ],
+      "scale": 0.84,
+      "background": "/art/dealer/rebuild/motion-scene-background.png",
+      "foreground": "/art/dealer/rebuild/motion-scene-foreground.png"
+    }
+  },
+  "source": {
+    "path": "/art/dealer/rebuild/host-master.png",
+    "nativeSize": [
+      1024,
+      1536
+    ],
+    "renderedCanvas": [
+      1152,
+      1664
+    ],
+    "rig": "/art/dealer/v4/rig-source.json"
+  },
+  "provenance": {
+    "path": "/art/dealer/v4/source/provenance.json",
+    "method": "same painted-source cutout rendering, not separate AI drawings at every frame"
+  },
+  "review": {
+    "scope": [
+      "idle",
+      "win"
+    ],
+    "status": "R6 arm-cadence calibration passed recorded engineering/source-regional/observed runtime checks; user aesthetic review candidate",
+    "retired": [
+      "weight-shift",
+      "small-win"
+    ],
+    "retirement": "user requested deletion of all images for both old actions",
+    "idle": "original 96 samples/runtime pages preserved; native lossless WebP equivalents verified separately",
+    "retainedIdleCompressionReport": "test-results/dealer-v4/idle-preservation/conversion-report.json",
+    "retiredActionDeletionReport": "test-results/dealer-v4/idle-preservation/deletion-report.json",
+    "newWinSpec": "art/dealer/win-design/spec.json",
+    "newWinEngineeringReport": "test-results/dealer-win/r6/engineering-review.json",
+    "newWinVisualReports": [
+      "test-results/dealer-win/r6/qa-face/review-coverage.json",
+      "test-results/dealer-win/r6/qa-body/visual-review.json"
+    ],
+    "newWinRuntimeReport": "test-results/dealer-win/r6/runtime-review.json",
+    "postCleanupVerification": "test-results/dealer-win/r6/post-cleanup-verification.json",
+    "summary": "test-results/dealer-win/r6/review-summary.json",
+    "limitations": "Native all-108 review covers recorded regions and full-body display size; browser checks are sampled views and loop counters, not every refresh or a pacing profiler. No main-game integration, device QA or deployment in this turn.",
+    "calibrationReason": "R5 frame-seam checks did not establish natural gesture cadence; user rejected the hand motion. R6 removes reverse preparation/flat extension, reduces 15 to 6.5 degrees and replaces separate ramps with a continuous arm-after-body arc."
+  },
+  "motionRevision": 6,
+  "status": "local review candidate; not main-game integration"
+}

@@ -1,0 +1,37 @@
+{
+  "revision": 4,
+  "status": "static-composition-proposal, not completed animation",
+  "tool": "built-in image_gen",
+  "master": {
+    "file": "host-master.png",
+    "nativeSize": [
+      1024,
+      1536
+    ],
+    "mode": "RGBA",
+    "sha256": "190d1cfc7b2986c38d3b2b7d54a517f7f8d865994c7a1fb32afbd7f3eb634447",
+    "prompt": "host-master-prompt.txt",
+    "builtInOutputFilename": "exec-f56710fd-53db-428c-b0c2-42e8f3c1b3e2.png"
+  },
+  "references": [
+    "../references/portrait-reference.png",
+    "../generated/dealer-full-body-v2.png",
+    "machine-frame-reference.png"
+  ],
+  "composition": {
+    "file": "concept-composite.png",
+    "assembler": "scripts/assets/compose-dealer-concept.py",
+    "geometry": "composition.json",
+    "machineArtUnchanged": true,
+    "layoutNotYetAppliedToGame": true
+  },
+  "cleanup": "deleted-sheets.json",
+  "keptSources": "User references, single masters, source frames, layers and original prompt/history records retained. Only exported atlases and their manifests were deleted.",
+  "review": [
+    "Single high-native-resolution body and costume are more readable than previous small cells.",
+    "Whole body, relaxed contact forearm and crossed stance reviewed; reel field and logo unobstructed.",
+    "Forearm/ledge is in front of frame, rear cape behind. Duplicate hanging bracket occluded by original frame.",
+    "Small hair-edge softness and detailed contact lighting remain refinements; no new motion/temporal-quality claim."
+  ],
+  "next": "Derive same-source painted layers and a one-second joint-motion probe before any full 24fps sprite export."
+}

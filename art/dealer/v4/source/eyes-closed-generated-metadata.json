@@ -1,0 +1,50 @@
+{
+  "tool": "built-in image_gen",
+  "calls": 1,
+  "intent": "one closed-eye retouch candidate for inspection only; not composited",
+  "master": {
+    "path": "art/dealer/rebuild/host-master.png",
+    "size": [
+      1024,
+      1536
+    ]
+  },
+  "reference": {
+    "path": "art/dealer/v4/source/eyes-open-reference.png",
+    "nativeCrop": [
+      535,
+      98,
+      704,
+      210
+    ],
+    "size": [
+      169,
+      112
+    ]
+  },
+  "generated": {
+    "path": "art/dealer/v4/source/eyes-closed-generated.png",
+    "size": [
+      1540,
+      1021
+    ],
+    "mode": "RGB",
+    "hasAlpha": false
+  },
+  "mapping": {
+    "targetOnMaster": [
+      535,
+      98,
+      169,
+      112
+    ],
+    "suggestedScaleToNative": [
+      0.10974025974025974,
+      0.10969637610186092
+    ],
+    "registration": "Same crop content requested; generated raster is larger and local geometry is not guaranteed pixel-identical. Inspect eyelid landmarks before using. No warp/resize/composite has been applied."
+  },
+  "nativeDetailLimit": "The supplied reference contains 169 x 112 native pixels. Larger generated output is synthesized and does not add captured native detail.",
+  "prompt": "art/dealer/v4/source/eyes-closed-prompt.txt",
+  "review": "Both eyes closed naturally. Full generated crop includes repainted surrounding skin/hair and must not replace the whole original crop; retain original non-eye pixels during any later compositing."
+}

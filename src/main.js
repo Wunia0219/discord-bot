@@ -153,7 +153,7 @@ function celebrate(kind,amount) {
   $('#celebration-amount').textContent=milestone?'12,000':`+${fmt(amount)}`;
   $('#celebration-note').textContent=milestone?'第一枚馬戲團徽章，已為你收藏。':'這一刻，傳說再次閃耀。';
   $('#celebration').classList.add('show');$('.game-panel').classList.add('big-win');
-  scene.celebrate(!milestone,!milestone);sound.win('big');
+  scene.celebrate(!milestone,!milestone);scene.reactToMilestone();sound.win('big');
   celebrationTimer=setTimeout(hideCelebration,4500);
 }
 async function spin() {
@@ -171,6 +171,7 @@ async function spin() {
       return;
     }
     sound.spin();
+    scene.prepareDealer(r);
     setBitmapNumber($('#balance'),fmt(r.before-r.bet));
     result('轉輪開始，準備揭曉。',`本局下注 ${fmt(r.bet)}`);
     const animation=scene.spin(r.stops,i=>sound.stop(i));
@@ -182,6 +183,7 @@ async function spin() {
     const symbols=r.wins.length?r.wins.map(w=>`${SYMBOL_NAMES[w.symbol]} ${w.count} 連・${w.ways} 組`).join('、'):'這局沒有連出中獎組合';
     result(r.payout?`這局獲得 ${fmt(r.payout)} 籌碼`:'這局沒有得獎',`${symbols}｜籌碼變化 ${signed(r.net)}`);
     const tier=presentRoundWin(r,{sound,celebrate,celebrateSmall:()=>scene.celebrate()});
+    scene.reactToRound(r);
     const timing=roundFeedbackTiming(r,tier);nextDelay=timing.autoDelay;
     if(r.milestone){clearTimeout(celebrationTimer);celebrationTimer=setTimeout(()=>celebrate('milestone',12000),tier?4500:1800);}
     // Space can shorten reel travel, but cannot cut off the resulting win.
@@ -248,8 +250,8 @@ $('#close-dialog').addEventListener('click',()=>$('#dialog').close());
 $('#dialog').addEventListener('click',e=>{if(e.target===$('#dialog')){const r=$('#dialog').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)$('#dialog').close();}});
 
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden){controls.stopAuto();controls.stopCurrent();scene.finish();if(ready)scene.app.stop();sound.setVisible(false);}
-  else {if(ready)scene.app.start();sound.setVisible(true);refreshWallet();}
+  if(document.hidden){scene.setDealerVisible(false);controls.stopAuto();controls.stopCurrent();scene.finish();if(ready)scene.app.stop();sound.setVisible(false);}
+  else {scene.setDealerVisible(true);if(ready)scene.app.start();sound.setVisible(true);refreshWallet();}
 });
 renderState();
 // History restores the wallet and reels, but a new visit has no current win.

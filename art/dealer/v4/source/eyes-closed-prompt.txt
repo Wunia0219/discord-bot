@@ -1,0 +1,10 @@
+Use case: precise-object-edit / identity-preserve.
+Asset type: a single closed-eyelid retouch patch for one normal blink, based on the supplied exact native face crop from an existing game character illustration.
+
+Edit target: eyes-open-reference.png, a 169 x 112 pixel crop of host-master.png. The crop rectangle on the unchanged 1024 x 1536 master is x=535, y=98, width=169, height=112. This crop is the only input and the only image to edit.
+
+Primary request: close BOTH eyes naturally, as the fully closed moment of a gentle ordinary blink. Replace the open irises/visible eyeball areas with anatomically plausible softly closed upper lids and the same dark natural lash lines. The lids must follow the existing tilted eye axes and the same three-quarter face perspective. Keep each eye's outer and inner corner positions, eye widths, asymmetry, brow-to-eye spacing, and existing character identity exactly as the input. The closed eyes should look calm and neutral, with no squinting, no exaggerated happy crescent, no wink and no smile change.
+
+Preserve everything outside the two very small eye/eyelid areas: identical original eyebrows, hair, black and white hair strands, face outline, nose bridge, nose, mouth, jewelry, ear, cheek, skin texture, warm shadows, highlights, painted edge softness, colors, head angle and framing. Do not repaint or beautify the rest of the face. Do not move, rotate, enlarge, recenter, crop, or add any visible area. Do not change the tilt or the scale of the head. Keep the image's exact rectangular composition and approximately 169:112 aspect ratio. If the tool outputs a larger raster, it must be the same crop enlarged uniformly, with no new surrounding content; extra output pixels are not a claim of additional native detail.
+
+Output: ONE single finished image of this same face crop with both eyelids closed. Keep the original background and existing opaque artwork exactly where they are. No sprite sheet, no multiple panels, no animation sequence, no labels, no guide lines, no watermark, no new light effects or noise. This is only a proposed eye patch for inspection; do not create a whole-body pose or additional face.

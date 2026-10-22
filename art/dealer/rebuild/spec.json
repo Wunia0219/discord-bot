@@ -1,0 +1,112 @@
+{
+  "revision": 4,
+  "status": "composition-design",
+  "role": "Charming adult male host/dealer accompanying the player, integrated physically and optically into the existing circus cabinet",
+  "preserve": [
+    "user portrait identity and heterochromia",
+    "black/white hair split",
+    "red/black/gold costume",
+    "original machine frame/reels/controls"
+  ],
+  "composition": [
+    "three-quarter body toward machine, face toward player",
+    "hip/forearm contact at matching burgundy/gold ledge",
+    "rear coat behind frame; contact hand in front",
+    "shared warm-gold upper-right light, red bounce, indigo shadows",
+    "protect reels and controls at all sizes"
+  ],
+  "master": "One high-native-resolution clean character, no 8-pose grid upscaling",
+  "animationPlan": "After composition review: same-source painted layers, properly connected shoulder/elbow/wrist, painted occlusion fills, distinct advance/settle/recovery curves, 30fps baked output. Do not create independent AI images for every temporal sample or use whole-body rubber warp. First validate one second of arm motion before full sheets.",
+  "bigWin": "Existing WIN overlay; character stays idle, no dedicated celebration",
+  "rejected": [
+    "v1/v2 micro-warp",
+    "v3 8 drawings replayed as 15 references, texture boil and low-resolution cells"
+  ],
+  "qualityGates": [
+    "native-size face/material/alpha review",
+    "same original machine pixels in concept composite",
+    "contact geometry and occlusion reviewed",
+    "no per-frame identity/material redrawing",
+    "constant-cadence motion probe before mass export"
+  ],
+  "deployment": "Local only; no Netlify, push, commit or version change",
+  "legMotion": {
+    "status": "Original crossed stance retained; prior IK trial rejected, no leg motion in current approved lean or R4 candidates.",
+    "default": "Relaxed crossed-leg host stance as in the selected composition",
+    "scope": "Consider occasional weight shift and a small uncross/reposition/recovery, not a foot gesture on every win",
+    "coordination": [
+      "Establish and name the support foot before moving the free foot",
+      "Transfer weight through pelvis and hips; knees track toes without inward twist",
+      "Keep the supported forearm and ledge contact coherent with torso lean",
+      "Lift heel/toe only after unloading the moving foot; plant before transferring weight back",
+      "Maintain head/body/limb lengths and fixed camera; deliberate steps stay inside shared canvas"
+    ],
+    "requiresPaintedArt": [
+      "Correct upper/lower leg and boot views for the chosen movement",
+      "Occluded trouser/cape/inner-leg areas exposed during uncrossing",
+      "Foreground/background overlap when one leg passes the other"
+    ],
+    "review": [
+      "Short motion probe before full atlas",
+      "Review full body and leg crop at authored speed and slow playback",
+      "Support foot must not slide; no knee inversion, limb growth, foot penetration or sudden leg swapping",
+      "Foot contact shadows follow actual grounded foot; no foot shadow floating above floor",
+      "Review start/end transition and at least three cycles in actual PixiJS at desktop/mobile size"
+    ],
+    "reject": "Do not approve from frame count or isolated stills; reject unnatural contact or weight transfer and do not wire it as completed animation",
+    "probe": {
+      "durationMs": 2000,
+      "targetFps": 30,
+      "renderedSamples": 60,
+      "drawingCountMeaning": "Rig-rendered continuous poses, not 60 new AI drawings",
+      "supportFoot": "Provisionally A = rear boot on viewer-left; trace each leg to its hip before accepting this assignment. Redraw if the anatomy or occlusion cannot be resolved.",
+      "activeFoot": "Provisionally B = front boot on viewer-right",
+      "phases": [
+        {
+          "ms": [
+            0,
+            300
+          ],
+          "beat": "Transfer pelvis toward A, unload B; keep forearm contact"
+        },
+        {
+          "ms": [
+            300,
+            650
+          ],
+          "beat": "A knee absorbs; B heel lifts then leaves ground, driven by hip/thigh"
+        },
+        {
+          "ms": [
+            650,
+            1000
+          ],
+          "beat": "B follows a small forward arc under its own hip to reduce crossing; toes track knee"
+        },
+        {
+          "ms": [
+            1000,
+            1200
+          ],
+          "beat": "B toe and sole plant gently, knee absorbs, brief settle"
+        },
+        {
+          "ms": [
+            1200,
+            1700
+          ],
+          "beat": "Weight returns to A; B recovers on a separate lower arc, cloth follows later"
+        },
+        {
+          "ms": [
+            1700,
+            2000
+          ],
+          "beat": "B restores crossed contact; pelvis/shoulders/sleeve settle without position or velocity snap"
+        }
+      ],
+      "reviewStatus": "Design review only. No new motion has been generated or accepted."
+    }
+  },
+  "currentAnimation": "R4: one original source-coordinate surface. Face/neck/collars share one rigid transform; supported joints and original crossed legs fixed; clothing transition measured within 3 percent local stretch/compression at authored peak. No independently redrawn temporal poses or split bare elbow/wrist. Approved lean artifacts frozen."
+}

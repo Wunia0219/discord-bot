@@ -1,6 +1,8 @@
 import { Application, Assets, Container, Graphics, Sprite, Texture, Rectangle } from 'pixi.js';
 import { SYMBOLS, SYMBOL_FRAMES, INITIAL_STOPS, REEL_STRIPS, gridFromStops } from '../game/index.js';
 import { reelAnimation, reelOffset, reelSpeed, quickStopAnimation, quickStopOffset, reelBounceOffset, REEL_BOUNCE_MS, WinCycle, WinSymbolPop } from './presentation.js';
+import { Dealer } from './dealer.js';
+import { dealerClipForRound } from './dealer-motion.js';
 import mainAtlas from '../../images/main.json';
 import symbolAtlas from '../../images/symbols.json';
 import mainUrl from '../../images/main.webp';
@@ -52,6 +54,9 @@ export class SlotScene {
       return [s, texture];
     }));
     this.app.stage.addChild(new Graphics().rect(GRID.x, GRID.y, GRID.w, GRID.h).fill(0x10172d));
+    this.dealer=new Dealer();
+    try{await this.dealer.init();}
+    catch(error){console.warn('Dealer artwork unavailable:',error.message);}
     const frame = this.addArt('circus-reel-frame.png', GRID.x - 80 * GRID.w / 607, GRID.y - 90 * GRID.h / 335, 768 * GRID.w / 607);
     frame.height = 483 * GRID.h / 335;
     const ornament = new Graphics();
@@ -65,6 +70,8 @@ export class SlotScene {
       this.reels.push({ strip, x, mask, stopped: true });
     }
     this.app.stage.addChild(ornament);
+    // Keep the companion in front of the decorative curtains, below the reels.
+    if(this.dealer.sprite)this.app.stage.addChild(this.dealer.sprite);
     this.reels.forEach(r => this.app.stage.addChild(r.mask, r.strip));
     this.setStops(this.currentStops);
     const shade = new Graphics();
@@ -95,6 +102,7 @@ export class SlotScene {
       const x = Number(style.getPropertyValue('--scene-x')) || 0;
       this.app.renderer.resize(width, height);
       this.app.stage.position.set(-x, 0);
+      this.dealer.layout(width);
       Object.assign(this.app.canvas.style, { width: '100%', height: 'auto' });
     };
     this.resizeObserver = new ResizeObserver(fitViewport);
@@ -168,6 +176,7 @@ export class SlotScene {
   spin(stops, onStop) {
     if (this.active) throw new Error('轉輪正在運轉');
     this.clearCelebration(); this.clearWins();
+    this.dealer?.play('idle',{reduced:this.reduced});
     return new Promise(resolve => {
       this.active = { time: 0, resolve, onStop, stops, quickStop: false };
       this.reels.forEach((r, i) => {
@@ -194,6 +203,10 @@ export class SlotScene {
       r.strip.y = plan.offset;
     });
   }
+  prepareDealer(round){this.dealer?.preload(dealerClipForRound(round));}
+  reactToRound(round){this.dealer?.play(dealerClipForRound(round),{reduced:this.reduced});}
+  reactToMilestone(){this.dealer?.play('idle',{reduced:this.reduced});}
+  setDealerVisible(visible){this.dealer?.setVisible(visible);}
   celebrate(big = false, showLine = true) {
     this.presentationPaused = big || !showLine;
     this.links.alpha = this.presentationPaused ? 0 : 1;
@@ -216,6 +229,7 @@ export class SlotScene {
     if (this.winCycle.index >= 0) { this.links.alpha = 1; this.winShade.alpha = 1; }
   }
   tick(t) {
+    this.dealer?.update(t,this.reduced);
     const dt = Math.min(t.elapsedMS, 50) / 1000;
     if (this.active) {
       const a = this.active; a.time += t.deltaMS;

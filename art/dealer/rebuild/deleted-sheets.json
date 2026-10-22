@@ -1,0 +1,274 @@
+[
+  {
+    "path": "images\\dealer\\anticipation-00.webp",
+    "bytes": 381040
+  },
+  {
+    "path": "images\\dealer\\anticipation-01.webp",
+    "bytes": 383052
+  },
+  {
+    "path": "images\\dealer\\anticipation-02.webp",
+    "bytes": 378770
+  },
+  {
+    "path": "images\\dealer\\anticipation-03.webp",
+    "bytes": 380832
+  },
+  {
+    "path": "images\\dealer\\big-win-00.webp",
+    "bytes": 383980
+  },
+  {
+    "path": "images\\dealer\\big-win-01.webp",
+    "bytes": 398116
+  },
+  {
+    "path": "images\\dealer\\big-win-02.webp",
+    "bytes": 390026
+  },
+  {
+    "path": "images\\dealer\\big-win-03.webp",
+    "bytes": 386412
+  },
+  {
+    "path": "images\\dealer\\big-win-04.webp",
+    "bytes": 398812
+  },
+  {
+    "path": "images\\dealer\\big-win-05.webp",
+    "bytes": 383480
+  },
+  {
+    "path": "images\\dealer\\dealer.json",
+    "bytes": 52343
+  },
+  {
+    "path": "images\\dealer\\greeting-00.webp",
+    "bytes": 388094
+  },
+  {
+    "path": "images\\dealer\\greeting-01.webp",
+    "bytes": 396138
+  },
+  {
+    "path": "images\\dealer\\greeting-02.webp",
+    "bytes": 394214
+  },
+  {
+    "path": "images\\dealer\\greeting-03.webp",
+    "bytes": 389836
+  },
+  {
+    "path": "images\\dealer\\idle-00.webp",
+    "bytes": 385540
+  },
+  {
+    "path": "images\\dealer\\idle-01.webp",
+    "bytes": 366332
+  },
+  {
+    "path": "images\\dealer\\idle-02.webp",
+    "bytes": 382680
+  },
+  {
+    "path": "images\\dealer\\idle-03.webp",
+    "bytes": 381636
+  },
+  {
+    "path": "images\\dealer\\idle-04.webp",
+    "bytes": 363094
+  },
+  {
+    "path": "images\\dealer\\idle-05.webp",
+    "bytes": 378722
+  },
+  {
+    "path": "images\\dealer\\no-win-00.webp",
+    "bytes": 387472
+  },
+  {
+    "path": "images\\dealer\\no-win-01.webp",
+    "bytes": 384078
+  },
+  {
+    "path": "images\\dealer\\no-win-02.webp",
+    "bytes": 391146
+  },
+  {
+    "path": "images\\dealer\\no-win-03.webp",
+    "bytes": 128198
+  },
+  {
+    "path": "images\\dealer\\return-00.webp",
+    "bytes": 388182
+  },
+  {
+    "path": "images\\dealer\\return-01.webp",
+    "bytes": 386324
+  },
+  {
+    "path": "images\\dealer\\return-02.webp",
+    "bytes": 198248
+  },
+  {
+    "path": "images\\dealer\\small-win-00.webp",
+    "bytes": 387020
+  },
+  {
+    "path": "images\\dealer\\small-win-01.webp",
+    "bytes": 392226
+  },
+  {
+    "path": "images\\dealer\\small-win-02.webp",
+    "bytes": 388448
+  },
+  {
+    "path": "images\\dealer\\small-win-03.webp",
+    "bytes": 386776
+  },
+  {
+    "path": "images\\dealer\\v3\\dealer.json",
+    "bytes": 9987
+  },
+  {
+    "path": "images\\dealer\\v3\\idle-00.webp",
+    "bytes": 215584
+  },
+  {
+    "path": "images\\dealer\\v3\\small-win-00.webp",
+    "bytes": 217650
+  },
+  {
+    "path": "art\\dealer\\sheets\\anticipation-00.png",
+    "bytes": 2164671
+  },
+  {
+    "path": "art\\dealer\\sheets\\anticipation-01.png",
+    "bytes": 2378319
+  },
+  {
+    "path": "art\\dealer\\sheets\\anticipation-02.png",
+    "bytes": 2268370
+  },
+  {
+    "path": "art\\dealer\\sheets\\anticipation-03.png",
+    "bytes": 2188316
+  },
+  {
+    "path": "art\\dealer\\sheets\\big-win-00.png",
+    "bytes": 2285256
+  },
+  {
+    "path": "art\\dealer\\sheets\\big-win-01.png",
+    "bytes": 2691475
+  },
+  {
+    "path": "art\\dealer\\sheets\\big-win-02.png",
+    "bytes": 2500996
+  },
+  {
+    "path": "art\\dealer\\sheets\\big-win-03.png",
+    "bytes": 2392365
+  },
+  {
+    "path": "art\\dealer\\sheets\\big-win-04.png",
+    "bytes": 2693418
+  },
+  {
+    "path": "art\\dealer\\sheets\\big-win-05.png",
+    "bytes": 2321777
+  },
+  {
+    "path": "art\\dealer\\sheets\\greeting-00.png",
+    "bytes": 2436183
+  },
+  {
+    "path": "art\\dealer\\sheets\\greeting-01.png",
+    "bytes": 2659418
+  },
+  {
+    "path": "art\\dealer\\sheets\\greeting-02.png",
+    "bytes": 2658996
+  },
+  {
+    "path": "art\\dealer\\sheets\\greeting-03.png",
+    "bytes": 2417178
+  },
+  {
+    "path": "art\\dealer\\sheets\\idle-00.png",
+    "bytes": 2521035
+  },
+  {
+    "path": "art\\dealer\\sheets\\idle-01.png",
+    "bytes": 2004075
+  },
+  {
+    "path": "art\\dealer\\sheets\\idle-02.png",
+    "bytes": 2502760
+  },
+  {
+    "path": "art\\dealer\\sheets\\idle-03.png",
+    "bytes": 2514260
+  },
+  {
+    "path": "art\\dealer\\sheets\\idle-04.png",
+    "bytes": 2004194
+  },
+  {
+    "path": "art\\dealer\\sheets\\idle-05.png",
+    "bytes": 2495674
+  },
+  {
+    "path": "art\\dealer\\sheets\\no-win-00.png",
+    "bytes": 2416330
+  },
+  {
+    "path": "art\\dealer\\sheets\\no-win-01.png",
+    "bytes": 2416277
+  },
+  {
+    "path": "art\\dealer\\sheets\\no-win-02.png",
+    "bytes": 2626478
+  },
+  {
+    "path": "art\\dealer\\sheets\\no-win-03.png",
+    "bytes": 694808
+  },
+  {
+    "path": "art\\dealer\\sheets\\return-00.png",
+    "bytes": 2431662
+  },
+  {
+    "path": "art\\dealer\\sheets\\return-01.png",
+    "bytes": 2444196
+  },
+  {
+    "path": "art\\dealer\\sheets\\return-02.png",
+    "bytes": 1215463
+  },
+  {
+    "path": "art\\dealer\\sheets\\small-win-00.png",
+    "bytes": 2381419
+  },
+  {
+    "path": "art\\dealer\\sheets\\small-win-01.png",
+    "bytes": 2565870
+  },
+  {
+    "path": "art\\dealer\\sheets\\small-win-02.png",
+    "bytes": 2468838
+  },
+  {
+    "path": "art\\dealer\\sheets\\small-win-03.png",
+    "bytes": 2419007
+  },
+  {
+    "path": "art\\dealer\\redesign\\sheets\\idle-00.png",
+    "bytes": 1934594
+  },
+  {
+    "path": "art\\dealer\\redesign\\sheets\\small-win-00.png",
+    "bytes": 1964306
+  }
+]

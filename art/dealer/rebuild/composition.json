@@ -1,0 +1,43 @@
+{
+  "status": "static design concept, not a gameplay screenshot or completed animation",
+  "canvas": [
+    1440,
+    900
+  ],
+  "machineTranslation": [
+    180,
+    30
+  ],
+  "machineOriginalArt": [
+    "images/main.webp",
+    "images/symbols.webp",
+    "images/jokers-circus/circus-background.webp"
+  ],
+  "frameOrigin": [
+    344,
+    148
+  ],
+  "frameSize": [
+    873,
+    588
+  ],
+  "hostNativeSize": [
+    1024,
+    1536
+  ],
+  "hostScale": 0.42,
+  "hostOrigin": [
+    -7,
+    112
+  ],
+  "layerOrder": [
+    "background",
+    "reel field",
+    "host rear/body",
+    "existing machine frame",
+    "host contact forearm/ledge",
+    "original reel symbols",
+    "original logo"
+  ],
+  "note": "Wider concept layout explores a true left-side host area. Runtime responsive layout has not been changed."
+}
