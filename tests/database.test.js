@@ -187,9 +187,37 @@ test('maintenance tools require an explicit environment and never create a missi
 });
 
 test('invalid admin roles are rejected before creating a database and failed optional setup releases its connection',t=>{
-  const {filename}=fixture(t),env={WALLET_ENABLED:'true',APP_ENV:'test',DATABASE_PATH:filename,ALLOWED_GUILD_IDS:guild};
+  const {filename}=fixture(t),env={WALLET_ENABLED:'true',APP_ENV:'test',DATABASE_PATH:filename,ALLOWED_GUILD_IDS:guild,
+    DISCORD_CLIENT_ID:user,DISCORD_CLIENT_SECRET:'test-secret',DISCORD_PUBLIC_KEY:'ab'.repeat(32)};
   assert.throws(()=>walletConfig({...env,CHIP_ADMIN_ROLE_IDS:'invalid'}),/Invalid CHIP_ADMIN_ROLE_IDS/);
   assert.equal(existsSync(filename),false);
   assert.throws(()=>walletConfig({...env,DISCORD_HIGHLIGHTS_WEBHOOK_URL:'https://example.com/private'}),/Invalid DISCORD_HIGHLIGHTS_WEBHOOK_URL/);
   assert.equal(inspectWalletDatabase(filename,'test').ok,true);
+});
+
+test('Discord startup requires explicit environment and credentials before touching any database path',t=>{
+  const {directory}=fixture(t),filename=join(directory,'must-not-be-created','wallet.sqlite');
+  const valid={WALLET_ENABLED:'true',APP_ENV:'test',DATABASE_PATH:filename,ALLOWED_GUILD_IDS:guild,
+    DISCORD_CLIENT_ID:user,DISCORD_CLIENT_SECRET:'test-secret',DISCORD_PUBLIC_KEY:'ab'.repeat(32)};
+  for(const invalid of [{APP_ENV:undefined},{APP_ENV:''},{APP_ENV:'prod'},
+    {DISCORD_CLIENT_ID:undefined},{DISCORD_CLIENT_ID:'not-an-id'},
+    {DISCORD_CLIENT_SECRET:''},{DISCORD_CLIENT_SECRET:'   '},
+    {DISCORD_PUBLIC_KEY:undefined},{DISCORD_PUBLIC_KEY:'ab'.repeat(31)},{DISCORD_PUBLIC_KEY:'z'.repeat(64)}]){
+    assert.throws(()=>walletConfig({...valid,...invalid}),/environment|Discord wallet requires/);
+    assert.equal(existsSync(filename),false);assert.equal(existsSync(join(directory,'must-not-be-created')),false);
+  }
+  const env={...process.env,...valid,APP_ENV:'',HOST:'127.0.0.1',PORT:'4188',LOCAL_WALLET_TEST:'false'};
+  const child=spawnSync(process.execPath,['server/index.js'],{env,encoding:'utf8',timeout:5000});
+  assert.notEqual(child.status,0);assert.match(child.stderr,/Invalid wallet environment/);
+  assert.ok(!child.stdout.includes('Activity server:'));assert.equal(existsSync(filename),false);
+});
+
+test('explicit Discord test and production configurations retain their respective initial balances',t=>{
+  const {directory}=fixture(t);
+  for(const environment of ['test','production']){
+    const wallet=walletConfig({WALLET_ENABLED:'true',APP_ENV:environment,DATABASE_PATH:join(directory,environment+'.sqlite'),
+      ALLOWED_GUILD_IDS:guild,DISCORD_CLIENT_ID:user,DISCORD_CLIENT_SECRET:'test-secret',DISCORD_PUBLIC_KEY:'ab'.repeat(32)});
+    try{assert.equal(wallet.store.environment,environment);assert.equal(wallet.store.state(guild,user).balance,environment==='test'?10000:0);}
+    finally{wallet.store.close();}
+  }
 });

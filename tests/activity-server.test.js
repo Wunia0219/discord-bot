@@ -7,13 +7,14 @@ import { createActivityServer } from '../server/app.js';
 import { WalletStore } from '../server/wallet.js';
 import { WalletService } from '../server/wallet-service.js';
 import { createWalletClient } from '../src/platform/wallet-client.js';
+import { LoginRateLimit } from '../server/login-rate-limit.js';
 
 const id='1561284960986599626';
 async function fixture(t, options={}) {
   const root=await mkdtemp(join(tmpdir(),'kemet-auth-'));
   await writeFile(join(root,'index.html'),'<html>game</html>');
   await writeFile(join(root,'.env.server.local'),'private-secret');
-  const server=createActivityServer({distDir:root,clientId:id,clientSecret:'test-secret',...options});
+  const server=createActivityServer({distDir:root,clientId:id,clientSecret:'test-secret',publicKey:'ab'.repeat(32),...options});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   t.after(async()=>{await new Promise(resolve=>{server.close(resolve);server.closeAllConnections();});await rm(root,{recursive:true,force:true});});
   const base=`http://127.0.0.1:${server.address().port}`;
@@ -73,6 +74,109 @@ test('missing credentials and upstream errors are safe and do not leak secrets',
   const broken=await fixture(t,{fetchImpl:async()=>Response.json({error:'test-secret'}, {status:401})});
   const response=await broken('/api/token',post({code:'x'}));
   assert.equal(response.status,502);assert.ok(!(await response.text()).includes('test-secret'));
+});
+
+test('Discord readiness refuses incomplete credentials even when its database is healthy',async t=>{
+  const store=new WalletStore({guildIds:['1441097301685698703']});t.after(()=>store.close());
+  for(const options of [{clientId:'invalid'},{clientSecret:''},{publicKey:undefined},{publicKey:'not-a-key'}]){
+    const request=await fixture(t,{wallet:{store},...options});
+    assert.equal((await request('/healthz')).status,200);
+    const response=await request('/readyz');
+    assert.equal(response.status,503);assert.deepEqual(await response.json(),{ok:false});
+  }
+});
+
+test('sequential failed logins are limited across rotating codes and spoofed forwarding headers, then recover',async t=>{
+  let now=0,calls=0,succeed=false;
+  const request=await fixture(t,{loginClock:()=>now,fetchImpl:async()=>{
+    calls++;
+    return succeed?Response.json({access_token:'access-test',scope:'identify'}):Response.json({error:'private-provider-detail'},{status:400});
+  }});
+  for(let i=0;i<10;i++){
+    const options=post({code:`different-code-${i}`});
+    options.headers['X-Forwarded-For']=`203.0.113.${i+1}`;
+    options.headers['CF-Connecting-IP']=`203.0.113.${i+1}`;
+    const response=await request('/api/token',options);
+    assert.equal(response.status,502);assert.ok(!(await response.text()).includes('private-provider-detail'));
+  }
+  const blocked=await request('/api/token',post({code:'another-code'}));
+  assert.equal(blocked.status,429);assert.equal(blocked.headers.get('Retry-After'),'60');assert.equal(calls,10);
+  now=59001;
+  const waiting=await request('/api/token',post({code:'later-code'}));
+  assert.equal(waiting.status,429);assert.equal(waiting.headers.get('Retry-After'),'1');assert.equal(calls,10);
+  now=60000;succeed=true;
+  assert.equal((await request('/api/token',post({code:'recovered-code'}))).status,200);
+  assert.equal(calls,11);
+});
+
+test('successful logins do not consume the failure budget or erase recent failures',async t=>{
+  let fail=false;
+  const request=await fixture(t,{loginClock:()=>0,fetchImpl:async()=>fail?Response.json({},{status:400}):Response.json({access_token:'access-test',scope:'identify'})});
+  for(let i=0;i<12;i++)assert.equal((await request('/api/token',post({code:'success-'+i}))).status,200);
+  fail=true;
+  for(let i=0;i<9;i++)assert.equal((await request('/api/token',post({code:'failure-'+i}))).status,502);
+  fail=false;assert.equal((await request('/api/token',post({code:'success-between-failures'}))).status,200);
+  fail=true;assert.equal((await request('/api/token',post({code:'tenth-failure'}))).status,502);
+  assert.equal((await request('/api/token',post({code:'blocked-after-success'}))).status,429);
+});
+
+test('login attempt budgets roll forward and concurrent late failures wait for enough slots',()=>{
+  let now=0;
+  const rate=new LoginRateLimit({clock:()=>now});
+  for(let i=0;i<120;i++)assert.equal(rate.take(),0);
+  assert.equal(rate.take(),60000);assert.equal(rate.attempts.length,120);
+  now=60000;assert.equal(rate.take(),0);
+  for(let i=0;i<11;i++){now=60000+i*1000;rate.failed();}
+  assert.equal(rate.take(),51000);
+  now=120000;assert.equal(rate.take(),1000,'one expiration does not yet reopen an overfull failure window');
+  now=121000;assert.equal(rate.take(),0);
+  assert.equal(rate.failures.length,9);
+});
+
+test('upstream 429 backoff blocks further exchanges and preserves Retry-After',async t=>{
+  let now=0,calls=0;
+  const request=await fixture(t,{loginClock:()=>now,fetchImpl:async()=>{
+    calls++;
+    return calls===1?Response.json({},{status:429,headers:{'Retry-After':'12'}}):Response.json({access_token:'access-test',scope:'identify'});
+  }});
+  const first=await request('/api/token',post({code:'provider-limited'}));
+  assert.equal(first.status,429);assert.equal(first.headers.get('Retry-After'),'12');
+  now=1000;
+  const second=await request('/api/token',post({code:'not-sent-to-provider'}));
+  assert.equal(second.status,429);assert.equal(second.headers.get('Retry-After'),'11');assert.equal(calls,1);
+  now=12000;
+  assert.equal((await request('/api/token',post({code:'after-provider-backoff'}))).status,200);
+  assert.equal(calls,2);
+});
+
+test('eight concurrent exchanges keep a ninth request away from the provider and release their slots',{timeout:5000},async t=>{
+  let calls=0,entered;
+  const allEntered=new Promise(resolve=>{entered=resolve;});
+  let release;
+  const gate=new Promise(resolve=>{release=resolve;});
+  const request=await fixture(t,{fetchImpl:async()=>{
+    if(++calls===8)entered();
+    await gate;return Response.json({access_token:'access-test',scope:'identify'});
+  }});
+  const requests=Array.from({length:8},(_,i)=>request('/api/token',post({code:'concurrent-'+i})));
+  try{
+    await allEntered;
+    const response=await request('/api/token',post({code:'ninth-code'}));
+    assert.equal(response.status,429);assert.equal(response.headers.get('Retry-After'),'1');assert.equal(calls,8);
+  }finally{release();await Promise.all(requests);}
+  assert.equal((await request('/api/token',post({code:'after-slots-released'}))).status,200);
+});
+
+test('invalid upstream retry intervals use a finite fallback and recover',async t=>{
+  for(const interval of ['NaN','-1','1e300']){
+    let now=0,calls=0;
+    const request=await fixture(t,{loginClock:()=>now,fetchImpl:async()=>{calls++;return Response.json({},{status:429,headers:{'Retry-After':interval}});}});
+    const response=await request('/api/token',post({code:'provider-backoff'}));
+    assert.equal(response.status,429);assert.equal(response.headers.get('Retry-After'),'60');
+    now=60000;
+    const recovered=await request('/api/token',post({code:'provider-backoff-again'}));
+    assert.equal(recovered.headers.get('Retry-After'),'60');assert.equal(calls,2);
+  }
 });
 test('static server serves the built entry but blocks dotfiles, source paths, and traversal',async t=>{
   const request=await fixture(t);

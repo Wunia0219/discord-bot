@@ -4,11 +4,16 @@ import { WalletStore } from './wallet.js';
 import { WalletService } from './wallet-service.js';
 import { highlightsConfig } from './highlights.js';
 import { localTestWalletConfig } from './local-test-wallet.js';
+import { assertDatabaseEnvironment } from './database.js';
+import { assertDiscordConfiguration } from './discord-config.js';
 
 export function walletConfig(env=process.env){
   if(env.LOCAL_WALLET_TEST==='true')return localTestWalletConfig(env);
   if(env.WALLET_ENABLED!=='true')return null;
-  const environment=env.APP_ENV || 'test';
+  const environment=env.APP_ENV;
+  // Validate before creating directories, opening a DB or applying migrations.
+  assertDatabaseEnvironment(environment);
+  assertDiscordConfiguration(env);
   const guildIds=(env.ALLOWED_GUILD_IDS||'').split(',').map(s=>s.trim()).filter(Boolean);
   const filename=resolve(env.DATABASE_PATH || `data/${environment}.sqlite`);
   const adminRoles=(env.CHIP_ADMIN_ROLE_IDS||'').split(',').map(s=>s.trim()).filter(Boolean);

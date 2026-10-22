@@ -7,6 +7,9 @@ const balance=value=>Number.isSafeInteger(value)&&value>=0&&value<=MAX_BALANCE;
 const parse=text=>{try{return JSON.parse(text);}catch{return null;}};
 const currentMath={gridFromStops,evaluateGrid};
 const operationKinds=new Set(['spin','checkin','grant','reversal','test_fixture']);
+// Older writes sampled the clock separately for ledger, JSON and sort time.
+// Keep a bounded 1-second compatibility allowance without rewriting old rows.
+const sameSettlementTime=(left,right)=>Number.isFinite(left)&&Number.isFinite(right)&&Math.abs(left-right)<=1000;
 
 // Stream the audit, retaining unsafe SQLite integers as BigInt so they are
 // rejected instead of rounding them or aborting the entire diagnostic report.
@@ -25,7 +28,8 @@ function validRound(row,round){
     ||!Number.isSafeInteger(round.payout)||round.payout<0
     ||round.net!==round.payout-round.bet||round.after!==round.before+round.net
     ||typeof round.time!=='string'||!Number.isFinite(Date.parse(round.time))||typeof round.rules!=='string'
-    ||!Number.isSafeInteger(row.created)||row.created<0)return false;
+    ||!Number.isSafeInteger(row.created)||row.created<0
+    ||!sameSettlementTime(Date.parse(round.time),row.created))return false;
   const math=round.rules===MODEL_VERSION?currentMath:LEGACY_MODELS[round.rules];
   if(!math)return false;
   try{
@@ -94,6 +98,10 @@ export function inspectSettlements(db){
       spinEntries++;
       const op=operationByKey.get(entry.guild,`spin:${entry.user}:${entry.reference}`),round=parse(op?.result)?.round;
       if(!object(round)||entry.actor!==entry.user||round.before!==entry.before||round.after!==entry.after||round.net!==entry.delta)add('Spin ledger errors');
+      else {
+        const canonical=roundById.get(entry.guild,entry.user,round.id);
+        if(!sameSettlementTime(time,Date.parse(round.time))||!sameSettlementTime(time,canonical?.created))add('Spin ledger time errors');
+      }
     }else if(operationKinds.has(entry.kind)){
       otherEntries++;
       if(entry.kind==='checkin'){

@@ -5,6 +5,8 @@ import { validSignature, handleCommand } from './commands.js';
 import { privateReply } from './bot-replies.js';
 import { MODEL_VERSION } from '../src/game/slot-math.js';
 import { isLocalTestRequest } from './local-test-wallet.js';
+import { discordConfigurationReady } from './discord-config.js';
+import { LoginRateLimit } from './login-rate-limit.js';
 
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.webp':'image/webp', '.png':'image/png', '.svg':'image/svg+xml', '.json':'application/json', '.woff2':'font/woff2' };
 const json = (res, status, data) => {
@@ -33,9 +35,14 @@ async function readJson(req) {
 }
 
 // Only built game files are served. Project sources and .env files are never exposed.
-export function createActivityServer({ clientId, clientSecret, publicKey, wallet=null, localPort=4188, distDir = resolve('dist'), fetchImpl = fetch } = {}) {
+export function createActivityServer({ clientId, clientSecret, publicKey, wallet=null, localPort=4188, distDir = resolve('dist'), fetchImpl = fetch, loginClock } = {}) {
   if(!Number.isInteger(localPort)||localPort<1||localPort>65535)throw new Error('Invalid local port');
   let activeExchanges = 0;
+  const loginRate = new LoginRateLimit({clock:loginClock});
+  const loginLimited = (res, delay, message='登入嘗試太頻繁，請稍後再試。') => {
+    res.setHeader('Retry-After',String(Math.max(1,Math.ceil(delay/1000))));
+    return json(res,429,{error:message});
+  };
   const allowedOrigins = new Set([`https://${clientId}.discordsays.com`, 'http://127.0.0.1:4187', 'http://127.0.0.1:4188', `http://127.0.0.1:${localPort}`]);
   return createServer(async (req, res) => {
     try {
@@ -64,7 +71,8 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
       if(path==='/healthz')return json(res,200,{ok:true,model:MODEL_VERSION});
       if(path==='/readyz'){
         if(!['GET','HEAD'].includes(req.method))return json(res,405,{error:'請使用 GET 或 HEAD。'});
-        const ready=wallet?.store.isReady()===true;
+        const ready=wallet?.store.isReady()===true
+          && (wallet.localTest===true || discordConfigurationReady({clientId,clientSecret,publicKey}));
         return json(res,ready?200:503,{ok:ready});
       }
       if(path==='/api/interactions'){
@@ -85,8 +93,11 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
         // Discord's proxy may omit Origin; authorization codes still must belong to our app.
         if (req.headers.origin && !allowedOrigins.has(req.headers.origin)) return json(res, 403, { error:'不允許的登入來源。' });
         if (!/^\d{17,20}$/.test(clientId || '') || !clientSecret?.trim()) return json(res, 503, { error:'登入後端尚未設定完成。' });
-        if (activeExchanges >= 8) return json(res, 429, { error:'登入忙碌中，請稍後重試。' });
+        if (activeExchanges >= 8) return loginLimited(res,1000,'登入忙碌中，請稍後重試。');
+        const retryAfterMs=loginRate.take();
+        if(retryAfterMs>0)return loginLimited(res,retryAfterMs);
         activeExchanges++;
+        let succeeded=false;
         try {
           const body = await readJson(req);
           const code=body?.code;
@@ -97,15 +108,24 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
             body:new URLSearchParams({ client_id:clientId, client_secret:clientSecret, grant_type:'authorization_code', code }),
             signal:AbortSignal.timeout(12000), redirect:'error',
           });
-          if (!upstream.ok) return json(res, upstream.status === 429 ? 429 : 502, { error:'Discord 登入未完成，請關閉活動後重試。' });
+          if (!upstream.ok) {
+            if(upstream.status===429){
+              const seconds=Number(upstream.headers.get('Retry-After'));
+              const delay=Number.isFinite(seconds)&&seconds>0&&seconds<=3600?Math.max(1000,Math.ceil(seconds*1000)):60000;
+              loginRate.defer(delay);
+              return loginLimited(res,delay,'Discord 登入忙碌中，請稍後再試。');
+            }
+            return json(res,502,{error:'Discord 登入未完成，請關閉活動後重試。'});
+          }
           const token = await upstream.json();
           if (typeof token.access_token !== 'string' || !token.access_token || !String(token.scope || '').split(' ').includes('identify')) {
             return json(res, 502, { error:'Discord 未提供有效的身分授權。' });
           }
-          // Access token exists only for the SDK authentication step; never log or persist it.
+          // The token is used by the SDK and in-memory membership checks; never log or write it to disk.
           const session=wallet?await wallet.service.create(token,body.guildId):null;
+          succeeded=true;
           return json(res, 200, { access_token:token.access_token,...(session?{session}:{}) });
-        } finally { activeExchanges--; }
+        } finally { if(!succeeded)loginRate.failed();activeExchanges--; }
       }
       if(['/api/wallet','/api/spin','/api/checkin','/api/ledger'].includes(path)){
         if(!wallet)return json(res,503,{error:'帳號籌碼尚未開啟。'});

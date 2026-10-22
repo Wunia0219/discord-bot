@@ -31,11 +31,10 @@ export class WalletStore {
     const created=this.db.prepare('INSERT OR IGNORE INTO wallets(guild,user,balance) VALUES(?,?,0)').run(guild,user).changes;
     if(created&&this.environment==='test')this.credit(guild,user,10000,'test_seed',null,'測試環境首次籌碼');
   }
-  credit(guild,user,delta,kind,actor,reason,reference=null){
+  credit(guild,user,delta,kind,actor,reason,reference=null,now=this.clock()){
     const before=this.db.prepare('SELECT balance FROM wallets WHERE guild=? AND user=?').get(guild,user).balance;
     const after=before+delta;
     if(!Number.isSafeInteger(after)||after<0||after>MAX_BALANCE)throw problem(409,'餘額不足或超出可記帳範圍。','BALANCE_LIMIT');
-    const now=this.clock();
     this.db.prepare('UPDATE wallets SET balance=? WHERE guild=? AND user=?').run(after,guild,user);
     const id=Number(this.db.prepare('INSERT INTO ledger(guild,user,kind,delta,before,after,actor,reason,time,day,reference) VALUES(?,?,?,?,?,?,?,?,?,?,?)').run(guild,user,kind,delta,before,after,actor,reason,new Date(now).toISOString(),taipeiDay(now),reference).lastInsertRowid);
     return {id,before,after,delta};
@@ -61,17 +60,18 @@ export class WalletStore {
     return this.tx(()=>{
       this.ensure(guild,user);
       const result=this.once(guild,`spin:${user}:${requestId}`,String(bet),()=>{
+        const settledAt=this.clock();
         const wallet=this.db.prepare('SELECT * FROM wallets WHERE guild=? AND user=?').get(guild,user);
-        const retryAfterMs=wallet.last_spin+this.spinDelay-this.clock();
+        const retryAfterMs=wallet.last_spin+this.spinDelay-settledAt;
         if(retryAfterMs>0)throw Object.assign(problem(429,'轉輪尚未就緒，請稍後再試。'),{code:'SPIN_COOLDOWN',retryAfterMs});
         if(wallet.balance<bet)throw problem(409,'籌碼不足，請降低下注、簽到或聯絡管理員。');
         const stops=REEL_STRIPS.map(strip=>randomInt(strip.length));
         const outcome=roundFromStops(bet,stops);
-        const entry=this.credit(guild,user,outcome.payout-bet,'spin',user,`下注 ${bet}／派彩 ${outcome.payout}`,requestId);
+        const entry=this.credit(guild,user,outcome.payout-bet,'spin',user,`下注 ${bet}／派彩 ${outcome.payout}`,requestId,settledAt);
         const milestone=entry.after>=12000&&!wallet.milestone;
-        const round={...outcome,id:randomUUID(),time:new Date(this.clock()).toISOString(),bet,before:entry.before,after:entry.after,net:entry.delta,milestone};
-        this.db.prepare('UPDATE wallets SET last_spin=?,milestone=? WHERE guild=? AND user=?').run(this.clock(),wallet.milestone||Number(milestone),guild,user);
-        this.db.prepare('INSERT INTO rounds VALUES(?,?,?,?,?)').run(guild,user,round.id,JSON.stringify(round),this.clock());
+        const round={...outcome,id:randomUUID(),time:new Date(settledAt).toISOString(),bet,before:entry.before,after:entry.after,net:entry.delta,milestone};
+        this.db.prepare('UPDATE wallets SET last_spin=?,milestone=? WHERE guild=? AND user=?').run(settledAt,wallet.milestone||Number(milestone),guild,user);
+        this.db.prepare('INSERT INTO rounds VALUES(?,?,?,?,?)').run(guild,user,round.id,JSON.stringify(round),settledAt);
         return {round};
       });
       return {...result,state:this.snapshot(guild,user)};
@@ -79,7 +79,8 @@ export class WalletStore {
   }
   checkin(guild,user){return this.tx(()=>{
     this.ensure(guild,user);
-    const result=this.once(guild,`daily:${user}:${taipeiDay(this.clock())}`,'daily',()=>({entry:this.credit(guild,user,this.daily,'checkin',user,'每日簽到')}));
+    const claimedAt=this.clock();
+    const result=this.once(guild,`daily:${user}:${taipeiDay(claimedAt)}`,'daily',()=>({entry:this.credit(guild,user,this.daily,'checkin',user,'每日簽到',null,claimedAt)}));
     return {...result,state:this.snapshot(guild,user)};
   });}
   grant(guild,actor,user,amount,reason,requestId){

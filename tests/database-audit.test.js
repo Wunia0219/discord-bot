@@ -128,6 +128,56 @@ test('audit detects a checkin day that no longer agrees with its recorded Taiwan
   rejected(h,/Ledger date/);
 });
 
+test('audit rejects forged round, sort or ledger times even when the retry cache agrees',async t=>{
+  for(const mutation of ['round and cache','sort time','round cache and sort','ledger time'])await t.test(mutation,t=>{
+    const h=fixture(t),changed=new Date(now+86400000).toISOString();
+    if(mutation.includes('round')){
+      rewriteRound(h,round=>{round.time=changed;});
+      rewriteSpin(h,result=>{result.round.time=changed;});
+    }
+    if(mutation.includes('sort'))h.store.db.prepare('UPDATE rounds SET created=?').run(now+86400000);
+    if(mutation==='ledger time'){
+      h.store.db.exec('DROP TRIGGER ledger_no_update');
+      h.store.db.prepare("UPDATE ledger SET time=?,day='2026-10-23' WHERE kind='spin'").run(changed);
+    }
+    rejected(h,/Round settlement|Spin ledger time/);
+  });
+});
+
+test('timestamp auditing accepts bounded legacy clock sampling differences without rewriting history',t=>{
+  const h=fixture(t),changed=new Date(now+5).toISOString();
+  rewriteRound(h,round=>{round.time=changed;});rewriteSpin(h,result=>{result.round.time=changed;});
+  h.store.db.prepare('UPDATE rounds SET created=?').run(now+9);
+  h.store.close();const before=readFileSync(h.filename);
+  assert.equal(inspectWalletDatabase(h.filename,'test').ok,true);
+  assert.deepEqual(readFileSync(h.filename),before);
+});
+
+test('timestamp compatibility cannot hide a sort time outside its one-second bound',t=>{
+  const h=fixture(t);h.store.db.prepare('UPDATE rounds SET created=?').run(now+1001);
+  rejected(h,/Round settlement|Spin ledger time/);
+});
+
+test('new spins share one timestamp across ledger, round, ordering and cooldown even with a ticking clock',t=>{
+  const h=fixture(t);let tick=now+10000;h.store.clock=()=>tick++;
+  const request=randomUUID(),round=h.store.spin(guild,user,20,request).round;
+  const ledger=h.store.db.prepare("SELECT time FROM ledger WHERE reference=? AND kind='spin'").get(request);
+  const saved=h.store.db.prepare('SELECT created FROM rounds WHERE id=?').get(round.id);
+  const wallet=h.store.db.prepare('SELECT last_spin FROM wallets WHERE guild=? AND user=?').get(guild,user);
+  assert.equal(ledger.time,round.time);assert.equal(saved.created,Date.parse(round.time));assert.equal(wallet.last_spin,saved.created);
+  assert.equal(inspectWalletDatabase(h.filename,'test').ok,true);
+});
+
+test('a midnight checkin uses the same day in its operation key and its ledger timestamp',t=>{
+  const h=fixture(t);let tick=Date.parse('2026-10-23T15:59:59.999Z');h.store.clock=()=>tick++;
+  const result=h.store.checkin(guild,user);
+  const entry=h.store.db.prepare('SELECT time,day FROM ledger WHERE id=?').get(result.entry.id);
+  assert.equal(entry.time,'2026-10-23T15:59:59.999Z');assert.equal(entry.day,'2026-10-23');
+  const operation=h.store.db.prepare('SELECT result FROM operations WHERE key=?').get(`daily:${user}:2026-10-23`);
+  assert.equal(JSON.parse(operation.result).entry.id,result.entry.id);
+  assert.equal(inspectWalletDatabase(h.filename,'test').ok,true);
+});
+
 test('zero-net spins still require one distinct ledger link for each retry record',t=>{
   const h=fixture(t);let seed=19,stops;
   for(let attempt=0;attempt<20000;attempt++){

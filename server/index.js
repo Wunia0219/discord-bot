@@ -1,15 +1,15 @@
 import { fileURLToPath } from 'node:url';
 import { createActivityServer } from './app.js';
 import { walletConfig } from './config.js';
+import { discordConfigurationReady } from './discord-config.js';
 
 const port = Number(process.env.PORT || 4188);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT');
-const configured = Boolean(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET?.trim());
+const discord = {clientId:process.env.DISCORD_CLIENT_ID,clientSecret:process.env.DISCORD_CLIENT_SECRET,publicKey:process.env.DISCORD_PUBLIC_KEY};
+const configured = discordConfigurationReady(discord);
 const wallet=walletConfig();
 const server = createActivityServer({
-  clientId:process.env.DISCORD_CLIENT_ID,
-  clientSecret:process.env.DISCORD_CLIENT_SECRET,
-  publicKey:process.env.DISCORD_PUBLIC_KEY,
+  ...discord,
   localPort:port,
   wallet,
   distDir:fileURLToPath(new URL('../dist/', import.meta.url)),

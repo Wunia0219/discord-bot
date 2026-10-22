@@ -8,6 +8,10 @@ Discord 測試使用 `npm run activity:serve`：建置後，由 4188 的 Node �
 
 前端啟用 `VITE_DISCORD_AUTH_ENABLED=true`、`VITE_DISCORD_WALLET_ENABLED=true`。後端需設定 Application ID、Client Secret、Public Key、`WALLET_ENABLED=true`、明確的 `ALLOWED_GUILD_IDS`、`APP_ENV=test` 與測試資料庫路徑。日誌與憑證不要提交版本庫。
 
+Discord 錢包啟動時必須明確填入 `APP_ENV=test` 或 `production`，不再預設為測試環境。Application ID、Client Secret 及 64 位十六進位 Public Key 會在建立資料夾、開啟資料庫與監聽 HTTP 前檢查；缺漏或格式錯誤即拒絕啟動。這是本機設定檢查，不表示已向 Discord 驗證憑證的有效性。明確啟用的 loopback 假帳號模式保留原本的獨立限制，不需要 Discord 憑證。
+
+`/api/token` 每個服務程序最多同時交換 8 筆登入；滾動 60 秒視窗最多 120 次嘗試，10 次失敗後暫停新交換，直到有失敗離開視窗。成功登入不計入失敗，也不清除既有失敗。限流回傳 429 及 `Retry-After` 秒數；Discord 回傳 429 時也會暂停交換，依其有效的 1 小時以內重試秒數等待，缺漏或異常值則等待 60 秒。預算由所有登入共用，避免將 Discord／通道的共用代理誤認為個別玩家，不信任 `X-Forwarded-For` 或 `CF-Connecting-IP` 來分配額度。計數只留在記憶體，服務重啟會重置；可能讓其他新登入一併等待，不影響已建立的錢包 session。
+
 ## Discord 與測試通道
 
 開發期間先保留本機後端與臨時通道，固定網址及 Netlify 部署等正式上架前再安排。每次測試先確認既有通道可用，可用時沿用；若通道失效，再重建並更新 Discord 後台的 Activity Mapping 與 Interactions Endpoint。
@@ -24,12 +28,12 @@ Discord 測試使用 `npm run activity:serve`：建置後，由 4188 的 Node �
 
 ## 錢包後端本機開發
 
-目前沿用 `backend` 分支，遊戲版本維持 0.2.4。這一階段使用本機服務與獨立資料檔，先完成驗收再選擇正式主機。不要因開發分支存在就假設 Netlify 不會建置；後續如需推送或建立 PR，應先確認 Netlify 的 Branch deploys 與 Deploy Previews 設定。本機編輯、建置和自動測試本身不會觸發 Netlify 部署。
+目前沿用 `backend` 分支，遊戲版本為 0.2.5。這一階段使用本機服務與獨立資料檔，先完成驗收再選擇正式主機。不要因開發分支存在就假設 Netlify 不會建置；後續如需推送或建立 PR，應先確認 Netlify 的 Branch deploys 與 Deploy Previews 設定。本機編輯、建置和自動測試本身不會觸發 Netlify 部署。
 
 1. 以 `deploy/backend.env.example` 建立被 Git 忽略的 `.env.backend.local`。填入同一 Discord 應用程式的後端憑證及明確的 `ALLOWED_GUILD_IDS`，不能把 Client Secret 放到任何 `VITE_` 設定。
 2. 開發環境固定使用 `APP_ENV=test`、`DATABASE_PATH=data/backend.sqlite`、`BACKUP_DIRECTORY=backups/backend`、`HOST=127.0.0.1`、`PORT=4189`，與既有 `.env.server.local`／4188 服務分開。得獎公告 Webhook 預設留空；只有要測試公告時才設定專用頻道。
 3. `npm run backend:init` 建立或升級開發資料庫，沒有初始化任何玩家、簽到或籌碼。`npm run backend:dev` 啟動並監看程式變更；`npm run backend:start` 則為一般啟動。
-4. `http://127.0.0.1:4189/healthz` 只檢查 HTTP 程序存活；`/readyz` 會實際讀取錢包資料庫，資料庫停用、關閉或版本／環境不符時回傳 503。公開健康回覆不包含帳號、餘額、連線路徑或憑證。
+4. `http://127.0.0.1:4189/healthz` 只檢查 HTTP 程序存活；`/readyz` 會實際讀取錢包資料庫，資料庫停用、關閉或版本／環境不符時回傳 503。Discord 模式也要通過登入／簽章憑證的格式檢查；本機假帳號模式則依其獨立設定判斷。公開健康回覆不包含帳號、餘額、連線路徑或憑證。
 5. `npm run backend:check` 使用唯讀連線與同一份讀取快照，檢查 SQLite 完整性、關聯、帳本前後餘額連續性、錢包餘額與帳本是否相符、JSON 格式及帳本保護，並交叉核對回合、流水與重送紀錄。輸出僅有環境、結構版本、各表筆數及彙總異常，不會自動修復、升級或建立不存在的資料庫；檢查失敗以非零狀態結束。
 
 資料結構由 `server/database.js` 以 `PRAGMA user_version` 管理：第 1 版為錢包、流水、回合與去重資料，第 2 版為得獎公告佇列。舊版已有資料但尚未標示結構版本的本專案資料庫，會在確認 `settings.environment` 相符後，以單一交易升級，不重建玩家、不重算已結算回合，也不重發測試籌碼。升級失敗會回復結構變更；環境不符、不是本專案的資料檔或結構版本比程式更新時，拒絕開啟。正式資料升級前仍需先備份並停止使用舊版程式的寫入。
@@ -39,6 +43,8 @@ Discord 測試使用 `npm run activity:serve`：建置後，由 4188 的 Node �
 `backend:check` 會依每局儲存的 `rules` 唯讀重播目前及受支援歷史版本，確認停點、盤面、得獎組合、下注、派彩及前後餘額一致。這是比對原結算，不套用新規則重算舊局，也不改寫原回合。未知規則或內容異常會以彙總錯誤回報。
 
 同時檢查 spin 請求的下注指紋、快取結果與原回合，以及每局對應的流水；缺漏、重複與損益為零的重複連結都會被偵測。簽到、管理發放、更正及本機情境的快取入帳結果需符合對應流水，更正也必須指向同群同玩家的原發放。帳本日期須符合記錄時間的台灣日期。診斷只輸出異常類別與筆數，不輸出玩家 ID、下注或餘額明細。
+
+新回合的流水時間、回合 `time`、排序 `created` 及開轉間隔時間共用同一個結算時間；簽到的台灣日期去重鍵也與入帳時間一致，避免交易途中跨午夜而記到不同日。驗帳交叉檢查回合、排序及流水時間，保留最多 1 秒的相容差，以容納舊程式分別讀取時鐘的微小間隔；不重寫舊回合或帳本，只改回合日期、排序時間或流水時間而金額不變的異常也會被拒絕。
 
 所有檢查在同一個唯讀快照內完成，逐筆串流處理回合與操作紀錄；大型資料庫的完整驗帳會比健康檢查耗時。這些深度檢查用於管理工具，不加入每次玩家請求或 `/readyz`。備份與還原沿用同一套驗帳，異常來源不建立目的檔。發現問題時保留原檔與報告供調查，工具不會自動修復、清空或重建帳本。
 

@@ -81,6 +81,7 @@ test('local game uses persisted server wallets, daily idempotency and saved roun
   t.after(async()=>{await new Promise(resolve=>{server.close(resolve);server.closeAllConnections();});wallet.store.close();await rm(root,{recursive:true,force:true});});
   const origin=`http://127.0.0.1:${server.address().port}`;
   const request=(path,options)=>fetch(origin+path,options);
+  assert.equal((await request('/readyz')).status,200,'explicit loopback test mode does not require Discord credentials');
   const loginOptions={method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({userId:'1561284960986599626'})};
   const guide=await request('/wallet-test');assert.equal(guide.status,200);assert.match(await guide.text(),/錢包本機驗收/);
   assert.match(guide.headers.get('content-security-policy'),/frame-ancestors 'none'/);

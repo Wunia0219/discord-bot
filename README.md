@@ -2,7 +2,7 @@
 
 Discord Activity 內部試玩。固定輪帶、後端結算與伺服器獨立錢包；目前規則識別碼 `circus-243-v2`。
 
-遊戲版本 **0.2.4**，顯示於工具列與遊戲規則頁尾。版本號以 `package.json` 為唯一來源，經 `src/version.js` 共用；**只有使用者明確指定時才更新版本號，不因修正或新增功能自行遞增**。`circus-243-v2` 是結算與歷史重播的規則識別碼，獨立於遊戲版本維護。
+遊戲版本 **0.2.5**，顯示於工具列與遊戲規則頁尾。版本號以 `package.json` 為唯一來源，經 `src/version.js` 共用；**只有使用者明確指定時才更新版本號，不因修正或新增功能自行遞增**。`circus-243-v2` 是結算與歷史重播的規則識別碼，獨立於遊戲版本維護。
 
 ## 玩家介面原則
 
@@ -18,7 +18,7 @@ BOT 指令選單、回覆與公告都用群友看得懂的口吻，先說發生�
 
 需要 Node.js 24。`npm ci` 後執行 `npm run dev`，開啟 http://127.0.0.1:4187/ 。一般瀏覽器使用本機試玩帳本；Discord 使用已登入的伺服器錢包。
 
-錢包後端與資料庫目前在 `backend` 分支進行本機開發，版本維持 **0.2.4**。使用 `.env.backend.local`、`data/backend.sqlite`、4189 連接埠及 `backups/backend/`，與既有 4188 Discord 測試服務分開。先執行 `npm run backend:init`，再執行 `npm run backend:dev`；`npm run backend:check` 可唯讀檢查資料庫、帳本連續性與餘額。操作與安全還原方式見[部署說明](docs/deployment.md#錢包後端本機開發)。
+錢包後端與資料庫目前在 `backend` 分支進行本機開發，版本為 **0.2.5**。使用 `.env.backend.local`、`data/backend.sqlite`、4189 連接埠及 `backups/backend/`，與既有 4188 Discord 測試服務分開。先執行 `npm run backend:init`，再執行 `npm run backend:dev`；`npm run backend:check` 可唯讀檢查資料庫、帳本連續性與餘額。操作與安全還原方式見[部署說明](docs/deployment.md#錢包後端本機開發)。
 
 此階段在本機修改與測試，推送、開 PR、合併至 `main` 或雲端部署另行安排。分支本身不保證 Netlify 不建置，後續需要推送時須先確認該網站的 Branch deploys 與 Deploy Previews 設定。
 
