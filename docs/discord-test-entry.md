@@ -19,6 +19,14 @@
 - 使用者提供的 Webhook 已經 GET 核對為指定群與 #bot測試，名稱「Joker’s Circus 精彩得獎」。只存在後端 `.env.server.local`、`.env.firestore.local` 及私密設定備份中，未放入前端或版本庫；沒有另建第二個 Webhook。
 - 重啟後 `discord:check -- --discord --public-origin <目前網址>` 的 28 項檢查全部通過。這不代表真人雙裝置及實際大獎卡片已驗收；未製造假回合或發測試公告。
 
+## 額外的公告傳輸與呈現驗收
+
+使用者另行授權後，已直接透過專用 Webhook 發送一張「測試公告｜非真實得獎」卡片，含 SUPER 30×／MEGA 100× 兩筆虛構排版範例。Discord 接受訊息且 GET 讀回的頻道、內容、標題及欄位均一致；沒有提及任何玩家或推播通知。本測試不載入錢包、Firestore 或公告佇列，不建立回合、不改餘額／簽到，也不計入真實公告統計。
+
+測試訊息 ID 為 `1563073591967354941`，結果保存在 `test-results/discord-marked-webhook-test.json`。一次性腳本遇到已有紀錄會拒絕重送；回應不明也不盲目重送。此項驗收只涵蓋 Webhook 傳輸與卡片，不取代自然大獎到持久佇列的真人端到端驗收。
+
+瀏覽器已確認卡片完整顯示，截圖為 `test-results/discord-marked-webhook-test.png`。
+
 ## 備份
 
 本輪啟用前完整備份與驗帳通過：2 個錢包、774 筆帳本、772 筆原請求結果、758 局、0 筆公告。封存在 `backups/discord-test-20261023/source.sqlite`，SHA-256：`54c3b7c361df9fc6f7ff4d6e073bd22a56b1b9e87091bc6cbe6c4dc32bd18e78`。這份備份是 14:01 的一致快照，後續測試進度必須另取最新備份，不能覆寫回此舊快照。

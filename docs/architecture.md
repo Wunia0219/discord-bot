@@ -17,6 +17,7 @@
 | 得獎公告 | `highlights.js`、`firestore-highlights.js`、`highlight-card.js` | 共用設定與卡片格式；SQLite／Firestore 各自持久化、去重及發送恢復 |
 | 額度／維運 | `firestore-quota.js`、`operations.js`、`maintenance-worker.js` | 持久預算、worker 排程、就緒及私有告警 |
 | 備份／移入 | `firestore-backup.js`、`firestore-import.js` | 一致快照、完整驗證、空白命名空間還原 |
+| 可攜式備份 | `portable-backup.js` | 已驗帳快照加密、驗證及離線還原到新檔，不存取雲端 |
 
 ## 一次旋轉如何保存
 
@@ -53,8 +54,8 @@
 - 4188：依 `.env.server.local` 啟動，既有切換記錄是本機 Node＋Firestore Spark。4189：獨立 SQLite QA。實際運行狀態以維運工具為準，文件不代表服務此刻在線。
 - 同專案的所有本機程序共用持久額度檔。多主機部署不能各自複製配額檔後當作共用預算。
 - Firestore 自動備份每 24 小時、輕量檢查每 10 分鐘；補讀增量後產生可獨立還原的完整 SQLite 快照。來源未改動、SHA-256、帳本及回合驗證通過才發布。
-- 快照目前與服務同機；電腦離線時沒有排程，同磁碟損毀仍有風險。異地副本與外部故障通知尚待實作。
-- SQLite／Firestore 公告佇列均已實作；Firestore 空佇列不持續輪詢雲端，公告狀態納入完整備份與 v1／v2 還原。專用 Webhook 尚未在現有服務啟用，細節見 [Discord 啟動驗收](discord-readiness.md)。
+- 快照目前與服務同機；已完成 [加密匯出／離線還原](portable-backup.md)，但異地上傳與外部故障通知未接入。電腦離線時沒有排程，同磁碟損毀仍有風險。後續依 [零費用雲端計畫](zero-cost-hosting.md)移植。
+- SQLite／Firestore 公告佇列均已實作；Firestore 空佇列不持續輪詢雲端，公告狀態納入完整備份與 v1／v2 還原。現有服務已啟用專用 Webhook，使用者確認明確標示的測試公告正常；細節見 [Discord 啟動驗收](discord-readiness.md)。
 - 主遊戲荷官動畫已接入；背景音樂的 `MUSIC_SOURCE` 仍是 `null`。
 
 資料保存完整不等於任何故障下都零損失：未備份的新資料與同機故障仍需依恢復策略處理。達到額度時會拒絕新的操作，保留已提交資料與原請求，不提供假成功或離線扣款。

@@ -65,7 +65,7 @@ npm run discord:check -- --discord --public-origin https://your-current-host.exa
 
 本輪已唯讀驗證現有 Discord 應用授權有效、APP_HANDLER 啟動入口，以及簽到／籌碼／管理指令定義一致；本機遊戲、政策頁、健康及 API 存取保護通過，共 19 個自動檢查項目。原服務未重啟，測試沒有發公告或改玩家資料。
 
-後續啟用已完成公開通道、Portal Mapping、互動端點、OAuth／支援平台核對，以及「記事小本本 → #bot測試」專用 Webhook。啟動後 28 項自動診斷通過，尚待使用者完成本輪 Discord 桌面／手機的登入、操作、跨裝置與自然大獎卡片呈現驗收。背景音樂仍缺曲目、異地備份仍缺目的地、常駐部署仍缺主機決定，保留於 [實作計畫](roadmap.md)，不以本機測試取代這些條件。
+後續啟用已完成公開通道、Portal Mapping、互動端點、OAuth／支援平台核對，以及「記事小本本 → #bot測試」專用 Webhook。啟動後 28 項自動診斷通過，使用者已遊玩新增 5 局並確認測試公告呈現正常；尚待本輪雙裝置、背景恢復與自然大獎端到端驗收。背景音樂仍缺曲目，異地備份已完成加密／還原工具但未接入雲端，後續採零費用雲端移植方向；依 [實作計畫](roadmap.md)接續。
 
 測試：`npm test`、`npm run test:firestore`、`npm run build`。輸出為 `test-results/discord-completion-unit.log`、`discord-completion-firestore.log`、`discord-completion-build.log`、`discord-readiness-live.log`。Firestore 測試使用官方本機模擬器與假 Discord 回應，另以已封存真實快照驗證原始去重資料的 v2 遷移及 v1 回退。
 

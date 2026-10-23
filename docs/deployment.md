@@ -14,6 +14,8 @@ Discord 錢包啟動時必須明確填入 `APP_ENV=test` 或 `production`，不�
 
 ## Discord 與測試通道
 
+使用者已選擇零費用、不依賴個人電腦常駐的方向；目前本機通道仍需電腦開機，雲端相容性與移植計畫見 [零費用雲端運行](zero-cost-hosting.md)。加密完整備份與離線還原操作見 [可攜式備份](portable-backup.md)。
+
 開發期間先保留本機後端與臨時通道，固定網址及 Netlify 部署等正式上架前再安排。每次測試先確認既有通道可用，可用時沿用；若通道失效，再重建並更新 Discord 後台的 Activity Mapping 與 Interactions Endpoint。
 
 目前的公開測試、專用 Webhook、完整備份及可執行的回退方式集中於 [Discord 測試入口](discord-test-entry.md)。

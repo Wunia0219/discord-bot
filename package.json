@@ -15,6 +15,7 @@
     "discord:check": "node --env-file=.env.server.local scripts/admin/check-discord.js",
     "db:backup": "node --env-file=.env.server.local scripts/admin/backup-db.js",
     "db:status": "node --env-file=.env.server.local scripts/admin/operations-status.js",
+    "backup:portable": "node scripts/admin/portable-backup.js",
     "backend:dev": "node --watch --env-file=.env.backend.local server/index.js",
     "backend:start": "node --env-file=.env.backend.local server/index.js",
     "backend:init": "node --env-file=.env.backend.local scripts/admin/init-db.js",

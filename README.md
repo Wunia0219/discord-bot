@@ -7,9 +7,9 @@ Discord Activity 內部試玩遊戲。後端負責算獎、籌碼、每日簽到
 ## 現況與下一步
 
 - 已完成：243 路玩法、Discord 登入與管理指令、SQLite／Firestore 錢包、斷線重送、完整帳本與備份、荷官 idle／win、音效、快停及自動旋轉。
-- 本機 4188 已接入 Firestore Spark；4189 保留隔離 SQLite 測試。既有雲端切換與電腦／手機驗收記錄見[部署說明](docs/deployment.md)。本次優化是工作區程式變更，尚未重啟正式使用的服務或做真實雲端驗收。
+- 本機 4188 已接入 Firestore Spark；4189 保留隔離 SQLite 測試。4188 已重啟採用公告功能，公開 Discord 測試入口已開啟，使用者確認測試公告呈現正常；[實測與回退](docs/discord-test-entry.md)。
 - 本輪已完成 v2：每局 10→6 次寫入、無損近期快取、輕量狀態與增量同步、較舊紀錄載入、空白命名空間遷移及雙向還原測試。既有雲端仍維持 v1，採用步驟與量測見 [Firestore v2](docs/firestore-v2.md)。第一輪讀取優化見[用量與驗證](docs/spark-optimization.md)。
-- Firestore 公告佇列、備份回退及 [Discord 啟動前檢查](docs/discord-readiness.md)已完成；待專用頻道與公開入口啟用後驗收。下一步：v2 資料切換與真人驗收 → 異地備份 → 背景音樂與手機體驗 → 部署。需求、依賴及驗收條件集中在[實作計畫](docs/roadmap.md)。
+- 已完成 [加密備份與離線還原](docs/portable-backup.md)，最新實測的 5 局已納入完整快照；異地上傳尚未接入。後續採 [零費用雲端方向](docs/zero-cost-hosting.md)，不依賴個人電腦常駐。下一步、依賴與驗收條件集中在[實作計畫](docs/roadmap.md)。
 
 此階段在本機修改與測試；推送、PR、合併或部署另行安排。分支不保證 Netlify 不建置，推送前須確認 Branch deploys／Deploy Previews 設定。
 
@@ -35,6 +35,7 @@ npm run dev
 | `npm run activity:serve` | 建置並依 `.env.server.local` 啟動 4188 |
 | `npm run db:backup`／`db:status` | 目前後端的手動備份／維運狀態 |
 | `npm run firestore:backup`／`firestore:operations` | 4188 Firestore 邏輯備份／維運狀態 |
+| `npm run backup:portable -- ...` | 完整快照加密匯出、驗證及還原到新檔 |
 | `npm run verify:math`／`verify:sessions` | 完整數學枚舉／固定 seed 回合驗算 |
 | `npm run export:model`／`audio:preview` | 匯出模型／音效試聽 |
 
