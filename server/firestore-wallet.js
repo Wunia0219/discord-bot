@@ -4,6 +4,7 @@ import {BETS,roundFromStops,REEL_STRIPS} from '../src/game/index.js';
 import {WalletStore,problem,taipeiDay,nextCheckin} from './wallet.js';
 import {FirestoreQuota} from './firestore-quota.js';
 import {readAuditPage} from './firestore-history.js';
+import {ledgerIndex,ledgerRange,sequenceKey,encodeHistory,decodeHistory} from './firestore-schema.js';
 
 const maxBalance=1_000_000_000_000,maxDocument=512*1024;
 const digest=value=>createHash('sha256').update(value).digest('hex');
@@ -18,6 +19,9 @@ export class FirestoreWalletStore {
     for(const value of [daily,grantMax,grantDaily])if(!Number.isSafeInteger(value)||value<=0||value>maxBalance)throw new Error('Invalid wallet limits');
     Object.assign(this,{settings,environment:settings.environment,guildIds:new Set(guildIds),daily,grantMax,grantDaily,clock,spinDelay});
     this.backend='firestore';
+    this.schemaVersion=settings.schemaVersion??1;
+    if(![1,2].includes(this.schemaVersion))throw new Error('Invalid Firestore schema version');
+    this.histories=new Map();
     this.db=db||new Firestore({projectId:settings.projectId,databaseId:'(default)',...(settings.credentials?{credentials:settings.credentials}:{}),
       ...(settings.emulator?{host:settings.emulator,ssl:false,universeDomain:'googleapis.com'}:{}),preferRest:false,maxIdleChannels:1});
     this.quota=quota||new FirestoreQuota({...settings.quota,clock});
@@ -48,12 +52,12 @@ export class FirestoreWalletStore {
       await this.db.runTransaction(async tx=>{
         const meta=await this.read(this.meta,tx);
         if(meta){this.checkMeta(meta);return;}
-        this.write(tx,this.meta,{version:1,environment:this.environment,status:'ready',nextId:0},{create:true});
+        this.write(tx,this.meta,{version:this.schemaVersion,environment:this.environment,status:'ready',nextId:0},{create:true});
       },{maxAttempts:3});
       this.ready=true;this.readyAt=this.clock();return this;
     }catch(error){this.ready=false;throw this.safe(error);}
   }
-  checkMeta(meta){if(meta.version!==1||meta.environment!==this.environment||meta.status!=='ready'||!Number.isSafeInteger(meta.nextId))throw problem(503,'帳號籌碼正在維護，請稍後再試。','FIRESTORE_SCHEMA');}
+  checkMeta(meta){if(!meta||meta.version!==this.schemaVersion||meta.environment!==this.environment||meta.status!=='ready'||!Number.isSafeInteger(meta.nextId))throw problem(503,'帳號籌碼正在維護，請稍後再試。','FIRESTORE_SCHEMA');}
   async isReady(){
     if(this.closed||this.quota.status().blocked)return false;
     if(this.ready&&this.clock()-this.readyAt<60000)return true;
@@ -69,18 +73,34 @@ export class FirestoreWalletStore {
     return problem(503,'帳號籌碼暫時連不上，請稍後重試；未確認的操作請沿用原請求。','FIRESTORE_UNAVAILABLE');
   }
   snapshot(wallet,now=this.clock()){
-    return {version:3,balance:wallet.balance,history:wallet.history,milestones:wallet.milestone?[12000]:[],environment:this.environment,
+    return {version:3,balance:wallet.balance,...(this.schemaVersion===2?{historyRevision:wallet.historyRevision}:{history:wallet.history}),milestones:wallet.milestone?[12000]:[],environment:this.environment,
       guildId:wallet.guild,daily:this.daily,claimed:wallet.claimedDay===taipeiDay(now),nextCheckin:nextCheckin(now),revision:wallet.revision,
       spinCooldownMs:Math.max(0,wallet.last_spin+this.spinDelay-now)};
   }
-  async state(guild,user){
+  async completeState(guild,user,state){
+    if(Array.isArray(state.history))return state;
+    if(!state.historyRevision)return {...state,history:[]};
+    const key=guild+':'+user+':'+state.historyRevision;
+    if(!this.histories.has(key)){
+      if(this.histories.size>=100)this.histories.delete(this.histories.keys().next().value);
+      const promise=this.rounds(guild,user,{through:state.historyRevision,limit:100})
+        .then(page=>page.rows.map(row=>row.round)).catch(error=>{this.histories.delete(key);throw error;});
+      this.histories.set(key,promise);
+    }
+    return {...state,history:await this.histories.get(key)};
+  }
+  async state(guild,user,{compact=false}={}){
+    const state=await this.readState(guild,user);
+    return compact?state:this.completeState(guild,user,state);
+  }
+  async readState(guild,user){
     this.validate(guild,user);if(this.closed)throw this.safe({});
     this.quota.reserve({});const key=guild+':'+user,cached=this.cache.get(key);
     if(cached&&this.clock()-cached.at<5000)return this.snapshot(cached.wallet);
     if(this.pending.has(key))return this.pending.get(key);
     const promise=(async()=>{
       try{const wallet=await this.read(this.walletRef(guild,user));
-        if(!wallet)return (await this.transact(guild,user,{kind:'ensure'})).state;
+        if(!wallet)return (await this.transact(guild,user,{kind:'ensure'},{compact:true})).state;
         this.cacheWallet(wallet);return this.snapshot(wallet);
       }catch(error){throw this.safe(error);}
     })().finally(()=>this.pending.delete(key));this.pending.set(key,promise);return promise;
@@ -97,7 +117,7 @@ export class FirestoreWalletStore {
       this.write(tx,ref.collection(name).doc(id),entry,{create:true,index:{id:entry.id}});
     }
   }
-  async transact(guild,user,operation){
+  async transact(guild,user,operation,{compact=false}={}){
     this.validate(guild,user);if(this.closed)throw this.safe({});
     const ref=this.walletRef(guild,user);
     try{
@@ -111,7 +131,8 @@ export class FirestoreWalletStore {
         if(existing){if(existing.fingerprint!==operation.fingerprint)throw problem(409,'此請求編號已用於其他操作。','REQUEST_CONFLICT');
           return {...existing.result,duplicate:true,state:wallet?this.snapshot(wallet,now):undefined,wallet};}
         const fresh=!wallet;
-        wallet ||= {guild,user,balance:0,last_spin:0,milestone:false,claimedDay:null,revision:0,history:[],summary:zeroSummary()};
+        wallet ||= {guild,user,balance:0,last_spin:0,milestone:false,claimedDay:null,revision:0,
+          ...(this.schemaVersion===2?{historyRevision:0,historyCache:encodeHistory([])}:{history:[]}),summary:zeroSummary()};
         const dayRef=ref.collection('days').doc(day),needsDay=kind==='spin'||kind==='checkin';
         const adminRef=kind==='grant'?this.root.collection('adminDays').doc(guild+'_'+operation.actor+'_'+day):null;
         const adminDay=adminRef?(await this.read(adminRef,tx)||{used:0}):null;
@@ -146,7 +167,12 @@ export class FirestoreWalletStore {
           const outcome=operation.outcome,entry=credit(outcome.payout-operation.bet,'spin',user,`下注 ${operation.bet}／派彩 ${outcome.payout}`,operation.requestId);
           const milestone=entry.after>=12000&&!wallet.milestone;
           round={...outcome,id:operation.roundId,time:new Date(now).toISOString(),bet:operation.bet,before:entry.before,after:entry.after,net:entry.delta,milestone};
-          wallet.last_spin=now;wallet.milestone ||= milestone;wallet.history=[round,...wallet.history].slice(0,100);answer={round};
+          wallet.last_spin=now;wallet.milestone ||= milestone;answer={round};
+          if(this.schemaVersion===2){
+            answer.historyBase=wallet.historyRevision;answer.historyRevision=entry.id;wallet.historyRevision=entry.id;
+            wallet.historyCache=encodeHistory([{sequence:entry.id,round},...decodeHistory(wallet.historyCache)]);
+          }
+          else wallet.history=[round,...wallet.history].slice(0,100);
           for(const summary of [wallet.summary,daySummary]){summary.game.rounds++;summary.game.bet+=round.bet;summary.game.payout+=round.payout;summary.game.net=summary.game.payout-summary.game.bet;}
         }else if(kind==='checkin'){
           answer={entry:credit(this.daily,'checkin',user,'每日簽到')};wallet.claimedDay=day;
@@ -157,27 +183,30 @@ export class FirestoreWalletStore {
         // All transaction reads finish before the first write.
         if(entries.length){
           for(const entry of entries){
-            this.record(tx,ref,entry);
-            this.write(tx,this.root.collection('ledger').doc(String(entry.id)),entry,{create:true,index:{operationKey:entry.kind==='test_seed'?null:key}});
+            if(this.schemaVersion===1)this.record(tx,ref,entry);
+            this.write(tx,this.root.collection('ledger').doc(String(entry.id)),entry,{create:true,index:{operationKey:entry.kind==='test_seed'?null:key,
+              ...(this.schemaVersion===2?ledgerIndex(entry):{})}});
           }
           this.write(tx,this.meta,meta);this.write(tx,ref,wallet);
         }else if(fresh)this.write(tx,ref,wallet,{create:true});
         if(needsDay)this.write(tx,dayRef,daySummary);
-        if(round)this.write(tx,ref.collection('rounds').doc(round.id),round,{create:true});
+        if(round)this.write(tx,ref.collection('rounds').doc(round.id),round,{create:true,index:this.schemaVersion===2?{sequence:wallet.historyRevision}:{}});
         if(adminRef)this.write(tx,adminRef,{used:adminDay.used+operation.amount});
         if(reversalRef)this.write(tx,reversalRef,{entryId:answer.entry.id},{create:true});
         if(opRef)this.write(tx,opRef,{fingerprint:operation.fingerprint,result:answer},{create:true});
         return {...answer,state:this.snapshot(wallet,now),wallet};
       },{maxAttempts:3});
-      if(result.wallet)this.cacheWallet(result.wallet);delete result.wallet;return result;
+      if(result.wallet)this.cacheWallet(result.wallet);delete result.wallet;
+      if(!compact&&result.state)result.state=await this.completeState(guild,user,result.state);
+      return result;
     }catch(error){throw this.safe(error);}
   }
-  spin(guild,user,bet,requestId){
+  spin(guild,user,bet,requestId,options){
     this.validate(guild,user);if(!BETS.includes(bet))throw problem(400,'無效的下注或請求編號。');this.requestId(requestId);
     const stops=REEL_STRIPS.map(strip=>randomInt(strip.length));
-    return this.transact(guild,user,{kind:'spin',bet,requestId,fingerprint:String(bet),outcome:roundFromStops(bet,stops),roundId:randomUUID()});
+    return this.transact(guild,user,{kind:'spin',bet,requestId,fingerprint:String(bet),outcome:roundFromStops(bet,stops),roundId:randomUUID()},options);
   }
-  checkin(guild,user){return this.transact(guild,user,{kind:'checkin',fingerprint:'daily'});}
+  checkin(guild,user,options){return this.transact(guild,user,{kind:'checkin',fingerprint:'daily'},options);}
   grant(guild,actor,user,amount,reason,requestId){
     this.validate(guild,actor);this.validate(guild,user);this.reason(reason);this.requestId(requestId);
     if(!Number.isSafeInteger(amount)||amount<=0||amount>this.grantMax)throw problem(400,`單次發放限 1～${this.grantMax} 籌碼。`,'GRANT_AMOUNT');
@@ -200,9 +229,45 @@ export class FirestoreWalletStore {
     const snapshot=await ref.where('id','<',before).orderBy('id','desc').limit(limit).get();
     const rows=snapshot.docs.map(unpack);this.quota.observe(Buffer.byteLength(JSON.stringify(rows)));return rows;
   }
+  async queryLedger(guild,user,before,limit,filter={}){
+    const {field,prefix}=ledgerRange(guild,user,filter);
+    this.quota.reserve({reads:6*limit});
+    const snapshot=await this.root.collection('ledger').where(field,'>=',prefix+sequenceKey(0))
+      .where(field,'<',prefix+sequenceKey(before)).orderBy(field,'desc').limit(limit).get();
+    const rows=snapshot.docs.map(unpack);this.quota.observe(Buffer.byteLength(JSON.stringify(rows)));return rows;
+  }
+  async rounds(guild,user,{after=0,before=Number.MAX_SAFE_INTEGER,through=Number.MAX_SAFE_INTEGER,limit=100}={}){
+    this.validate(guild,user);
+    if(this.schemaVersion!==2)throw problem(400,'請重新開啟遊玩紀錄。','HISTORY_UNSUPPORTED');
+    if(![after,before,through,limit].every(Number.isSafeInteger)||after<0||before<1||through<0||limit<1||limit>100)
+      throw problem(400,'無效的紀錄游標。','HISTORY_CURSOR');
+    if(after>=through||after>=before)return {rows:[],next:null};
+    try{
+      // A lossless recent cache keeps cold login at one wallet read. Only older
+      // pages or gaps outside that window query individual authoritative rounds.
+      await this.readState(guild,user);
+      const wallet=this.cache.get(guild+':'+user)?.wallet;
+      if(wallet){
+        const recent=decodeHistory(wallet.historyCache),allKnown=wallet.summary.game.rounds<=recent.length;
+        const selected=recent.filter(r=>r.sequence>after&&r.sequence<before&&r.sequence<=through);
+        const coversLower=allKnown||after>=(recent.at(-1)?.sequence??0);
+        const reachesTail=selected.length===limit&&after===0&&selected.at(-1)?.sequence===recent.at(-1)?.sequence;
+        if(coversLower||selected.length>limit||reachesTail){
+          const rows=selected.slice(0,limit);
+          return {rows,next:selected.length>limit||(!allKnown&&reachesTail)?rows.at(-1).sequence:null};
+        }
+      }
+      this.quota.reserve({reads:6*(limit+1)});
+      const snapshot=await this.walletRef(guild,user).collection('rounds').where('sequence','>',after)
+        .where('sequence','<',before).where('sequence','<=',through).orderBy('sequence','desc').limit(limit+1).get();
+      const records=snapshot.docs.map(doc=>({sequence:doc.get('sequence'),round:unpack(doc)}));
+      this.quota.observe(Buffer.byteLength(JSON.stringify(records)));
+      const rows=records.slice(0,limit);return {rows,next:records.length>limit?rows.at(-1).sequence:null};
+    }catch(error){throw this.safe(error);}
+  }
   async history(guild,user,before=Number.MAX_SAFE_INTEGER){
     this.validate(guild,user);if(!Number.isSafeInteger(before)||before<1)throw problem(400,'無效的紀錄游標。');
-    try{return await this.query(this.walletRef(guild,user).collection('ledger'),before,50);}catch(error){throw this.safe(error);}
+    try{return this.schemaVersion===2?await this.queryLedger(guild,user,before,50):await this.query(this.walletRef(guild,user).collection('ledger'),before,50);}catch(error){throw this.safe(error);}
   }
   async auditHistory(guild,user,{category:cat='rewards',before=Number.MAX_SAFE_INTEGER,days=0}={}){
     this.validate(guild,user);
@@ -211,7 +276,8 @@ export class FirestoreWalletStore {
       const ref=this.walletRef(guild,user),now=this.clock();
       const rows=await readAuditPage({category:cat,before,
         days:Array.from({length:days},(_,i)=>taipeiDay(now-i*86400000)),
-        query:(name,cursor,limit)=>this.query(ref.collection(name),cursor,limit)});
+        query:(name,cursor,limit)=>this.schemaVersion===2?this.queryLedger(guild,user,cursor,limit,
+          {category:cat,day:/\d{4}-\d{2}-\d{2}$/.exec(name)?.[0]}):this.query(ref.collection(name),cursor,limit)});
       const selected=rows.slice(0,10);
       for(const row of selected)if(row.kind==='grant'){const reversal=await this.read(this.root.collection('reversals').doc(String(row.id)));row.reversal_id=reversal?.entryId||null;}
       return {rows:selected,next:rows.length>10?selected[9].id:null};
@@ -233,6 +299,6 @@ export class FirestoreWalletStore {
       }return result;
     }catch(error){throw this.safe(error);}
   }
-  status(){return {backend:'firestore',environment:this.environment,projectId:this.settings.projectId,namespace:this.settings.namespace,quota:this.quota.status(),ready:this.ready&&!this.closed};}
-  async close(){if(this.closed)return;this.closed=true;this.cache.clear();await this.db.terminate();this.quota.close();}
+  status(){return {backend:'firestore',schemaVersion:this.schemaVersion,environment:this.environment,projectId:this.settings.projectId,namespace:this.settings.namespace,quota:this.quota.status(),ready:this.ready&&!this.closed};}
+  async close(){if(this.closed)return;this.closed=true;this.cache.clear();this.histories.clear();await this.db.terminate();this.quota.close();}
 }

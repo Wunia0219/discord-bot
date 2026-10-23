@@ -20,7 +20,8 @@ export function firestoreSettings(env=process.env){
     try{credentials=JSON.parse(readFileSync(env.GOOGLE_APPLICATION_CREDENTIALS,'utf8'));}catch{throw new Error('A server-only Google service account credential file is required');}
     if(credentials.type!=='service_account'||credentials.project_id!==projectId||!credentials.client_email||!credentials.private_key)throw new Error('Google credential project does not match FIRESTORE_PROJECT_ID');
   }
-  return {projectId,environment,namespace,emulator,credentials:credentials?{client_email:credentials.client_email,private_key:credentials.private_key}:undefined,
+  const schemaVersion=limit(env,'FIRESTORE_SCHEMA_VERSION',1,2);
+  return {projectId,environment,namespace,emulator,schemaVersion,credentials:credentials?{client_email:credentials.client_email,private_key:credentials.private_key}:undefined,
     quota:{filename:resolve(env.FIRESTORE_QUOTA_PATH||`data/firestore-usage-${projectId}.sqlite`),projectId,
       reads:limit(env,'FIRESTORE_READ_BUDGET',40000,40000),writes:limit(env,'FIRESTORE_WRITE_BUDGET',15000,15000),
       egressBytes:limit(env,'FIRESTORE_EGRESS_MB',128,256)*1024**2,storageBytes:limit(env,'FIRESTORE_STORAGE_MB',128,256)*1024**2}};

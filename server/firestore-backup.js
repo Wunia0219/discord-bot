@@ -145,7 +145,7 @@ export async function createFirestoreSnapshot(store,settings,{now=Date.now(),pre
     }else{closeSync(openSync(partial,'wx',0o600));created=true;db=openWalletDatabase(partial,settings.environment);}
     db.exec('PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON; BEGIN IMMEDIATE; PRAGMA defer_foreign_keys=ON');
     const cursor=db.prepare('SELECT COALESCE(MAX(id),0) revision FROM ledger').get().revision;
-    const baselinePlan=source&&!previous?firestoreImportPlan(source,settings.environment):null;
+    const baselinePlan=source&&!previous?firestoreImportPlan(source,settings.environment,{version:store.schemaVersion}):null;
     let remoteWallets,meta;
     // A read-only Firestore transaction provides a coherent snapshot without locking
     // gameplay or performing remote writes. The SDK does not retry read-only callbacks.
@@ -192,7 +192,7 @@ export async function createFirestoreSnapshot(store,settings,{now=Date.now(),pre
     },{readOnly:true});
     db.exec('COMMIT');db.close();db=null;
     const audit=inspectWalletDatabase(partial,settings.environment);if(!audit.ok)throw fail('BACKUP_AUDIT_FAILED');
-    const plan=firestoreImportPlan(partial,settings.environment);
+    const plan=firestoreImportPlan(partial,settings.environment,{version:store.schemaVersion});
     for(const wallet of remoteWallets){
       const expected=plan.resources.find(row=>row.path===`wallets/${wallet.guild}_${wallet.user}`)?.data;
       if(!isDeepStrictEqual(expected,wallet))throw fail('BACKUP_WALLET_MISMATCH');

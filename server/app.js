@@ -56,7 +56,7 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
     }
     try {
       const path = new URL(req.url, 'http://localhost').pathname;
-      if(['/healthz','/readyz','/api/token','/api/interactions','/api/wallet','/api/spin','/api/checkin','/api/ledger'].includes(path))route=path;
+      if(['/healthz','/readyz','/api/token','/api/interactions','/api/wallet','/api/spin','/api/checkin','/api/ledger','/api/rounds'].includes(path))route=path;
       else if(path.startsWith('/api/'))route='unknown-api';
       if(wallet?.localTest&&!isLocalTestRequest(req))return json(res,403,{error:'此測試服務只限這台電腦使用。'});
       if(wallet?.localTest&&path==='/'&&['GET','HEAD'].includes(req.method)&&new URL(req.url,'http://localhost').searchParams.get('wallet')!=='local'){
@@ -145,18 +145,25 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
           return json(res, 200, { access_token:token.access_token,...(session?{session}:{}) });
         } finally { if(!succeeded)loginRate.failed();activeExchanges--; }
       }
-      if(['/api/wallet','/api/spin','/api/checkin','/api/ledger'].includes(path)){
+      if(['/api/wallet','/api/spin','/api/checkin','/api/ledger','/api/rounds'].includes(path)){
         if(!wallet)return json(res,503,{error:'帳號籌碼尚未開啟。'});
         if(!wallet.localTest&&req.headers.origin&&!allowedOrigins.has(req.headers.origin))return json(res,403,{error:'不允許的來源。'});
         const write=path==='/api/spin'||path==='/api/checkin';
         if(req.method!==(write?'POST':'GET'))return json(res,405,{error:'不支援此操作。'});
         const session=await wallet.service.authorize(req.headers.authorization);
         const {guild,user}=session;
-        if(path==='/api/wallet')return json(res,200,{state:await wallet.store.state(guild,user)});
+        const view={compact:req.headers['x-wallet-view']==='compact-v1'};
+        if(path==='/api/wallet')return json(res,200,{state:await wallet.store.state(guild,user,view)});
+        if(path==='/api/rounds'){
+          if(wallet.store.schemaVersion!==2)return json(res,400,{error:'請重新開啟遊玩紀錄。'});
+          const params=new URL(req.url,'http://localhost').searchParams,options={};
+          for(const key of ['after','before','through','limit'])if(params.has(key))options[key]=Number(params.get(key));
+          return json(res,200,await wallet.store.rounds(guild,user,options));
+        }
         if(path==='/api/ledger')return json(res,200,{entries:await wallet.store.history(guild,user,Number(new URL(req.url,'http://localhost').searchParams.get('before')||Number.MAX_SAFE_INTEGER))});
         const body=await readJson(req);
-        if(path==='/api/checkin')return json(res,200,await wallet.store.checkin(guild,user));
-        const result=await wallet.store.spin(guild,user,body?.bet,body?.requestId);
+        if(path==='/api/checkin')return json(res,200,await wallet.store.checkin(guild,user,view));
+        const result=await wallet.store.spin(guild,user,body?.bet,body?.requestId,view);
         try { wallet.highlights?.enqueue(session,result.round.id); }
         catch { console.warn('Discord highlights: could not queue result'); }
         return json(res,200,result);

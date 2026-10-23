@@ -2,6 +2,8 @@
 
 ## 自動測試
 
+v2 另外由 `tests/firestore-v2.integration.js` 驗證實際讀寫量、冷登入一讀、原始資料遷移、跨裝置、完整歷史、備份及回退至 v1；`tests/firestore-schema.test.js`、`firestore-import-plan.test.js`、`wallet-sync.test.js` 驗證無損快取、dry-run 與前端同步。指標與環境界線見 [Firestore v2](firestore-v2.md)。
+
 需要 Node.js 24，在專案根目錄執行：
 
 ```sh

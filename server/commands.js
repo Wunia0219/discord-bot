@@ -34,11 +34,11 @@ export async function handleCommand(interaction, store, adminRoles=[]) {
     // APP_HANDLER opens the Activity without Discord's automatic channel invite.
     if(interaction.data?.type===4)return {type:12};
     if(interaction.data.name==='簽到'){
-      const r=await store.checkin(guild,user);
+      const r=await store.checkin(guild,user,{compact:true});
       return reply(`${r.duplicate?`今天的 **${number(store.daily)} 籌碼**已經領過囉。`:`今天的 **${number(store.daily)} 籌碼**領到了！`}\n你現在有 **${number(r.state.balance)} 籌碼**。\n\n台灣時間過午夜，就能再領下一份。`,r.duplicate?'今天已經領過囉':'今天的簽到領到了',r.duplicate?'warning':'success');
     }
     if(interaction.data.name==='籌碼'){
-      const state=await store.state(guild,user);
+      const state=await store.state(guild,user,{compact:true});
       return reply(`**${number(state.balance)} 籌碼**\n\n${state.claimed?'今天的簽到已經領過了，明天再來補充吧。':`今天的簽到還沒領，輸入 /簽到 就能領 **${number(store.daily)} 籌碼**。`}`);
     }
     if(interaction.data.name!=='籌碼管理')throw problem(400,'不支援此指令。','COMMAND_UNKNOWN');

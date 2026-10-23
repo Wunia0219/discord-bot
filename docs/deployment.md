@@ -88,6 +88,8 @@ SQLite 模式下，`WALLET_ENABLED=true` 時，服務預設啟用 `OPERATIONS_EN
 
 ### Firestore Spark 接入
 
+資料格式預設為 `FIRESTORE_SCHEMA_VERSION=1`，保留既有命名空間相容。v2 已完成每局六次寫入、無損近期快取與輕量 API；需透過完整快照移入**新的空白命名空間**後才能採用。不要原地改 metadata 或清空配額檔。規劃、dry-run、切換、備份設定與保留新進度的回退方式集中於 [Firestore v2](firestore-v2.md)。
+
 目前遊戲版本為 0.2.6。伺服器可明確選擇 `WALLET_BACKEND=sqlite`（預設）或 `firestore`。Firestore 模式目前限 `HOST=127.0.0.1`；只使用 Firestore Standard 的 `(default)` 資料庫，不需要新增 Firebase 網頁應用程式、Authentication、Cloud Storage 或 UptimeRobot。Discord 身分與伺服器權限仍由原本的 Node 後端驗證，瀏覽器不持有 Google 伺服器憑證，也不能直接修改錢包。
 
 設定流程：

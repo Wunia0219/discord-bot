@@ -211,7 +211,25 @@ function openDialog(title,body,variant='notice') {
   $('#dialog-body').scrollTop=0;
 }
 function showRules(){openDialog('遊戲規則',createGameRules(bet),'rules');}
-function showHistory(){openDialog('遊玩紀錄',roundRecords(state.history),'records');}
+function showHistory(){
+  const body=roundRecords(state.history);openDialog('遊玩紀錄',body,'records');
+  if(!walletClient||!state.historyBefore||state.history.length<100)return;
+  let cursor=state.historyBefore;
+  const button=document.createElement('button'),status=document.createElement('p');
+  button.type='button';button.className='notice-action';button.textContent='載入更早的紀錄';
+  status.setAttribute('role','status');body.append(status,button);
+  button.addEventListener('click',async()=>{
+    button.disabled=true;status.textContent='正在載入紀錄…';
+    try{
+      const page=await walletClient.rounds(cursor),extra=roundRecords(page.rows.map(row=>row.round));
+      for(const card of [...extra.querySelectorAll('.play-record')])body.insertBefore(card,status);
+      cursor=page.next;status.textContent=cursor?'':'已顯示所有遊玩紀錄。';button.hidden=!cursor;
+      const caption=body.querySelector('.records-caption');
+      if(caption)caption.textContent=`已顯示 ${body.querySelectorAll('.play-record').length} 局 · 點開一局查看得獎組合`;
+    }catch{status.textContent='紀錄暫時載入失敗，請再試一次。';}
+    finally{button.disabled=false;}
+  });
+}
 async function claimDaily(){
   if(!walletClient||!ready||busy||claiming||state.claimed)return;
   controls.stopAuto();claiming=true;setBusy(busy);

@@ -1,3 +1,5 @@
+import {createWalletSync} from './wallet-sync.js';
+
 export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.sessionStorage,{clock=()=>performance.now(),wait=delay=>new Promise(resolve=>globalThis.setTimeout(resolve,delay))}={}){
   const key=`kemet-pending:${session.guildId}:${session.userId}`;
   let pending,nextSpinAt=0,spinPromise=null,statePromise=null;
@@ -7,7 +9,7 @@ export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.se
   const persist=()=>{try{if(pending)storage?.setItem(key,JSON.stringify(pending));else storage?.removeItem(key);}catch{}};
   async function request(path,body){
     let response;
-    try{response=await fetchImpl(path,{method:body?'POST':'GET',headers:{Authorization:`Bearer ${session.token}`,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(20000),cache:'no-store'});}
+    try{response=await fetchImpl(path,{method:body?'POST':'GET',headers:{Authorization:`Bearer ${session.token}`,'X-Wallet-View':'compact-v1',...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(20000),cache:'no-store'});}
     catch{throw new Error('網路暫時中斷。下一次按 SPIN 會先確認上一筆結果，不會重複下注。');}
     let data;try{data=await response.json();}catch{throw new Error('服務回應中斷，請稍後重試。');}
     if(!response.ok){
@@ -17,8 +19,10 @@ export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.se
     }
     // Relative server time avoids depending on the player's device clock.
     if(validDelay(data?.state?.spinCooldownMs))nextSpinAt=Math.max(nextSpinAt,clock()+data.state.spinCooldownMs);
-    return data;
+    return sync(data);
   }
+  const loadRounds=options=>request('/api/rounds?'+new URLSearchParams(options));
+  const sync=createWalletSync(loadRounds);
   async function requestSpin(bet){
     pending ||= {bet,requestId:crypto.randomUUID()};persist();
     try{
@@ -41,6 +45,7 @@ export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.se
       return statePromise;
     },
     ledger:()=>request('/api/ledger'),
+    rounds:before=>loadRounds({before,limit:50}),
     checkin:()=>request('/api/checkin',{}),
     spin(bet){
       spinPromise ||= requestSpin(bet).finally(()=>{spinPromise=null;});
