@@ -12,6 +12,7 @@
     "activity:server": "node --env-file=.env.server.local server/index.js",
     "commands:register": "node --env-file=.env.server.local scripts/admin/register-commands.js",
     "activity:configure-launch": "node --env-file=.env.server.local scripts/admin/configure-launch.js",
+    "discord:check": "node --env-file=.env.server.local scripts/admin/check-discord.js",
     "db:backup": "node --env-file=.env.server.local scripts/admin/backup-db.js",
     "db:status": "node --env-file=.env.server.local scripts/admin/operations-status.js",
     "backend:dev": "node --watch --env-file=.env.backend.local server/index.js",

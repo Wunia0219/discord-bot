@@ -2,7 +2,7 @@ import { highlightTier, highlightCard, HIGHLIGHT_WINDOW_MS, HIGHLIGHT_INTERVAL_M
 
 const snowflake = value => /^\d{17,20}$/.test(value || '');
 
-export function highlightsConfig(env, store, options = {}) {
+export function highlightSettings(env, store) {
   const raw = env.DISCORD_HIGHLIGHTS_WEBHOOK_URL?.trim();
   if (!raw) return null;
   const guild = env.DISCORD_HIGHLIGHTS_GUILD_ID?.trim() || (store.guildIds.size === 1 ? [...store.guildIds][0] : '');
@@ -12,7 +12,12 @@ export function highlightsConfig(env, store, options = {}) {
   if (url.origin !== 'https://discord.com' || !/^\/api(?:\/v10)?\/webhooks\/\d{17,20}\/[A-Za-z0-9._-]+$/.test(url.pathname) || url.username || url.password || url.search || url.hash) {
     throw new Error('Invalid DISCORD_HIGHLIGHTS_WEBHOOK_URL');
   }
-  return new Highlights(store, { guild, webhookUrl: url.href, ...options });
+  return {guild,webhookUrl:url.href};
+}
+
+export function highlightsConfig(env, store, options = {}) {
+  const settings=highlightSettings(env,store);
+  return settings?new Highlights(store,{...settings,...options}):null;
 }
 
 // A separate, persisted notification queue. Sending never participates in settlement.

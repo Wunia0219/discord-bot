@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';
 import {inspectWalletDatabase} from './database.js';
 import {taipeiDay} from './wallet.js';
 import {ledgerIndex,encodeHistory} from './firestore-schema.js';
+import {highlightEventPath,highlightEventIndex,assertHighlightEvent,assertHighlightBoard,highlightEvent} from './firestore-highlight-data.js';
 
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const blank=()=>({checkin:{days:0,total:0},game:{rounds:0,bet:0,payout:0,net:0}});
@@ -13,7 +14,6 @@ export function firestoreImportPlan(filename,environment,{version=1}={}){
   if(![1,2].includes(version))throw new Error('Invalid import schema version');
   const audit=inspectWalletDatabase(filename,environment);
   if(!audit.ok)throw new Error('Source database failed verification');
-  if(audit.counts.highlight_events||audit.counts.highlight_boards)throw new Error('Firestore migration of announcement queues is not supported');
   const db=new DatabaseSync(filename,{readOnly:true}),documents=new Map(),wallets=new Map(),days=new Map(),adminDays=new Map();let nextId=0;
   const put=(path,data,index={})=>{if(documents.has(path))throw new Error('Duplicate import target');documents.set(path,{path,data,index});};
   try{
@@ -66,6 +66,16 @@ export function firestoreImportPlan(filename,environment,{version=1}={}){
       days.set(key,summary);
     }
     for(const row of db.prepare('SELECT * FROM operations ORDER BY guild,key').iterate())put(`operations/${digest(row.guild+'\0'+row.key)}`,{fingerprint:row.fingerprint,result:JSON.parse(row.result)});
+    if(audit.counts.highlight_events)for(const row of db.prepare('SELECT * FROM highlight_events ORDER BY guild,round_id').iterate()){
+      assertHighlightEvent(row);
+      const rounds=db.prepare('SELECT data FROM rounds WHERE guild=? AND id=?').all(row.guild,row.round_id);
+      const expected=rounds.length===1?highlightEvent(row.guild,row.name,JSON.parse(rounds[0].data),row.occurred):null;
+      if(!expected||expected.tier!==row.tier||expected.multiplier!==row.multiplier||expected.occurred!==row.occurred)throw new Error('Highlight does not match original round');
+      put(highlightEventPath(row),{...row},highlightEventIndex(row));
+    }
+    if(audit.counts.highlight_boards)for(const row of db.prepare('SELECT * FROM highlight_boards ORDER BY guild').iterate()){
+      assertHighlightBoard(row);put(`highlightBoards/${row.guild}`,{...row});
+    }
     if(version===2)for(const wallet of wallets.values()){
       wallet.historyCache=encodeHistory(wallet.history);delete wallet.history;wallet.historyRevision ||= 0;
     }
@@ -109,6 +119,7 @@ export async function importFirestore(store,plan,{batchSize=50}={}){
       if(!(await tx.get(store.root.collection('wallets').limit(1))).empty)throw new Error('Firestore namespace is not empty; no existing wallets overwritten');
     }
     store.write(tx,store.meta,{version:store.schemaVersion,environment:plan.environment,status:'importing',nextId:plan.nextId,
+      ...(plan.audit.counts.highlight_events||plan.audit.counts.highlight_boards?{highlights:1}:{}),
       importFingerprint:plan.fingerprint,importDone:current?.importDone||0,importTotal:plan.resources.length});
   },{maxAttempts:3});
   store.ready=false;

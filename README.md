@@ -9,7 +9,7 @@ Discord Activity 內部試玩遊戲。後端負責算獎、籌碼、每日簽到
 - 已完成：243 路玩法、Discord 登入與管理指令、SQLite／Firestore 錢包、斷線重送、完整帳本與備份、荷官 idle／win、音效、快停及自動旋轉。
 - 本機 4188 已接入 Firestore Spark；4189 保留隔離 SQLite 測試。既有雲端切換與電腦／手機驗收記錄見[部署說明](docs/deployment.md)。本次優化是工作區程式變更，尚未重啟正式使用的服務或做真實雲端驗收。
 - 本輪已完成 v2：每局 10→6 次寫入、無損近期快取、輕量狀態與增量同步、較舊紀錄載入、空白命名空間遷移及雙向還原測試。既有雲端仍維持 v1，採用步驟與量測見 [Firestore v2](docs/firestore-v2.md)。第一輪讀取優化見[用量與驗證](docs/spark-optimization.md)。
-- 下一步依序：安排 v2 資料切換與真人驗收 → 異地備份及還原演練 → Firestore 公告佇列 → 背景音樂與手機體驗 → 部署。需求、依賴及驗收條件集中在[實作計畫](docs/roadmap.md)。
+- Firestore 公告佇列、備份回退及 [Discord 啟動前檢查](docs/discord-readiness.md)已完成；待專用頻道與公開入口啟用後驗收。下一步：v2 資料切換與真人驗收 → 異地備份 → 背景音樂與手機體驗 → 部署。需求、依賴及驗收條件集中在[實作計畫](docs/roadmap.md)。
 
 此階段在本機修改與測試；推送、PR、合併或部署另行安排。分支不保證 Netlify 不建置，推送前須確認 Branch deploys／Deploy Previews 設定。
 

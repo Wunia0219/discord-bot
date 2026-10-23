@@ -10,6 +10,7 @@ import {openWalletDatabase,inspectWalletDatabase} from './database.js';
 import {copyWalletDatabase} from './database-maintenance.js';
 import {firestoreImportPlan} from './firestore-import.js';
 import {automaticSnapshots,checksum,diskSpace} from './automatic-backup.js';
+import {assertHighlightEvent,assertHighlightBoard,highlightBoardRecord} from './firestore-highlight-data.js';
 
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const fail=code=>Object.assign(new Error(code),{code});
@@ -127,6 +128,31 @@ function operationKey(entry,document){
   throw fail('BACKUP_OPERATION_LINK_MISSING');
 }
 
+async function readHighlights(store,tx,db){
+  // Delivery state changes without a ledger revision. Read both collections in
+  // the SAME snapshot as wallets, including statuses and the known message ID.
+  db.exec('DELETE FROM highlight_events; DELETE FROM highlight_boards;');
+  for(const collection of ['highlightEvents','highlightBoards']){
+    let cursor;
+    for(;;){
+      let query=store.root.collection(collection).orderBy(FieldPath.documentId()).limit(pageSize);
+      if(cursor)query=query.startAfter(cursor);
+      store.quota.reserve({reads:6*pageSize});const page=await tx.get(query);
+      for(const doc of page.docs){
+        const data=unpack(doc);store.quota.observe(Buffer.byteLength(JSON.stringify(data)));
+        if(collection==='highlightEvents'){
+          assertHighlightEvent(data);if(doc.id!==data.guild+'_'+data.round_id)throw fail('BACKUP_HIGHLIGHT_INVALID');
+          db.prepare('INSERT INTO highlight_events VALUES(?,?,?,?,?,?,?)').run(...['guild','round_id','name','tier','multiplier','occurred','status'].map(key=>data[key]));
+        }else{
+          const row=highlightBoardRecord(data);assertHighlightBoard(row);if(doc.id!==row.guild)throw fail('BACKUP_HIGHLIGHT_INVALID');
+          db.prepare('INSERT INTO highlight_boards VALUES(?,?,?,?,?,?)').run(...['guild','message_id','started','total','entries','next_attempt'].map(key=>row[key]));
+        }
+      }
+      if(page.size<pageSize)break;cursor=page.docs.at(-1).id;
+    }
+  }
+}
+
 export async function createFirestoreSnapshot(store,settings,{now=Date.now(),previous=null,freeBytes=diskSpace,beforePublish=()=>{}}={}){
   const file=`${settings.environment}-${new Date(now).toISOString().replace(/[:.]/g,'-')}-${randomUUID().slice(0,8)}.sqlite`;
   const target=join(settings.directory,file),partial=target+'.partial',marker=partial+'.meta.json';
@@ -189,6 +215,9 @@ export async function createFirestoreSnapshot(store,settings,{now=Date.now(),pre
       for(const row of db.prepare('SELECT guild,user FROM wallets').all())if(!seen.has(row.guild+'_'+row.user))throw fail('BACKUP_WALLET_MISSING');
       const update=db.prepare('INSERT INTO wallets(guild,user,balance,milestone,last_spin) VALUES(?,?,?,?,?) ON CONFLICT(guild,user) DO UPDATE SET balance=excluded.balance,milestone=excluded.milestone,last_spin=excluded.last_spin');
       for(const wallet of remoteWallets)update.run(wallet.guild,wallet.user,wallet.balance,Number(wallet.milestone),wallet.last_spin);
+      if(meta.highlights===1)await readHighlights(store,tx,db);
+      else if(db.prepare('SELECT count(*) count FROM highlight_events').get().count||db.prepare('SELECT count(*) count FROM highlight_boards').get().count)
+        throw fail('BACKUP_SOURCE_CHANGED');
     },{readOnly:true});
     db.exec('COMMIT');db.close();db=null;
     const audit=inspectWalletDatabase(partial,settings.environment);if(!audit.ok)throw fail('BACKUP_AUDIT_FAILED');

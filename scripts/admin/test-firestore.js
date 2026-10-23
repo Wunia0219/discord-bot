@@ -23,7 +23,7 @@ try{
     await delay(200);
   }
   if(!started)throw new Error('Firestore emulator did not become ready');
-  const test=spawn(process.execPath,['--test','--test-concurrency=1','tests/firestore.integration.js','tests/firestore-backup.integration.js','tests/firestore-v2.integration.js'],{
+  const test=spawn(process.execPath,['--test','--test-concurrency=1','tests/firestore.integration.js','tests/firestore-backup.integration.js','tests/firestore-v2.integration.js','tests/firestore-highlights.integration.js','tests/firestore-live-migration.integration.js'],{
     env:{...process.env,FIRESTORE_EMULATOR_HOST:'127.0.0.1:8787',GCLOUD_PROJECT:'demo-jokers-circus'},stdio:'inherit',windowsHide:true});
   const [code]=await once(test,'exit');process.exitCode=code??1;
 }finally{

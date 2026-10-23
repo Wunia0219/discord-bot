@@ -5,6 +5,7 @@ import {WalletStore,problem,taipeiDay,nextCheckin} from './wallet.js';
 import {FirestoreQuota} from './firestore-quota.js';
 import {readAuditPage} from './firestore-history.js';
 import {ledgerIndex,ledgerRange,sequenceKey,encodeHistory,decodeHistory} from './firestore-schema.js';
+import {highlightEvent,highlightEventPath,highlightEventIndex} from './firestore-highlight-data.js';
 
 const maxBalance=1_000_000_000_000,maxDocument=512*1024;
 const digest=value=>createHash('sha256').update(value).digest('hex');
@@ -117,7 +118,7 @@ export class FirestoreWalletStore {
       this.write(tx,ref.collection(name).doc(id),entry,{create:true,index:{id:entry.id}});
     }
   }
-  async transact(guild,user,operation,{compact=false}={}){
+  async transact(guild,user,operation,{compact=false,profileName}={}){
     this.validate(guild,user);if(this.closed)throw this.safe({});
     const ref=this.walletRef(guild,user);
     try{
@@ -180,6 +181,10 @@ export class FirestoreWalletStore {
         }else if(kind==='grant')answer={entry:credit(operation.amount,'grant',operation.actor,operation.reason)};
         else if(kind==='reversal')answer={entry:credit(-original.delta,'reversal',operation.actor,operation.reason,String(operation.entryId))};
         else if(kind==='fixture')answer={entry:credit(operation.balance-wallet.balance,'test_fixture',null,'本機驗收情境初始餘額')};
+        // The announcement outbox commits with the original settlement. A lost
+        // HTTP response or restart cannot lose it; a replay never creates it twice.
+        const announcement=round&&this.highlightsGuild===guild?highlightEvent(guild,profileName,round,now):null;
+        if(announcement)meta.highlights=1;
         // All transaction reads finish before the first write.
         if(entries.length){
           for(const entry of entries){
@@ -194,6 +199,7 @@ export class FirestoreWalletStore {
         if(adminRef)this.write(tx,adminRef,{used:adminDay.used+operation.amount});
         if(reversalRef)this.write(tx,reversalRef,{entryId:answer.entry.id},{create:true});
         if(opRef)this.write(tx,opRef,{fingerprint:operation.fingerprint,result:answer},{create:true});
+        if(announcement)this.write(tx,this.db.doc(this.root.path+'/'+highlightEventPath(announcement)),announcement,{create:true,index:highlightEventIndex(announcement)});
         return {...answer,state:this.snapshot(wallet,now),wallet};
       },{maxAttempts:3});
       if(result.wallet)this.cacheWallet(result.wallet);delete result.wallet;

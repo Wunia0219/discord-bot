@@ -7,6 +7,7 @@ import {WalletStore} from '../server/wallet.js';
 import {firestoreImportPlan} from '../server/firestore-import.js';
 import {decodeHistory} from '../server/firestore-schema.js';
 import {firestoreSettings} from '../server/firestore-settings.js';
+import {assertHighlightEvent,assertHighlightBoard} from '../server/firestore-highlight-data.js';
 
 function source(t){
   const root=resolve('test-results/firestore-plans');mkdirSync(root,{recursive:true});const directory=mkdtempSync(join(root,'case-'));
@@ -42,4 +43,20 @@ test('schema setting defaults to legacy and rejects unsupported versions',()=>{
   assert.equal(firestoreSettings(env).schemaVersion,1);
   assert.equal(firestoreSettings({...env,FIRESTORE_SCHEMA_VERSION:'2'}).schemaVersion,2);
   for(const value of ['0','3','1.5','invalid'])assert.throws(()=>firestoreSettings({...env,FIRESTORE_SCHEMA_VERSION:value}),/FIRESTORE_SCHEMA_VERSION/);
+});
+
+test('migration preserves legacy notification message IDs and fractional retry deadlines while rejecting unsafe board data',t=>{
+  assert.throws(()=>assertHighlightBoard(null),/Invalid highlight board/);
+  assert.throws(()=>assertHighlightEvent({guild:'100000000000000001',name:'玩家',tier:'super',multiplier:30,occurred:1,status:'pending'}),/Invalid highlight event/);
+  const h=source(t),s=new WalletStore({filename:h.filename,guildIds:['100000000000000001']}),deadline=Date.now()+10123.456;
+  try{
+    s.db.prepare('INSERT INTO highlight_boards VALUES(?,?,?,?,?,?)').run('100000000000000001','100000000000000009',Date.now(),1,
+      JSON.stringify([{name:'舊版暱稱',tier:'super',multiplier:30}]),deadline);
+    for(const version of [1,2]){
+      const board=firestoreImportPlan(h.filename,'test',{version}).resources.find(row=>row.path.startsWith('highlightBoards/')).data;
+      assert.equal(board.message_id,'100000000000000009');assert.equal(board.next_attempt,deadline);
+    }
+    s.db.prepare('UPDATE highlight_boards SET message_id=?').run('../../wrong-destination');
+    assert.throws(()=>firestoreImportPlan(h.filename,'test',{version:2}),/Invalid highlight board/);
+  }finally{s.close();}
 });

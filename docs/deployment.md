@@ -16,6 +16,8 @@ Discord 錢包啟動時必須明確填入 `APP_ENV=test` 或 `production`，不�
 
 開發期間先保留本機後端與臨時通道，固定網址及 Netlify 部署等正式上架前再安排。每次測試先確認既有通道可用，可用時沿用；若通道失效，再重建並更新 Discord 後台的 Activity Mapping 與 Interactions Endpoint。
 
+目前的公開測試、專用 Webhook、完整備份及可執行的回退方式集中於 [Discord 測試入口](discord-test-entry.md)。
+
 - 已有本機通道時，網址與程序資料位於被忽略的 `.tools/activity-tunnel.json`、`.tools/activity-server.json`，不要沿用舊文件中的臨時網址。
 - 新建本機通道：`.\.tools\cloudflared.exe tunnel --url http://127.0.0.1:4188 --http-host-header localhost:4188`。執行檔需來自 Cloudflare 官方來源。
 - Portal 的 Activities `/` URL Mapping Target 使用目前 HTTPS 主機名稱，不含 `https://`；開啟 Activities，並設定需要的桌面／手機平台。
@@ -143,7 +145,7 @@ Firestore 的 Discord 籌碼指令先回覆僅本人可見的延遲確認，再�
 
 每一批文件與進度指標一起交易提交。中斷時目標維持 `importing`，不能啟動玩家服務；以同一來源重跑可接續，不能用不同快照覆蓋。全部建立後逐份讀回比對 JSON，驗證成功才改為可用；已存在玩家資料的命名空間不會覆蓋。匯入僅在明確執行該命令時發生，不由服務啟動自動觸發。切換遊戲前仍須停止來源寫入、保留一致快照並完成實際雲端驗收，兩邊資料不會自動雙向合併。
 
-得獎公告的 SQLite 佇列尚未移植，因此 Firestore 模式若設定公告 Webhook 會明確拒絕啟動，避免靜默遺失公告；目前未設定公告的遊戲不受影響。
+Firestore v1／v2 已支援持久得獎公告。指定群的 SUPER／MEGA 事件跟結算一起交易保存，派送在背景處理；未設定 Webhook 時不建立事件。含公告的 SQLite 快照也能匯入，保留事件狀態與已知訊息 ID；檢查事件與原回合不符時拒絕匯入。啟用設定、成本及恢復規則見 [Discord 啟動驗收](discord-readiness.md)。
 
 #### Firestore 自動備份與監控
 
@@ -218,7 +220,7 @@ Firestore 原生排程備份及還原需要 Blaze。本機 Node 在 Spark 使用
 
 同一頻道固定 10 分鐘視窗內更新同一則訊息，最多每 10 秒更新一次，保留最近 5 次及視窗內總次數；視窗結束後的下一次得獎才建立新卡。SUPER 香檳金、MEGA 玫瑰紅，保留原生 Discord 卡片結構，無須玩家另開外部頁面。
 
-公告只讀取後端已提交的回合，名稱來自經 Discord 驗證的 session，忽略客戶端聲稱的名稱及得分。佇列與訊息 ID 存在同一個 SQLite 檔案內的獨立表，依群與回合 ID 去重；公告發送不等待在開轉請求內，失敗不影響已結算的籌碼。429 依重試時間稍候、已刪除卡片可重建。重啟後續用原訊息 ID；超過 15 分鐘的待發事件過期，不補貼舊戰報。若建立訊息的網路回應不明，保守跳過該批並暫停本視窗的新卡，避免重新發送造成洗版；這類少量公告可能略過，遊戲紀錄仍完整。Webhooks 的建立與編輯欄位參考 [Discord 官方文件](https://docs.discord.com/developers/resources/webhook#execute-webhook)。
+公告只使用後端權威回合，名稱來自經 Discord 驗證的 session，忽略客戶端聲稱的名稱及得分。SQLite 佇列與訊息 ID 存在同一個資料庫的獨立表；Firestore 使用原子事件與派送狀態文件，依群與回合 ID 去重。公告發送不等待在開轉請求內，發送失敗不影響已結算的籌碼；Firestore 若無法在交易內保存必要事件，整筆未完成的結算會回滾，沿用原請求重試。429 依重試時間稍候、已刪除卡片可重建。重啟後續用原訊息 ID；超過 15 分鐘的待發事件過期，不補貼舊戰報。若建立訊息的網路回應不明，保守保留不確定狀態並暫停本視窗的新卡，避免重新發送造成洗版；這類公告可能略過，遊戲紀錄仍完整。Firestore 的通知事件狀態會保留並納入備份，不套用 SQLite 的一天暫存清理。Webhooks 的建立與編輯欄位參考 [Discord 官方文件](https://docs.discord.com/developers/resources/webhook#execute-webhook)。
 
 ## Discord 驗證使用的政策網頁
 

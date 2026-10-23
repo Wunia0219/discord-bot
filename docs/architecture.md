@@ -14,6 +14,7 @@
 | 身分與錢包 | `wallet-service.js`、`config.js` | 驗證玩家與群、選擇後端、建立 session |
 | SQLite | `wallet.js`、`database*.js` | 本機開發／可回退的帳本實作、驗帳 |
 | Firestore | `firestore-wallet.js`、`firestore-history.js` | 雲端權威結算、按需分頁、既有資料相容 |
+| 得獎公告 | `highlights.js`、`firestore-highlights.js`、`highlight-card.js` | 共用設定與卡片格式；SQLite／Firestore 各自持久化、去重及發送恢復 |
 | 額度／維運 | `firestore-quota.js`、`operations.js`、`maintenance-worker.js` | 持久預算、worker 排程、就緒及私有告警 |
 | 備份／移入 | `firestore-backup.js`、`firestore-import.js` | 一致快照、完整驗證、空白命名空間還原 |
 
@@ -41,10 +42,11 @@
 | `operations` | 全部請求指紋及原結果，供重送去重 |
 | 玩家 `days` | 每日簽到及遊戲統計；以台灣日期作文件 ID |
 | `adminDays`、`reversals` | 管理員每日限額與更正連結 |
+| `highlightEvents`、`highlightBoards` | 啟用公告後的持久事件、訊息 ID、合併卡片、等待時間與短期派送鎖；事件跟大獎結算原子保存 |
 
 最近 100 局是畫面與錢包的快取上限，並非完整歷史的保存上限。v2 玩家可載入更早的回合；v1／SQLite 維持原本畫面範圍。管理查帳已有分頁。完整歷史、請求去重及摘要不會因這次優化被截短或清除。
 
-既有玩家的一般新旋轉仍為 4 次文件讀取；v1 寫 10 份文件，v2 寫 6 份，SDK／交易重試另計。所有玩家更新同一份 metadata，流量成長後可能出現競爭。v2 的 100 局快取在後端無損壓縮，HTTP 依版本增量同步；冷登入及近期歷史仍只需一份錢包讀取，舊紀錄分頁才額外讀取回合文件。
+既有玩家的一般新旋轉仍為 4 次文件讀取；v1 寫 10 份文件，v2 寫 6 份，SDK／交易重試另計。啟用公告時，指定群的 SUPER／MEGA 每局額外寫入 1 份事件，背景派送另計且有獨立子額度；普通局與未啟用公告者成本不變。所有玩家更新同一份 metadata，流量成長後可能出現競爭。v2 的 100 局快取在後端無損壓縮，HTTP 依版本增量同步；冷登入及近期歷史仍只需一份錢包讀取，舊紀錄分頁才額外讀取回合文件。
 
 ## 運作與恢復界線
 
@@ -52,7 +54,7 @@
 - 同專案的所有本機程序共用持久額度檔。多主機部署不能各自複製配額檔後當作共用預算。
 - Firestore 自動備份每 24 小時、輕量檢查每 10 分鐘；補讀增量後產生可獨立還原的完整 SQLite 快照。來源未改動、SHA-256、帳本及回合驗證通過才發布。
 - 快照目前與服務同機；電腦離線時沒有排程，同磁碟損毀仍有風險。異地副本與外部故障通知尚待實作。
-- Firestore 公告佇列尚未移植，設定 Webhook 會拒絕啟動；SQLite 的公告流程已完成。
+- SQLite／Firestore 公告佇列均已實作；Firestore 空佇列不持續輪詢雲端，公告狀態納入完整備份與 v1／v2 還原。專用 Webhook 尚未在現有服務啟用，細節見 [Discord 啟動驗收](discord-readiness.md)。
 - 主遊戲荷官動畫已接入；背景音樂的 `MUSIC_SOURCE` 仍是 `null`。
 
 資料保存完整不等於任何故障下都零損失：未備份的新資料與同機故障仍需依恢復策略處理。達到額度時會拒絕新的操作，保留已提交資料與原請求，不提供假成功或離線扣款。

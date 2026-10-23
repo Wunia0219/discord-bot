@@ -163,8 +163,8 @@ export function createActivityServer({ clientId, clientSecret, publicKey, wallet
         if(path==='/api/ledger')return json(res,200,{entries:await wallet.store.history(guild,user,Number(new URL(req.url,'http://localhost').searchParams.get('before')||Number.MAX_SAFE_INTEGER))});
         const body=await readJson(req);
         if(path==='/api/checkin')return json(res,200,await wallet.store.checkin(guild,user,view));
-        const result=await wallet.store.spin(guild,user,body?.bet,body?.requestId,view);
-        try { wallet.highlights?.enqueue(session,result.round.id); }
+        const result=await wallet.store.spin(guild,user,body?.bet,body?.requestId,{...view,profileName:session.profile?.name});
+        try { wallet.highlights?.enqueue(session,result.round.id,result.round); }
         catch { console.warn('Discord highlights: could not queue result'); }
         return json(res,200,result);
       }

@@ -4,6 +4,8 @@
 
 v2 另外由 `tests/firestore-v2.integration.js` 驗證實際讀寫量、冷登入一讀、原始資料遷移、跨裝置、完整歷史、備份及回退至 v1；`tests/firestore-schema.test.js`、`firestore-import-plan.test.js`、`wallet-sync.test.js` 驗證無損快取、dry-run 與前端同步。指標與環境界線見 [Firestore v2](firestore-v2.md)。
 
+`tests/firestore-highlights.integration.js` 驗證公告與結算原子提交、普通局六次寫入、並行去重、派送鎖、長時間 429、逾時／重啟、跨群隔離、持久子額度及公告備份回退；只使用官方本機模擬器與假 Discord 回應。`tests/discord-readiness.test.js` 驗證啟動診斷不修改遠端或洩漏密鑰。手動使用 `npm run discord:check -- --discord` 時才會以現有應用程式權杖唯讀查詢 Discord，詳細界線見 [Discord 啟動驗收](discord-readiness.md)。
+
 需要 Node.js 24，在專案根目錄執行：
 
 ```sh
