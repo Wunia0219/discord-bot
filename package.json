@@ -1,6 +1,6 @@
 {
   "name": "luna-arcade-preview",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "private": true,
   "type": "module",
   "scripts": {
@@ -23,6 +23,8 @@
     "backend:restore": "node --env-file=.env.backend.local scripts/admin/restore-db.js",
     "firestore:start": "node --env-file=.env.firestore.local server/index.js",
     "firestore:status": "node --env-file=.env.firestore.local scripts/admin/firestore-status.js",
+    "firestore:backup": "node --env-file=.env.server.local scripts/admin/backup-firestore.js",
+    "firestore:operations": "node --env-file=.env.server.local scripts/admin/operations-status.js",
     "firestore:migrate": "node --env-file=.env.firestore.local scripts/admin/import-firestore.js",
     "firestore:emulator:setup": "node scripts/admin/setup-firestore-emulator.js",
     "test:firestore": "node scripts/admin/test-firestore.js",

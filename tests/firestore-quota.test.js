@@ -52,5 +52,5 @@ test('Firestore configuration cannot silently contact production from emulator t
   for(const invalid of [{APP_ENV:'production'},{FIRESTORE_PROJECT_ID:'real-circus'},{FIRESTORE_EMULATOR_HOST:'example.com:8787'},
     {FIRESTORE_NAMESPACE:'wrong-production'},{FIRESTORE_READ_BUDGET:'50001'},{FIRESTORE_WRITE_BUDGET:'20001'}])assert.throws(()=>firestoreSettings({...env,...invalid}));
   assert.throws(()=>firestoreSettings({APP_ENV:'test',FIRESTORE_PROJECT_ID:'real-circus'}),/FIRESTORE_LIVE_ENABLED/);
-  assert.equal(operationsSettings({WALLET_ENABLED:'true',WALLET_BACKEND:'firestore'}),null);
+  assert.equal(operationsSettings({WALLET_ENABLED:'true',WALLET_BACKEND:'firestore',OPERATIONS_ENABLED:'false'}),null);
 });

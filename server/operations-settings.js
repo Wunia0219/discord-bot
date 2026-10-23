@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {join} from 'node:path';
 import {databaseSettings} from './database-maintenance.js';
+import {firestoreOperationsSettings} from './firestore-operations-settings.js';
 
 function integer(env,name,fallback,min,max){
   const value=env[name]===undefined?fallback:Number(env[name]);
@@ -10,9 +11,12 @@ function integer(env,name,fallback,min,max){
 
 export function operationsSettings(env=process.env){
   if(env.WALLET_ENABLED!=='true')return null;
-  if(env.WALLET_BACKEND==='firestore')return null;
   if(env.OPERATIONS_ENABLED!==undefined&&!['true','false'].includes(env.OPERATIONS_ENABLED))throw new Error('Invalid OPERATIONS_ENABLED');
   if(env.OPERATIONS_ENABLED==='false')return null;
+  if(env.WALLET_BACKEND==='firestore'){
+    if(env.LOCAL_WALLET_TEST==='true'&&env.OPERATIONS_ENABLED!=='true')return null;
+    return firestoreOperationsSettings(env);
+  }
   const database=databaseSettings(env);
   const sourceId=createHash('sha256').update(database.environment+'\0'+database.filename).digest('hex').slice(0,24);
   const directory=join(database.backupDirectory,'automatic',sourceId);

@@ -43,7 +43,7 @@ export class Operations {
     const alerts=[...this.alerts];
     if(stale)alerts.push('MONITOR_STALE');if(this.logFailed)alerts.push('OPERATIONS_LOG_UNAVAILABLE');if(this.statusFailed)alerts.push('OPERATIONS_STATUS_UNAVAILABLE');
     const ready=this.started&&!!this.last?.audit?.ok&&!this.stopping&&!stale
-      &&!alerts.some(code=>['DISK_SPACE_LOW','DISK_CHECK_FAILED','DATABASE_UNAVAILABLE','MAINTENANCE_FAILED'].includes(code));
+      &&!alerts.some(code=>['DISK_SPACE_LOW','DISK_CHECK_FAILED','DATABASE_UNAVAILABLE','MAINTENANCE_FAILED','FIRESTORE_QUOTA_EXHAUSTED'].includes(code));
     return {version:1,sourceId:this.settings.sourceId,updatedAt:new Date(now).toISOString(),running:this.started&&!this.stopping,
       ready,ok:ready&&alerts.length===0,alerts:[...new Set(alerts)],lastCheck:this.last,requests:{...this.requests}};
   }

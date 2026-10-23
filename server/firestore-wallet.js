@@ -149,7 +149,10 @@ export class FirestoreWalletStore {
         else if(kind==='fixture')answer={entry:credit(operation.balance-wallet.balance,'test_fixture',null,'本機驗收情境初始餘額')};
         // All transaction reads finish before the first write.
         if(entries.length){
-          for(const entry of entries){this.record(tx,ref,entry);this.write(tx,this.root.collection('ledger').doc(String(entry.id)),entry,{create:true});}
+          for(const entry of entries){
+            this.record(tx,ref,entry);
+            this.write(tx,this.root.collection('ledger').doc(String(entry.id)),entry,{create:true,index:{operationKey:entry.kind==='test_seed'?null:key}});
+          }
           this.write(tx,this.meta,meta);this.write(tx,ref,wallet);
         }else if(fresh)this.write(tx,ref,wallet,{create:true});
         if(needsDay)this.write(tx,dayRef,daySummary);

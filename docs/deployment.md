@@ -28,7 +28,7 @@ Discord 錢包啟動時必須明確填入 `APP_ENV=test` 或 `production`，不�
 
 ## 錢包後端本機開發
 
-目前沿用 `backend` 分支，遊戲版本為 0.2.5。這一階段使用本機服務與獨立資料檔，先完成驗收再選擇正式主機。不要因開發分支存在就假設 Netlify 不會建置；後續如需推送或建立 PR，應先確認 Netlify 的 Branch deploys 與 Deploy Previews 設定。本機編輯、建置和自動測試本身不會觸發 Netlify 部署。
+目前沿用 `backend` 分支，遊戲版本為 0.2.6。這一階段使用本機服務與獨立資料檔，先完成驗收再選擇正式主機。不要因開發分支存在就假設 Netlify 不會建置；後續如需推送或建立 PR，應先確認 Netlify 的 Branch deploys 與 Deploy Previews 設定。本機編輯、建置和自動測試本身不會觸發 Netlify 部署。
 
 1. 以 `deploy/backend.env.example` 建立被 Git 忽略的 `.env.backend.local`。填入同一 Discord 應用程式的後端憑證及明確的 `ALLOWED_GUILD_IDS`，不能把 Client Secret 放到任何 `VITE_` 設定。
 2. 開發環境固定使用 `APP_ENV=test`、`DATABASE_PATH=data/backend.sqlite`、`BACKUP_DIRECTORY=backups/backend`、`HOST=127.0.0.1`、`PORT=4189`，與既有 `.env.server.local`／4188 服務分開。得獎公告 Webhook 預設留空；只有要測試公告時才設定專用頻道。
@@ -64,7 +64,7 @@ npm run backend:restore -- --from backups/backend/test-某次備份.sqlite --to 
 
 ### 自動備份與監控
 
-`WALLET_ENABLED=true` 時，服務預設啟用 `OPERATIONS_ENABLED=true`。啟動立即檢查，之後每 5 分鐘在獨立 worker 唯讀驗帳、檢查資料庫及備份磁碟剩餘空間、驗證最近備份的 SHA-256；沒有有效備份或距上次成功已滿 6 小時時，建立包含 WAL 的一致快照並重新驗帳。排程不依賴玩家流量，同一程序不重疊執行，重啟會沿用未到期且校驗正確的備份。需要單一實例及持久磁碟；不支援多程序同時維護同一個來源。
+SQLite 模式下，`WALLET_ENABLED=true` 時，服務預設啟用 `OPERATIONS_ENABLED=true`。啟動立即檢查，之後每 5 分鐘在獨立 worker 唯讀驗帳、檢查資料庫及備份磁碟剩餘空間、驗證最近備份的 SHA-256；沒有有效備份或距上次成功已滿 6 小時時，建立包含 WAL 的一致快照並重新驗帳。排程不依賴玩家流量，同一程序不重疊執行，重啟會沿用未到期且校驗正確的備份。需要單一實例及持久磁碟；SQLite 維護不支援多程序同時操作同一個來源。Firestore 的排程及額度另見下方專節。
 
 自動副本放在 `BACKUP_DIRECTORY/automatic/<來源識別碼>/`，依環境及資料庫絕對路徑隔離。只有剛建立並驗證新備份成功後，才清理此來源具有有效管理清單的舊副本；不刪手動備份、其他來源或無法辨識的檔案。預設保留 7 天、至少 3 份、最多 28 份。最低份數優先於天數，所以低流量或長期停機可能保留較舊副本。
 
@@ -84,11 +84,11 @@ npm run backend:restore -- --from backups/backend/test-某次備份.sqlite --to 
 
 目前只提供本機狀態與日誌，沒有向 Email／Discord 發送通知。程式停止、電腦關機或磁碟整個損壞時，程序內排程無法繼續工作；這些同機副本也不能代替異地備份。正式部署後須另外安排外部可用性監控及異地還原驗收，尚未建立任何外部監控或排程。
 
-目前 Firebase 為 Spark 免費方案。本機 SQLite 的監控與備份不使用 Firestore。後續候選為 Netlify 提供前端及受信任 API、Firestore 儲存錢包；UptimeRobot 為可選的公開可用性監控，本輪不接入。Spark 的免費讀寫配額不包含 Firestore 原生備份／PITR，也不能將本機容量上限視為雲端費用保障。[Firestore 配額](https://firebase.google.com/docs/firestore/quotas)、[Firebase 方案](https://firebase.google.com/docs/projects/billing/firebase-pricing-plans)
+目前 Firebase 為 Spark 免費方案，使用本機 Node＋Firestore；部署平台尚未定案。UptimeRobot 為可選的公開可用性監控，本輪不接入。Spark 的免費讀寫配額不包含 Firestore 原生備份／PITR，也不能將本機容量上限視為雲端費用保障。[Firestore 配額](https://firebase.google.com/docs/firestore/quotas)、[Firebase 方案](https://firebase.google.com/docs/projects/billing/firebase-pricing-plans)
 
 ### Firestore Spark 接入
 
-遊戲版本維持 0.2.5。伺服器可明確選擇 `WALLET_BACKEND=sqlite`（預設）或 `firestore`。Firestore 模式目前限 `HOST=127.0.0.1`；只使用 Firestore Standard 的 `(default)` 資料庫，不需要新增 Firebase 網頁應用程式、Authentication、Cloud Storage 或 UptimeRobot。Discord 身分與伺服器權限仍由原本的 Node 後端驗證，瀏覽器不持有 Google 伺服器憑證，也不能直接修改錢包。
+目前遊戲版本為 0.2.6。伺服器可明確選擇 `WALLET_BACKEND=sqlite`（預設）或 `firestore`。Firestore 模式目前限 `HOST=127.0.0.1`；只使用 Firestore Standard 的 `(default)` 資料庫，不需要新增 Firebase 網頁應用程式、Authentication、Cloud Storage 或 UptimeRobot。Discord 身分與伺服器權限仍由原本的 Node 後端驗證，瀏覽器不持有 Google 伺服器憑證，也不能直接修改錢包。
 
 設定流程：
 
@@ -139,7 +139,38 @@ Firestore 的 Discord 籌碼指令先回覆僅本人可見的延遲確認，再�
 
 每一批文件與進度指標一起交易提交。中斷時目標維持 `importing`，不能啟動玩家服務；以同一來源重跑可接續，不能用不同快照覆蓋。全部建立後逐份讀回比對 JSON，驗證成功才改為可用；已存在玩家資料的命名空間不會覆蓋。匯入僅在明確執行該命令時發生，不由服務啟動自動觸發。切換遊戲前仍須停止來源寫入、保留一致快照並完成實際雲端驗收，兩邊資料不會自動雙向合併。
 
-Firestore 模式不會把雲端錢包當成本機 SQLite 備份，也不會啟動 SQLite 的磁碟／備份 worker。現有 SQLite 自動備份只保護 SQLite 來源，不能涵蓋後續 Firestore 新寫入。Firestore 原生備份與 PITR 需要計費；本輪尚未提供雲端錢包的異地備份排程。得獎公告的 SQLite 佇列也尚未移植，因此 Firestore 模式若設定公告 Webhook 會明確拒絕啟動，避免靜默遺失公告；目前未設定公告的遊戲不受影響。
+得獎公告的 SQLite 佇列尚未移植，因此 Firestore 模式若設定公告 Webhook 會明確拒絕啟動，避免靜默遺失公告；目前未設定公告的遊戲不受影響。
+
+#### Firestore 自動備份與監控
+
+Firestore 原生排程備份及還原需要 Blaze。本機 Node 在 Spark 使用唯讀 API 建立遊戲邏輯備份，沒有啟用原生備份、PITR、Cloud Storage、Cloud Scheduler、外部監控或雲端部署。[原生備份條件](https://firebase.google.com/docs/firestore/backups)
+
+`OPERATIONS_ENABLED` 預設開啟（本機假帳號 QA 預設關閉）。服務啟動立即檢查，之後每 10 分鐘由獨立 worker 檢查一份雲端 metadata、專案／維護額度、磁碟、最近備份 SHA-256 及備份時效；到期才讀取玩家資料。每 24 小時建立一份完整可還原的 SQLite 邏輯快照：以上一份校驗正確的快照為底，僅補讀新增帳本及對應的去重操作與原回合，再在同一個 Firestore 唯讀交易內讀取完整錢包集合，取得一致狀態。備份作業不寫入或刪除任何雲端文件，也不重新算獎或發放籌碼。每份快照包含全部歷史，還原不需串接多份增量檔；這是遊戲資料備份，不是整個 Firebase 專案或 IAM／安全規則的匯出。
+
+初次備份可設定 `FIRESTORE_BACKUP_BASELINE`，只接受環境正確、驗帳成功且內容指紋符合雲端原遷移指紋的 SQLite 快照。本機已使用 2026-10-23 的已驗證遷移快照，保留其後的新帳本。歷史旋轉與簽到可推導原請求鍵；新版在既有全域帳本文件附帶管理請求鍵，不增加寫入文件數。若舊管理操作缺少連結且沒有相符基底，備份會明確失敗，避免產生無法去重的副本。來源快照與原 SQLite 不會修改。
+
+所有遠端讀取同時受專案共用額度檔及維護專用持久額度檔 `<FIRESTORE_QUOTA_PATH>.maintenance.sqlite` 限制；重啟不清零。預設維護額度為每滾動 24 小時 **6,000 個保守讀取預留單位**，包含備份及健康檢查，並非額外的 Google 免費配額。每份文件預留 6 單位；正常 10 分鐘一次的監控約預留 864 單位／天，另加啟動或手動操作。遊戲和維護合計仍受原本 40,000 讀取、15,000 寫入等上限保護。維護另有每日 JSON 內容 32 MiB 上限。頁面查詢按最多 20 份文件預留，空頁也保守計數。維護額度用盡就停止額外遠端工作，標記 `FIRESTORE_MAINTENANCE_BUDGET`／未重新驗證遠端，保留上份有效副本。大量新增資料超出維護預算時，會報告延後或過期，須在總額度內調整維護配額及遊戲流量；不承諾任何流量下都能每天成功。Google 控制台與其他程式的用量無法由此本機檔案限制。
+
+| 設定 | 預設 | 說明 |
+|---|---|---|
+| `FIRESTORE_BACKUP_INTERVAL_MINUTES` | `1440` | 距上次成功的備份間隔，最短 60 分鐘 |
+| `FIRESTORE_MONITOR_INTERVAL_SECONDS` | `600` | 輕量監控間隔，最短 60 秒 |
+| `FIRESTORE_MAINTENANCE_READ_BUDGET` | `6000` | 維護讀取預留上限，不得高於專案總上限 |
+| `FIRESTORE_MAINTENANCE_EGRESS_MB` | `32` | 維護取得的 JSON 內容上限，MiB |
+| `BACKUP_RETENTION_DAYS`／`BACKUP_KEEP_MIN`／`BACKUP_MAX_COUNT` | `7`／`3`／`7` | 最低份數優先於天數；新副本驗證後才清理 |
+| `BACKUP_MAX_TOTAL_MB`／`DISK_MIN_FREE_MB` | `256`／`256` | 副本總量上限／磁碟最低餘裕，MiB |
+
+副本與其管理清單存於 `BACKUP_DIRECTORY/firestore/<專案＋命名空間＋環境識別碼>/`。只在此來源完成新快照、SHA-256、SQLite 完整性、餘額連續性、回合算獎、操作去重與完整錢包重建比對後發布及清理舊檔；失敗不刪先前有效備份。新檔先寫入有歸屬標記的 `.partial`，中斷後下次僅清除此來源的未完成檔，保留未知檔案。跨 worker 使用本機 SQLite 互斥鎖，逾時 120 秒終止 worker，鎖會釋放；不跨主機協調。
+
+同目錄下 `operations/status.json` 記錄最近檢查、備份時間、容量與配額估算；`events.jsonl` 記錄異常、恢復與 HTTP 5xx，沿用 1 MiB／2 份舊檔輪替。80% 以上回報 `FIRESTORE_QUOTA_HIGH`，額度耗盡、連線中斷、備份缺失／過期／校驗失敗、磁碟不足會告警。公開 `/readyz` 只回傳 `{ok:true/false}`，不透露玩家、憑證、路徑或配額細節；備份警告不阻止正常結算，資料庫無法連線或總額度不足仍會停止就緒。`npm run firestore:operations`（亦可 `db:status`）同時檢查私有狀態和 4188 `/readyz`；有警告會非零結束。這是本機記錄，尚未發送任何 Email／Discord 通知。
+
+`npm run firestore:backup`（亦可 `db:backup`）使用目前 `.env.server.local` 手動立即嘗試備份；仍須遵守同一額度、磁碟與互斥鎖，頻繁手動執行也會消耗預算。`npm run firestore:status` 沿用 `.env.firestore.local`，查詢雲端與原專案額度；不要把兩者的連接埠／來源混用。
+
+還原時先保留並停止舊入口的新寫入，核對清單 SHA-256 與環境，再以 `npm run firestore:migrate -- --from <快照.sqlite>` 匯入**另一個空白、同環境的命名空間**，先在隔離環境驗收餘額、簽到、紀錄及舊請求去重，完成後才人工切換入口。工具會拒絕覆蓋現有玩家，也不會自動切換入口。新入口須共用原專案額度檔，並將 FIRESTORE_BACKUP_BASELINE 指向本次還原來源，讓新命名空間的首次備份沿用正確基底。完整還原及逐份讀回驗證也有讀寫成本，開始前檢查整份作業能否容納於免費額度；本輪還原演練只在官方本機模擬器，未寫入真實雲端。
+
+電腦關機或 Node 停止期間沒有排程，也無法自行回報整個主機停機；重新啟動後會補做過期的備份。同機副本不能承受整個磁碟遺失，尚未設置異地副本。UptimeRobot 仍是可選的外部可用性監控，沒有接入。原本總額度檔及維護額度檔都應保留，不隨回退或還原快照重置。
+
+2026-10-23 已在真實 Spark 專案建立並校驗 2 份本機快照，涵蓋 2 位玩家、774 筆帳本、772 筆原請求及 758 局；首次增量擷取預留 306 個讀取單位，雲端寫入為 0。備份前後逐份比對玩家及 metadata，原遷移基底 SHA-256 也相同。完整玩家快照另在官方模擬器還原、逐份驗證並重送舊旋轉請求；真實雲端未執行還原。283 項一般回歸、備份／還原與並行結算的模擬器驗收、本機 4188 的 11 項啟動／就緒／存取保護檢查及組建通過。本機已啟用每天備份及每 10 分鐘監控，重啟沿用有效副本；先前遷移及驗收累積的讀取預留約占應用上限 90%，私有狀態如實保留 `FIRESTORE_QUOTA_HIGH` 提醒，服務仍就緒。版本維持 0.2.5，臨時通道保持關閉，未部署。
 
 #### 模擬器驗收
 

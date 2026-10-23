@@ -2,7 +2,7 @@
 
 Discord Activity 內部試玩。固定輪帶、後端結算與伺服器獨立錢包；目前規則識別碼 `circus-243-v2`。
 
-遊戲版本 **0.2.5**，顯示於工具列與遊戲規則頁尾。版本號以 `package.json` 為唯一來源，經 `src/version.js` 共用；**只有使用者明確指定時才更新版本號，不因修正或新增功能自行遞增**。`circus-243-v2` 是結算與歷史重播的規則識別碼，獨立於遊戲版本維護。
+遊戲版本 **0.2.6**，顯示於工具列與遊戲規則頁尾。版本號以 `package.json` 為唯一來源，經 `src/version.js` 共用；**只有使用者明確指定時才更新版本號，不因修正或新增功能自行遞增**。`circus-243-v2` 是結算與歷史重播的規則識別碼，獨立於遊戲版本維護。
 
 ## 玩家介面原則
 
@@ -18,7 +18,7 @@ BOT 指令選單、回覆與公告都用群友看得懂的口吻，先說發生�
 
 需要 Node.js 24。`npm ci` 後執行 `npm run dev`，開啟 http://127.0.0.1:4187/ 。一般瀏覽器使用本機試玩帳本；Discord 使用已登入的伺服器錢包。
 
-錢包後端與資料庫目前在 `backend` 分支進行本機開發，版本為 **0.2.5**。使用 `.env.backend.local`、`data/backend.sqlite`、4189 連接埠及 `backups/backend/`，與既有 4188 Discord 測試服務分開。先執行 `npm run backend:init`，再執行 `npm run backend:dev`；`npm run backend:check` 可唯讀檢查資料庫、帳本連續性與餘額。操作與安全還原方式見[部署說明](docs/deployment.md#錢包後端本機開發)。
+錢包後端與資料庫目前在 `backend` 分支進行本機開發，版本為 **0.2.6**。使用 `.env.backend.local`、`data/backend.sqlite`、4189 連接埠及 `backups/backend/`，與既有 4188 Discord 測試服務分開。先執行 `npm run backend:init`，再執行 `npm run backend:dev`；`npm run backend:check` 可唯讀檢查資料庫、帳本連續性與餘額。操作與安全還原方式見[部署說明](docs/deployment.md#錢包後端本機開發)。
 
 此階段在本機修改與測試，推送、開 PR、合併至 `main` 或雲端部署另行安排。分支本身不保證 Netlify 不建置，後續需要推送時須先確認該網站的 Branch deploys 與 Deploy Previews 設定。
 
@@ -35,14 +35,17 @@ BOT 指令選單、回覆與公告都用群友看得懂的口吻，先說發生�
 | `npm run export:model` | 更新當前數學文件與可匯入 JSON |
 | `npm run build` | 建置 `dist/` |
 | `npm run activity:serve` | 建置並啟動 4188 整合服務 |
-| `npm run db:backup` | SQLite 一致快照 |
+| `npm run db:backup` | 依目前後端建立 SQLite 一致快照或 Firestore 邏輯備份 |
+| `npm run firestore:backup`／`firestore:operations` | 4188 Firestore 手動備份／本機監控狀態 |
 | `npm run db:status`／`backend:status` | 本機服務、驗帳、備份與磁碟監控狀態；異常以非零狀態結束 |
 | `npm run backend:init`／`backend:check` | 開發資料庫初始化／唯讀驗帳 |
 | `npm run backend:backup`／`backend:restore -- --from <備份> --to <新檔案>` | 開發資料庫備份／還原至新檔案 |
 
 SQLite 錢包服務啟動後預設每 5 分鐘唯讀驗帳及檢查磁碟，每 6 小時建立驗證過的 SQLite 備份；重啟沿用尚未到期的有效備份。自動備份保留 7 天、至少 3 份、最多 28 份，預設總量上限 256 MiB；超出容量時回報異常並保留既有備份。設定、還原與告警檢查方式見[自動備份與監控](docs/deployment.md#自動備份與監控)。
 
-本機 Node 支援 `WALLET_BACKEND=firestore`，保留後端算獎、每日簽到、操作去重與管理更正，使用專案共用的持久額度檔。2026-10-23 已將原 Discord SQLite 的 2 位玩家資料完整遷移至 Firestore Spark，並將 `.env.server.local` 的 4188 本機入口切到 Firestore；原 SQLite 與切換前設定保留。Discord Portal 已對應本次獲授權的臨時測試通道，使用者確認真帳號在電腦／手機重開後的餘額、紀錄與簽到一致。`npm run test:firestore` 使用官方本機模擬器，不消耗雲端額度；先執行 `npm run firestore:emulator:setup` 並準備 Java 21。設定與驗收流程見[Firestore Spark 接入](docs/deployment.md#firestore-spark-接入)。版本仍為 0.2.5，未升級計費、建立外部監控或部署。
+本機 Node 支援 `WALLET_BACKEND=firestore`，保留後端算獎、每日簽到、操作去重與管理更正，使用專案共用的持久額度檔。2026-10-23 已將原 Discord SQLite 的 2 位玩家資料完整遷移至 Firestore Spark，並將 `.env.server.local` 的 4188 本機入口切到 Firestore；原 SQLite 與切換前設定保留。Discord Portal 已對應本次獲授權的臨時測試通道，使用者確認真帳號在電腦／手機重開後的餘額、紀錄與簽到一致。`npm run test:firestore` 使用官方本機模擬器，不消耗雲端額度；先執行 `npm run firestore:emulator:setup` 並準備 Java 21。設定與驗收流程見[Firestore Spark 接入](docs/deployment.md#firestore-spark-接入)。上述遷移驗收使用 0.2.5，未升級計費、建立外部監控或部署。
+
+Firestore 模式另有本機自動備份：預設每 24 小時建立完整可還原的邏輯快照，每 10 分鐘檢查連線、額度、備份校驗與磁碟。沿用已驗證快照，只從雲端補讀新增帳本、操作與回合；維護專用讀取預留上限 6,000／滾動 24 小時，另受原本專案總上限約束，不寫入 Firestore。備份保留 7 天、至少 3 份、最多 7 份，總量上限 256 MiB；排程需電腦及 Node 服務持續運行，目前副本存在同一部電腦。詳見 [Firestore 自動備份與監控](docs/deployment.md#firestore-自動備份與監控)。
 
 ## 遊戲與操作
 

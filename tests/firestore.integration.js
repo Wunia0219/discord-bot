@@ -10,6 +10,7 @@ import {createActivityServer} from '../server/app.js';
 import {MODEL_VERSION,roundFromStops} from '../src/game/index.js';
 import {WalletStore} from '../server/wallet.js';
 import {firestoreImportPlan,importFirestore} from '../server/firestore-import.js';
+import {APP_VERSION} from '../src/version.js';
 
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8787','Integration tests require the isolated local emulator');
 const guild='100000000000000001',user='100000000000000002',admin='100000000000000003',other='100000000000000004';
@@ -151,7 +152,7 @@ test('local browser QA requires a separate namespace and retains fixture state o
   const h=await fixture(t);await h.store.close();
   const env={...h.env,WALLET_ENABLED:'true',WALLET_BACKEND:'firestore',HOST:'127.0.0.1',LOCAL_WALLET_TEST:'true',FIRESTORE_NAMESPACE:h.settings.namespace.replace(/-test$/,'-qa-test')};
   const a=await walletConfig(env);
-  try{const overview=await a.localOverview();assert.equal(overview.version,'0.2.5');assert.deepEqual(overview.profiles.map(row=>row.balance),[10000,10000,50,0]);
+  try{const overview=await a.localOverview();assert.equal(overview.version,APP_VERSION);assert.deepEqual(overview.profiles.map(row=>row.balance),[10000,10000,50,0]);
     await a.store.checkin(guild,'100000000000000011');}finally{await a.store.close();}
   const b=await walletConfig(env);try{assert.equal((await b.localOverview()).profiles[0].balance,10500);}finally{await b.store.close();}
   await assert.rejects(walletConfig({...env,FIRESTORE_NAMESPACE:h.settings.namespace}),/separate namespace/);

@@ -4,12 +4,12 @@ import {basename,dirname,join,resolve} from 'node:path';
 import {backupWalletDatabase} from './database-maintenance.js';
 import {inspectWalletDatabase} from './database.js';
 
-const checksum=file=>{
+export const checksum=file=>{
   const fd=openSync(file,'r'),hash=createHash('sha256'),buffer=Buffer.alloc(65536);
   try{let length;while((length=readSync(fd,buffer,0,buffer.length,null)))hash.update(buffer.subarray(0,length));return hash.digest('hex');}
   finally{closeSync(fd);}
 };
-function diskSpace(path){
+export function diskSpace(path){
   let parent=resolve(path);
   while(!existsSync(parent)&&dirname(parent)!==parent)parent=dirname(parent);
   const disk=statfsSync(parent,{bigint:true});
