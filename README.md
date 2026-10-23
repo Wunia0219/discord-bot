@@ -1,86 +1,56 @@
 # Joker’s Circus — 5×3／243 路
 
-Discord Activity 內部試玩。固定輪帶、後端結算與伺服器獨立錢包；目前規則識別碼 `circus-243-v2`。
+Discord Activity 內部試玩遊戲。後端負責算獎、籌碼、每日簽到與請求去重；每個伺服器的玩家錢包獨立。
 
-遊戲版本 **0.2.6**，顯示於工具列與遊戲規則頁尾。版本號以 `package.json` 為唯一來源，經 `src/version.js` 共用；**只有使用者明確指定時才更新版本號，不因修正或新增功能自行遞增**。`circus-243-v2` 是結算與歷史重播的規則識別碼，獨立於遊戲版本維護。
+版本 **0.2.6**，`package.json` 為唯一版本來源。只有使用者明確指定時才更新版本；規則識別碼 `circus-243-v2` 獨立維護，歷史回合保留原規則及結果。
 
-## 玩家介面原則
+## 現況與下一步
 
-後續介面與文案調整先從玩家的目的、操作順序及回饋思考，再選擇呈現方式。使用自然、口語且準確的繁體中文；開發者設定、停點、帳本欄位、規則代碼與原始錯誤留在程式、診斷或管理工具，不放進玩家畫面。Discord 名稱與完整 ID 是使用者指定要保留的帳號辨識資訊。
+- 已完成：243 路玩法、Discord 登入與管理指令、SQLite／Firestore 錢包、斷線重送、完整帳本與備份、荷官 idle／win、音效、快停及自動旋轉。
+- 本機 4188 已接入 Firestore Spark；4189 保留隔離 SQLite 測試。既有雲端切換與電腦／手機驗收記錄見[部署說明](docs/deployment.md)。本次優化是工作區程式變更，尚未重啟正式使用的服務或做真實雲端驗收。
+- 本輪改善：近期紀錄按需分頁、摘要只讀存在的日期、冷卻拒絕減少讀取、合併並發刷新與就緒檢查。資料格式與交易寫入不變，詳見[用量與驗證](docs/spark-optimization.md)。
+- 下一步依序：降低每局寫入與傳輸 → 異地備份及還原演練 → Firestore 公告佇列 → 背景音樂與手機體驗 → 部署。需求、依賴及驗收條件集中在[實作計畫](docs/roadmap.md)。
 
-Discord 頭貼、名稱與完整 ID 顯示於主畫面，簽到有獨立入口，紀錄只保留「遊玩紀錄」；規則只保留圖標獎勵、得獎方式與操作說明。獎勵卡片依當前下注換算成每組實際籌碼；遊玩紀錄先顯示獲得籌碼與籌碼變化，再展開得獎組合。訊息要說明發生什麼、玩家下一步能做什麼，並保護簽到與開轉不會互相重複提交。
-
-Discord 遊戲入口採用安靜啟動。SUPER／MEGA 精彩得獎集中在專用頻道，僅顯示玩家名稱及總下注倍率；10 分鐘內合併更新同一張卡片，不提及玩家、不公開籌碼金額。公告需另外設定該頻道的 Webhook，詳見部署說明；沒有設定時遊戲照常運作。
-
-BOT 指令選單、回覆與公告都用群友看得懂的口吻，先說發生什麼，再說下一步；少用官腔、系統術語與宣傳句。重複簽到／發放／收回要明白說清楚，不讓人以為多領或多扣。管理回覆保留查帳必要的編號、原因及該筆變動前後籌碼，不將舊操作的餘額說成目前餘額。已知失敗透過錯誤代碼轉成自然提示，未知錯誤不直接回傳底層文字。遊戲基本資訊（理論返還率、最高倍率）固定顯示，不使用收合區塊。
+此階段在本機修改與測試；推送、PR、合併或部署另行安排。分支不保證 Netlify 不建置，推送前須確認 Branch deploys／Deploy Previews 設定。
 
 ## 啟動與驗證
 
-需要 Node.js 24。`npm ci` 後執行 `npm run dev`，開啟 http://127.0.0.1:4187/ 。一般瀏覽器使用本機試玩帳本；Discord 使用已登入的伺服器錢包。
+需要 Node.js 24。安裝依賴後開啟一般瀏覽器試玩：
 
-錢包後端與資料庫目前在 `backend` 分支進行本機開發，版本為 **0.2.6**。使用 `.env.backend.local`、`data/backend.sqlite`、4189 連接埠及 `backups/backend/`，與既有 4188 Discord 測試服務分開。先執行 `npm run backend:init`，再執行 `npm run backend:dev`；`npm run backend:check` 可唯讀檢查資料庫、帳本連續性與餘額。操作與安全還原方式見[部署說明](docs/deployment.md#錢包後端本機開發)。
+```sh
+npm ci
+npm run dev
+```
 
-此階段在本機修改與測試，推送、開 PR、合併至 `main` 或雲端部署另行安排。分支本身不保證 Netlify 不建置，後續需要推送時須先確認該網站的 Branch deploys 與 Deploy Previews 設定。
-
-要直接在瀏覽器測試 SQLite 錢包，將 `.env.backend.local` 設為 `LOCAL_WALLET_TEST=true`（同時必須 `APP_ENV=test`、`HOST=127.0.0.1`），執行 `npm run build` 及 `npm run backend:start`，開啟 http://127.0.0.1:4189/?wallet=local 。畫面顯示「本機錢包測試」；固定測試帳號首次取得 10,000 籌碼，每日可簽到一次，下注、餘額與紀錄保存在開發資料庫，重新整理或重啟後端仍保留。這個模式使用獨立測試身分，停用 Discord 登入、指令與公告，並拒絕遠端、轉送及其他網站的請求；不可接上公開通道。一般 `npm run dev` 仍是瀏覽器儲存的試玩模式。
-
-手動驗收開啟 http://127.0.0.1:4189/wallet-test 。提供 A／B 各 10,000、低餘額 50、零餘額 0 四個獨立帳號，12 項操作與預期結果，並可記錄通過／失敗／待協助及匯出 JSON。情境初始金額由帳本一次性建立，重新登入、更新狀態或重啟服務不會重設。每次完整重測改用新的 `DATABASE_PATH`，保留舊資料檔；結果以資料檔識別碼分開保存在瀏覽器。這兩個驗收入口只由本機測試服務供應，不會放進 `dist/`。進一步範圍見[測試說明](docs/bot-testing.md#本機錢包手動驗收)。
+網址為 `http://127.0.0.1:4187/`；一般瀏覽器使用本機試玩帳本，Discord 使用登入後的伺服器錢包。
 
 | 指令 | 用途 |
 |---|---|
-| `npm test` | 算獎、亂數、歷史相容、錢包、快停、自動旋轉及演出回歸 |
-| `npm run test:bot` | Discord 指令 HTTP 整合、簽章、簽到、管理發放／更正／紀錄與錢包回歸 |
-| `npm run verify:math` | 完整加權枚舉 1,296,000,000 組停點並交叉核對期望值 |
-| `npm run verify:sessions` | 100 組 × 500 回合的固定 seed 結算驗證 |
-| `npm run export:model` | 更新當前數學文件與可匯入 JSON |
+| `npm test` | 全部一般回歸測試 |
+| `npm run test:bot` | Discord／HTTP／帳本／維運測試 |
+| `npm run test:firestore` | 隔離的官方模擬器：交易、遷移、備份及還原 |
 | `npm run build` | 建置 `dist/` |
-| `npm run activity:serve` | 建置並啟動 4188 整合服務 |
-| `npm run db:backup` | 依目前後端建立 SQLite 一致快照或 Firestore 邏輯備份 |
-| `npm run firestore:backup`／`firestore:operations` | 4188 Firestore 手動備份／本機監控狀態 |
-| `npm run db:status`／`backend:status` | 本機服務、驗帳、備份與磁碟監控狀態；異常以非零狀態結束 |
-| `npm run backend:init`／`backend:check` | 開發資料庫初始化／唯讀驗帳 |
-| `npm run backend:backup`／`backend:restore -- --from <備份> --to <新檔案>` | 開發資料庫備份／還原至新檔案 |
+| `npm run backend:init`／`backend:dev` | 初始化／啟動 4189 SQLite 開發服務 |
+| `npm run backend:check` | 唯讀驗帳 |
+| `npm run activity:serve` | 建置並依 `.env.server.local` 啟動 4188 |
+| `npm run db:backup`／`db:status` | 目前後端的手動備份／維運狀態 |
+| `npm run firestore:backup`／`firestore:operations` | 4188 Firestore 邏輯備份／維運狀態 |
+| `npm run verify:math`／`verify:sessions` | 完整數學枚舉／固定 seed 回合驗算 |
+| `npm run export:model`／`audio:preview` | 匯出模型／音效試聽 |
 
-SQLite 錢包服務啟動後預設每 5 分鐘唯讀驗帳及檢查磁碟，每 6 小時建立驗證過的 SQLite 備份；重啟沿用尚未到期的有效備份。自動備份保留 7 天、至少 3 份、最多 28 份，預設總量上限 256 MiB；超出容量時回報異常並保留既有備份。設定、還原與告警檢查方式見[自動備份與監控](docs/deployment.md#自動備份與監控)。
+模擬器需 Java 21，首次執行 `npm run firestore:emulator:setup`。本機錢包 QA 使用獨立 `.env.backend.local` 與 `data/backend.sqlite`，設定 `LOCAL_WALLET_TEST=true`、`APP_ENV=test`、`HOST=127.0.0.1` 後，開啟 `http://127.0.0.1:4189/wallet-test`。完整設定、備份還原及隔離限制見[部署說明](docs/deployment.md)；驗收步驟見[測試說明](docs/bot-testing.md)。
 
-本機 Node 支援 `WALLET_BACKEND=firestore`，保留後端算獎、每日簽到、操作去重與管理更正，使用專案共用的持久額度檔。2026-10-23 已將原 Discord SQLite 的 2 位玩家資料完整遷移至 Firestore Spark，並將 `.env.server.local` 的 4188 本機入口切到 Firestore；原 SQLite 與切換前設定保留。Discord Portal 已對應本次獲授權的臨時測試通道，使用者確認真帳號在電腦／手機重開後的餘額、紀錄與簽到一致。`npm run test:firestore` 使用官方本機模擬器，不消耗雲端額度；先執行 `npm run firestore:emulator:setup` 並準備 Java 21。設定與驗收流程見[Firestore Spark 接入](docs/deployment.md#firestore-spark-接入)。上述遷移驗收使用 0.2.5，未升級計費、建立外部監控或部署。
+## 文件導航
 
-Firestore 模式另有本機自動備份：預設每 24 小時建立完整可還原的邏輯快照，每 10 分鐘檢查連線、額度、備份校驗與磁碟。沿用已驗證快照，只從雲端補讀新增帳本、操作與回合；維護專用讀取預留上限 6,000／滾動 24 小時，另受原本專案總上限約束，不寫入 Firestore。備份保留 7 天、至少 3 份、最多 7 份，總量上限 256 MiB；排程需電腦及 Node 服務持續運行，目前副本存在同一部電腦。詳見 [Firestore 自動備份與監控](docs/deployment.md#firestore-自動備份與監控)。
+| 文件 | 單一責任 |
+|---|---|
+| [架構](docs/architecture.md) | 模組邊界、資料來源、讀寫流程與限制 |
+| [實作計畫](docs/roadmap.md) | 尚未完成的工作、先後依賴與完成條件 |
+| [Spark 優化](docs/spark-optimization.md) | 本輪變更、情境成本、測試證據與適用範圍 |
+| [部署與維運](docs/deployment.md) | 環境設定、帳本、遷移、備份及歷史驗收 |
+| [測試](docs/bot-testing.md) | 自動回歸及人工驗收操作 |
+| [玩家體驗](docs/player-experience.md) | 文案、玩法操作、視聽與鍵盤契約 |
+| [數學](docs/game-math.md) | 輪帶、RTP、獎勵與歷史模型 |
+| [素材](docs/assets.md)／[荷官動畫](docs/dealer-animation.md) | 素材來源、匯出及動畫規格 |
 
-## 遊戲與操作
-
-- 243 路：從第一軸開始，連續至少三軸同圖標即得獎，各軸份數相乘。同圖標只付最長獎，不同圖標相加。
-- 倍率表保持原值，計價單位仍為總下注÷20；下注額 20／100／200／500。
-- 理論 RTP **96%**，有派彩率 **56.2046%**；黑桃占派彩 **15.9115%**。自然最高派彩 **2,700 倍總下注**，BIG／SUPER／MEGA 演出門檻為 10／30／100 倍，派彩及圖標頻率保持原值。
-- 空白鍵第一次開轉，再按一次縮短轉動，以短程減速依序停輪。每軸停下時先向下輕彈、再向上回彈歸位；一般開轉與快停都有相同效果，減少動態模式則省略回彈。不改變本局結果、不重複扣款。停輪回彈、中獎亮框、彈動與跳分完成後才接受下一局。
-- 主畫面空白鍵固定由開轉／快停處理，不受遊玩紀錄、規則、音效、下注等按鈕的點擊或焦點影響；同時攔截按下與放開的預設動作，避免再次啟用原按鈕。焦點仍保留，Enter 可啟用工具按鈕。紀錄／規則視窗開啟時，空白鍵不關閉視窗也不開轉；紀錄展開列與規則分頁保留鍵盤操作，關閉使用右上角按鈕或 Esc。輸入文字、組合鍵及背景狀態不攔截。
-- 音效與背景音樂分開控制，預設均不自動播放。音效使用原創 Web Audio 合成，以清亮玻璃主音、柔和低八度、短落點音及輕量立體聲早期反射，保留高音快速琶音的風格，分為開轉、五軸停輪、少量派彩、小獎與大獎；沒有內嵌第三方音源。不支援 StereoPanner 的環境使用單聲道。關閉音效會取消尚未播放的音符，不影響背景音樂。切到背景時兩者都暫停，回到前景只恢復已開啟的聲道，不補播舊音效。
-- 背景音樂尚未提供曲目，按鈕會顯示「待加入」。取得曲目後將本機資產 URL 設於 `src/ui/audio-cues.js` 的 `MUSIC_SOURCE`；音樂獨立循環播放，使用獨立音量。`npm run audio:preview` 可在 `test-results/audio/` 產生與遊戲相同合成參數的 WAV 試聽檔，不需要下注。
-- 每軸落地開始回彈時播放對應停輪音，五軸回彈全部結束後才播放本局中獎音效。以總派彩計算：0 不播放中獎音、有派彩且不超過 1 倍下注播放短提示、超過 1 倍且不足 10 倍播放小獎；BIG／SUPER／MEGA（10／30／100 倍起）共用大獎音，與最高等級的演出同時開始，每局只播一種。12,000 籌碼里程碑慶祝仍使用大獎音。試聽視窗已移除。
-- 連續開轉遇到後端兩秒間隔時會自動稍候，保留同一筆請求；正常等待不跳出錯誤視窗。
-- AUTO SPIN 開啟連續旋轉，再按停止後續開轉。保留跳分、亮框與彈動；開啟視窗、切到背景或籌碼不足時停止自動。
-- 淨損益＝派彩−下注，有得分仍可能減少籌碼。測試籌碼不能購買、轉讓或兌現。
-- 荷官 R6 本機候選保留 `idle`／`win`。原待機 96 幀／3.2 秒的素材與時間完全保留；使用者退回 R5 中獎節奏後，R6 維持 108 個時間樣本／3.6 秒／30fps，將臂幅校準為 6.5°，改為身體帶動、手臂延後約 191ms 的連續曲線。座標、匯出契約、待機保護、指定靜態範圍及本機播放已核對，仍待使用者確認自然度。主遊戲仍用單張人物原畫，尚未接入候選動畫、變更錢包或部署；大獎仍由 WIN 演出。來源、保留與驗收範圍見 [角色動畫](docs/dealer-animation.md)。
-
-完整規則、賠率與驗證見 [數學說明](docs/game-math.md)，可匯入的輪帶及模型在 [jokers-circus-243.json](output/jokers-circus-243.json)。
-
-## 專案入口
-
-```text
-src/game/       算獎、輪帶、結算、舊版相容；入口 index.js
-src/ui/         畫面、動畫、快停、自動旋轉與音效
-src/platform/   Discord 登入及錢包連線
-src/main.js     頁面與互動組合入口
-server/         HTTP、帳號驗證、SQLite 錢包與管理指令
-scripts/game/   數學、回合驗證與模型匯出
-scripts/assets/ 素材產生與壓縮
-scripts/admin/  備份與指令註冊
-docs/           規則、部署、素材說明；data/ 放原始數據
-tests/          依功能命名的回歸測試
-```
-
-[部署與錢包維護](docs/deployment.md)包含 Discord 端點、設定、簽到／管理指令、Docker 與備份；[素材維護](docs/assets.md)包含圖集、母檔與畫面規格。
-
-[Bot 功能測試](docs/bot-testing.md)包含自動測試範圍與 Discord 手動驗收步驟。
-
-憑證、資料庫、本機工具、備份與測試原始輸出均被 Git 忽略。專案整理前的可回復快照保存在本機 `backups/project-before-243-20261019-001051.zip`；舊搜尋工具、歷史研究文件與舊美術匯出包不再放在目前專案內容中。
+憑證、資料庫、本機工具、備份與測試原始輸出均被 Git 忽略。原專案整理前的可回復快照保留於 `backups/project-before-243-20261019-001051.zip`。

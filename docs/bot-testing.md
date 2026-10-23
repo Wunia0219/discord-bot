@@ -42,6 +42,8 @@ npm run test:bot
 
 ## Discord 電腦與手機同步驗收
 
+本輪 Spark 讀取優化另由 `tests/firestore-history.test.js` 驗證情境成本、空集合、亂序日期、跨頁不漏／不重複與查詢失敗；`tests/firestore.integration.js` 驗證實際索引查詢、台灣日期範圍、冷卻讀取及就緒合併，既有備份／還原驗收繼續執行。結果與限制見 [Spark 優化](spark-optimization.md)。採用本輪程式後，以下真人驗收仍需重新執行。
+
 使用 `.env.server.local` 啟動 `npm run activity:server`，設定 `APP_ENV=test`、`WALLET_ENABLED=true`、明確的測試伺服器 allowlist 與資料庫；不可啟用 `LOCAL_WALLET_TEST`。僅把此服務的 4188 連接埠接到臨時通道，更新 Discord 活動根 URL 對應及互動端點。4189 的假帳號驗收服務維持本機使用。
 
 兩台裝置都從 Discord 的同一個測試伺服器開啟活動，使用同一個帳號，並關閉自動旋轉。核對玩家 ID、初始餘額及最近紀錄；一般瀏覽器預覽和本機玩家 A 不屬於這個錢包。

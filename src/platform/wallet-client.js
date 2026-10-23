@@ -1,6 +1,6 @@
 export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.sessionStorage,{clock=()=>performance.now(),wait=delay=>new Promise(resolve=>globalThis.setTimeout(resolve,delay))}={}){
   const key=`kemet-pending:${session.guildId}:${session.userId}`;
-  let pending,nextSpinAt=0,spinPromise=null;
+  let pending,nextSpinAt=0,spinPromise=null,statePromise=null;
   const validDelay=value=>Number.isFinite(value)&&value>0&&value<=60000;
   try{pending=JSON.parse(storage?.getItem(key)||'null');}catch{pending=null;}
   if(pending&&(!Number.isInteger(pending.bet)||!/^[-a-zA-Z0-9]{16,80}$/.test(pending.requestId||'')))pending=null;
@@ -36,7 +36,10 @@ export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.se
     }catch(error){if([400,403,409,429].includes(error.status)){pending=null;persist();}throw error;}
   }
   return {
-    state:()=>request('/api/wallet'),
+    state(){
+      statePromise ||= request('/api/wallet').finally(()=>{statePromise=null;});
+      return statePromise;
+    },
     ledger:()=>request('/api/ledger'),
     checkin:()=>request('/api/checkin',{}),
     spin(bet){

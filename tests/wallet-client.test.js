@@ -1,6 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWalletClient } from '../src/platform/wallet-client.js';
+
+test('overlapping wallet refreshes share a request and failures do not prevent later refresh',async()=>{
+ let release,calls=0,fail=false;
+ const client=createWalletClient({guildId:'guild',userId:'user'},async()=>{
+  calls++;await new Promise(resolve=>{release=resolve;});
+  if(fail)throw new Error('offline');return Response.json({state:{balance:calls}});
+ },null);
+ const a=client.state(),b=client.state();assert.equal(a,b);assert.equal(calls,1);
+ release();assert.equal((await a).state.balance,1);
+ fail=true;const failed=client.state();release();await assert.rejects(failed,/網路/);
+ fail=false;const recovered=client.state();release();assert.equal((await recovered).state.balance,3);
+});
 test('lost response retries the same bet and id, including a page reload, without storing session secrets',async()=>{
  const data=new Map();const storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)};
  const session={token:'private-session',guildId:'guild',userId:'user'};let first;

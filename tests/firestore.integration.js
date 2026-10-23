@@ -68,7 +68,9 @@ test('two distinct concurrent spins preserve ledger continuity and the balance e
 test('cooldowns, insufficient funds and invalid requests cannot partially commit',async t=>{
   let now=Date.parse('2026-10-22T00:00:00Z');const h=await fixture(t,{clock:()=>now,spinDelay:2000}),s=h.store;
   await s.spin(guild,user,20,randomUUID());const before=await s.history(guild,user);
+  const reads=s.quota.status().used.reads,writes=s.quota.status().used.writes;
   await assert.rejects(s.spin(guild,user,20,randomUUID()),{code:'SPIN_COOLDOWN'});
+  assert.equal(s.quota.status().used.reads-reads,18);assert.equal(s.quota.status().used.writes,writes);
   assert.deepEqual(await s.history(guild,user),before);assert.throws(()=>s.spin(guild,user,21,randomUUID()),/無效/);
   await s.ensureFixture(guild,admin,0,'zero');await assert.rejects(s.spin(guild,admin,20,randomUUID()),/籌碼不足/);
   assert.equal((await s.state(guild,admin)).balance,0);
@@ -101,6 +103,38 @@ test('querying selected Taipei days includes older rewards without scanning spin
   now+=2000;await s.grant(guild,admin,user,200,'今天',randomUUID());await s.checkin(guild,user);
   const today=await s.auditHistory(guild,user,{days:1,category:'rewards'}),week=await s.auditHistory(guild,user,{days:7,category:'rewards'});
   assert.equal(today.rows.length,1);assert.equal(week.rows.length,2);assert.equal((await s.auditSummary(guild,user,7)).checkin.days,2);
+});
+
+test('audit fallback on existing daily indexes handles clock rollback and paginates without loss',async t=>{
+  let now=Date.parse('2026-10-23T00:00:00Z');const h=await fixture(t,{clock:()=>now}),s=h.store;
+  for(let i=0;i<13;i++)await s.grant(guild,admin,user,1,'期間內',randomUUID());
+  now=Date.parse('2026-08-01T00:00:00Z');
+  for(let i=0;i<12;i++)await s.grant(guild,admin,user,1,'舊日期較大編號',randomUUID());
+  now=Date.parse('2026-10-23T00:00:00Z');
+  const first=await s.auditHistory(guild,user,{category:'rewards',days:30});
+  const second=await s.auditHistory(guild,user,{category:'rewards',days:30,before:first.next});
+  assert.equal(first.rows.length,10);assert.equal(second.rows.length,3);assert.equal(second.next,null);
+  const rows=[...first.rows,...second.rows];assert.equal(new Set(rows.map(row=>row.id)).size,13);
+  assert.ok(rows.every(row=>row.reason==='期間內'));
+});
+
+test('summary date range includes only selected Taipei days and returns zeros for empty ranges',async t=>{
+  let now=Date.parse('2026-09-23T16:00:00Z');const h=await fixture(t,{clock:()=>now}),s=h.store;
+  await s.checkin(guild,user); // First included day for October 23 / 30 days.
+  now-=86400000;await s.checkin(guild,user); // Just outside.
+  now=Date.parse('2026-10-23T00:00:00Z');await s.checkin(guild,user);
+  now+=86400000;await s.checkin(guild,user); // Future day must not leak in.
+  now-=86400000;
+  assert.equal((await s.auditSummary(guild,user,30)).checkin.days,2);
+  assert.equal((await s.auditSummary(guild,user,1)).checkin.days,1);
+  assert.equal((await s.auditSummary(guild,other,30)).checkin.days,0);
+});
+
+test('concurrent readiness probes share one remote read after freshness expires',async t=>{
+  let now=Date.parse('2026-10-23T00:00:00Z');const h=await fixture(t,{clock:()=>now}),s=h.store;now+=60001;
+  const before=s.quota.status().used.reads;
+  assert.ok((await Promise.all(Array.from({length:20},()=>s.isReady()))).every(Boolean));
+  assert.equal(s.quota.status().used.reads-before,6);
 });
 
 test('cache and concurrent read coalescing reduce polling without serving a stale local settlement',async t=>{

@@ -1,8 +1,9 @@
-import {Firestore} from '@google-cloud/firestore';
+import {Firestore,FieldPath} from '@google-cloud/firestore';
 import {randomInt,randomUUID,createHash} from 'node:crypto';
 import {BETS,roundFromStops,REEL_STRIPS} from '../src/game/index.js';
 import {WalletStore,problem,taipeiDay,nextCheckin} from './wallet.js';
 import {FirestoreQuota} from './firestore-quota.js';
+import {readAuditPage} from './firestore-history.js';
 
 const maxBalance=1_000_000_000_000,maxDocument=512*1024;
 const digest=value=>createHash('sha256').update(value).digest('hex');
@@ -56,7 +57,11 @@ export class FirestoreWalletStore {
   async isReady(){
     if(this.closed||this.quota.status().blocked)return false;
     if(this.ready&&this.clock()-this.readyAt<60000)return true;
-    try{this.checkMeta(await this.read(this.meta));this.ready=true;this.readyAt=this.clock();return true;}catch{this.ready=false;return false;}
+    this.readyPending ||= (async()=>{
+      try{this.checkMeta(await this.read(this.meta));this.ready=!this.closed;this.readyAt=this.clock();return this.ready;}
+      catch{this.ready=false;return false;}
+    })().finally(()=>{this.readyPending=null;});
+    return this.readyPending;
   }
   safe(error){
     if(error.walletProblem)return error;
@@ -108,7 +113,6 @@ export class FirestoreWalletStore {
         const fresh=!wallet;
         wallet ||= {guild,user,balance:0,last_spin:0,milestone:false,claimedDay:null,revision:0,history:[],summary:zeroSummary()};
         const dayRef=ref.collection('days').doc(day),needsDay=kind==='spin'||kind==='checkin';
-        const daySummary=needsDay?(await this.read(dayRef,tx)||zeroSummary()):null;
         const adminRef=kind==='grant'?this.root.collection('adminDays').doc(guild+'_'+operation.actor+'_'+day):null;
         const adminDay=adminRef?(await this.read(adminRef,tx)||{used:0}):null;
         let original,reversalRef;
@@ -125,6 +129,9 @@ export class FirestoreWalletStore {
           if(wallet.balance+(fresh&&this.environment==='test'?10000:0)<operation.bet)throw problem(409,'籌碼不足，請降低下注、簽到或聯絡管理員。');
         }
         if(adminDay&&adminDay.used+operation.amount>this.grantDaily)throw problem(409,'已超過這位管理員今日的發放額度。','GRANT_DAILY');
+        // Rejected spins need no daily summary; accepted operations still read it
+        // in this transaction before any writes, preserving atomic accounting.
+        const daySummary=needsDay?(await this.read(dayRef,tx)||zeroSummary()):null;
         const entries=[];
         const credit=(delta,entryKind,actor,reason,reference=null)=>{
           const before=wallet.balance,after=before+delta;
@@ -201,9 +208,11 @@ export class FirestoreWalletStore {
     this.validate(guild,user);
     if(!['rewards','checkin','game','all'].includes(cat)||!Number.isSafeInteger(before)||before<1||![0,1,7,30].includes(days))throw problem(400,'無效的紀錄查詢條件。','AUDIT_FILTER');
     try{
-      const ref=this.walletRef(guild,user),collections=days?Array.from({length:days},(_,i)=>`entries-${cat}-${taipeiDay(this.clock()-i*86400000)}`):[cat==='all'?'ledger':`entries-${cat}`];
-      const rows=[];for(const name of collections)rows.push(...await this.query(ref.collection(name),before,11));
-      rows.sort((a,b)=>b.id-a.id);const selected=rows.slice(0,10);
+      const ref=this.walletRef(guild,user),now=this.clock();
+      const rows=await readAuditPage({category:cat,before,
+        days:Array.from({length:days},(_,i)=>taipeiDay(now-i*86400000)),
+        query:(name,cursor,limit)=>this.query(ref.collection(name),cursor,limit)});
+      const selected=rows.slice(0,10);
       for(const row of selected)if(row.kind==='grant'){const reversal=await this.read(this.root.collection('reversals').doc(String(row.id)));row.reversal_id=reversal?.entryId||null;}
       return {rows:selected,next:rows.length>10?selected[9].id:null};
     }catch(error){throw this.safe(error);}
@@ -212,8 +221,14 @@ export class FirestoreWalletStore {
     this.validate(guild,user);if(![0,1,7,30].includes(days))throw problem(400,'無效的紀錄查詢期間。','AUDIT_FILTER');
     try{
       if(!days)return (await this.read(this.walletRef(guild,user)))?.summary||zeroSummary();
-      const result=zeroSummary();for(let i=0;i<days;i++){
-        const data=await this.read(this.walletRef(guild,user).collection('days').doc(taipeiDay(this.clock()-i*86400000)))||zeroSummary();
+      const now=this.clock(),field=FieldPath.documentId();
+      // ISO day document IDs already form a single-field date index. A range
+      // query reads only existing days instead of billing missing point reads.
+      this.quota.reserve({reads:6*days});
+      const snapshot=await this.walletRef(guild,user).collection('days')
+        .where(field,'>=',taipeiDay(now-(days-1)*86400000)).where(field,'<=',taipeiDay(now)).limit(days).get();
+      const result=zeroSummary();for(const doc of snapshot.docs){
+        const data=unpack(doc);this.quota.observe(Buffer.byteLength(JSON.stringify(data)));
         for(const group of ['checkin','game'])for(const key of Object.keys(result[group]))result[group][key]+=data[group][key];
       }return result;
     }catch(error){throw this.safe(error);}
