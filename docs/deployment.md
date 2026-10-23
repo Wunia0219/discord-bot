@@ -92,11 +92,21 @@ npm run backend:restore -- --from backups/backend/test-某次備份.sqlite --to 
 
 設定流程：
 
-1. 沿用 Spark 專案 `slot-game-203db`。Firestore → 建立資料庫，選 Standard、`(default)`、適合玩家及後端的區域（目前本機候選為台灣 `asia-east1`）與正式版安全規則。區域建立後不能直接修改。
+1. 沿用 Spark 專案 `slot-game-203db`。Firestore 資料庫已建立為 Standard、`(default)`，實際區域為美國多區域 `nam5`。區域建立後不能直接修改；如需台灣區域，須另外規劃資料庫及遷移，不能直接更改現有資料庫。
 2. 專案設定 → 服務帳戶 → Firebase Admin SDK → Node.js，產生私密金鑰；JSON 放在版本庫外的私密位置。應使用具 Firestore 所需 IAM 權限的服務身分，不將金鑰貼到聊天、前端、日誌或 Git。
 3. 以 `deploy/firestore.env.example` 建立被忽略的 `.env.firestore.local`，填入後端 Discord 設定、群 allowlist、專案 ID 及 `GOOGLE_APPLICATION_CREDENTIALS` 檔案路徑。憑證的專案 ID 必須與 `FIRESTORE_PROJECT_ID` 完全一致。雲端存取還必須明確設 `FIRESTORE_LIVE_ENABLED=true`；模擬器則只能使用 `demo-` 專案及 `127.0.0.1`。
-4. `npm run firestore:start` 預設使用獨立 4190 連接埠，供本機驗證。命名空間預設 `jokers-circus-test`，資料內同時驗證環境與結構版本；正式與測試資料不能混用。預設不更動既有 4188／4189 服務或 SQLite 資料。
+4. `npm run firestore:start` 預設使用獨立 4192 連接埠，供本機驗證（4190 屬於 [Fetch 標準封鎖的埠](https://fetch.spec.whatwg.org/#port-blocking)，瀏覽器無法使用）。命名空間預設 `jokers-circus-test`，資料內同時驗證環境與結構版本；正式與測試資料不能混用。預設不更動既有 4188／4189 服務或 SQLite 資料。
 5. `npm run firestore:status` 讀取私有管理狀態、應用額度及雲端中繼資料。它不初始化錢包，也不建立測試籌碼；不健康時以非零狀態結束。管理狀態不透過公開 API 提供。
+
+2026-10-23 已使用專案外的服務帳戶憑證連上真實資料庫，並從 Firebase 控制台確認 Spark。獨立 QA 命名空間的 10 項驗收通過：兩個工作階段、同時簽到只加一次、同請求旋轉只結算一次、新連線讀回資料、管理發放與更正、額度不足完整回滾、未登入讀取拒絕、額度檔重開保留，以及版本和資料隔離。報告為本機 `test-results/firestore-0.2.5-live-acceptance.json`。
+
+同日另依使用者指示完成玩家遷移：來源為 `.env.server.local` 原本的 SQLite，包含 2 位玩家、764 筆帳本、762 筆去重操作及 749 局。遷移前建立並驗證一致快照，5,344 份 Firestore 文件逐份比對成功；玩家餘額、最近回合、帳本、統計及舊旋轉請求的原結果一致，重送未再次扣款。來源 SQLite 內容指紋保持不變，4 個本機假帳號的獨立 SQLite 不併入真人命名空間。
+
+`.env.server.local` 已改為 `WALLET_BACKEND=firestore`，`npm run activity:server` 仍使用 `127.0.0.1:4188`。原設定保留在被 Git 忽略的 `.env.server.sqlite-rollback.local`，一致快照與詳細驗收紀錄見本機 `test-results/firestore-0.2.5-cutover.json`。另通過 6 項使用真實 Firestore、模擬 Discord 傳輸的 HTTP 驗收，以及實際 4188 入口的 7 項就緒／存取保護檢查。使用者已授權本次臨時 HTTPS 通道，Discord Portal 的活動根路徑與互動端點均已儲存，互動端點通過 Discord 簽章連線驗證。
+
+真帳號尾碼 `183232` 的電腦／手機由使用者回報重開後一致：餘額 37,890、最新一局約 12:08／下注 100／派彩 0、今日已領取且不能再次領取。Firestore 核對遷移後 4 局與一筆 500 簽到入帳，餘額由 37,740 成為 37,890，逐局帳本一致；兩張不同餘額的截圖對應不同時間的回合。
+
+追加修正 SPIN 先等後端才開轉的停頓後，使用者以自己的尾碼 `435138` 帳號確認按下即開始動畫。12:23 的下注 100／派彩 0，在 Firestore 只有一筆對應結算，餘額由 10,575 成為 10,475。此動畫修正有使用者桌面截圖確認，未另收到手機專項複測回報；不得與前述雙裝置資料同步驗收混為一談。273 項回歸、7 項瀏覽器動畫檢查及組建皆通過，臨時通道已關閉且外網確認不能再存取，本機 4188 Firestore 後端保留。本輪維持 0.2.5，未部署。切換後如有 Firestore 新紀錄，回退前須先規劃同步，不能只改回舊 SQLite 設定而遺失後續進度。
 
 正式版安全規則須拒絕瀏覽器對錢包資料的讀寫；Node SDK 經 IAM 存取，不依賴客戶端安全規則。`deploy/firestore.rules` 是官方模擬器測試使用的拒絕存取範本，不會自動發布。既有專案如有其他應用，必須檢查現有規則的廣泛允許條件，不能直接覆蓋其他應用規則。此階段不升級 Blaze、不啟用帳單、不執行 Firebase／網站部署。
 

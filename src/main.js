@@ -161,16 +161,17 @@ async function spin() {
   controls.beginRound();
   setBusy(true);result('馬上開轉，請稍等一下。','');let nextDelay=650,settledRound;
   try{
+    showPayout(0);cancelAnimationFrame(countAnimation);hideCelebration();clearWinReadout();
+    if(walletClient){scene.beginSpin();sound.spin();result('轉輪開始，準備揭曉。',`本局下注 ${fmt(bet)}`);}
     const update=walletClient?await walletClient.spin(bet):createRound(state,bet,drawStops(),crypto.randomUUID());
     const r=update.round;save(update.state);settledRound=r;
-    // Keep the previous round's effects visible during wallet/network waits.
-    showPayout(0);cancelAnimationFrame(countAnimation);hideCelebration();clearWinReadout();
     if(r.rules!==MODEL_VERSION){
+      scene.cancelSpin(restoredStops(state));
       controls.stopAuto();renderState();showPayout(r.payout);
       result('上一局的結果已找回',`獲得 ${fmt(r.payout)} 籌碼，沒有再次扣除下注。可在遊玩紀錄查看。`);
       return;
     }
-    sound.spin();
+    if(!walletClient)sound.spin();
     scene.prepareDealer(r);
     setBitmapNumber($('#balance'),fmt(r.before-r.bet));
     result('轉輪開始，準備揭曉。',`本局下注 ${fmt(r.bet)}`);
@@ -190,6 +191,7 @@ async function spin() {
     // Space can shorten reel travel, but cannot cut off the resulting win.
     if(timing.hold&&!document.hidden)await new Promise(resolve=>setTimeout(resolve,timing.hold));
   }catch(error){
+    scene.cancelSpin(restoredStops(state));
     controls.stopAuto();renderState();
     if(settledRound)showPayout(settledRound.payout);
     if(settledRound){const body=document.createElement('p');body.textContent='這局的結果已保存，可以到遊玩紀錄查看。自動旋轉已暫停。';openDialog('這局的結果已保存',body);}

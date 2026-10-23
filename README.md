@@ -42,7 +42,7 @@ BOT 指令選單、回覆與公告都用群友看得懂的口吻，先說發生�
 
 SQLite 錢包服務啟動後預設每 5 分鐘唯讀驗帳及檢查磁碟，每 6 小時建立驗證過的 SQLite 備份；重啟沿用尚未到期的有效備份。自動備份保留 7 天、至少 3 份、最多 28 份，預設總量上限 256 MiB；超出容量時回報異常並保留既有備份。設定、還原與告警檢查方式見[自動備份與監控](docs/deployment.md#自動備份與監控)。
 
-本機 Node 另支援 `WALLET_BACKEND=firestore`，保留後端算獎、每日簽到、操作去重與管理更正，使用獨立 `.env.firestore.local` 及專案共用的持久額度檔。先執行 `npm run firestore:emulator:setup`、準備 Java 21，再用 `npm run test:firestore` 在官方模擬器驗證；測試不使用雲端讀寫額度。真實專案、憑證、安全規則及驗收流程見[Firestore Spark 接入](docs/deployment.md#firestore-spark-接入)。版本仍為 0.2.5，沒有自動切換現有 SQLite、遷移玩家、升級計費、建立外部監控或部署。
+本機 Node 支援 `WALLET_BACKEND=firestore`，保留後端算獎、每日簽到、操作去重與管理更正，使用專案共用的持久額度檔。2026-10-23 已將原 Discord SQLite 的 2 位玩家資料完整遷移至 Firestore Spark，並將 `.env.server.local` 的 4188 本機入口切到 Firestore；原 SQLite 與切換前設定保留。Discord Portal 已對應本次獲授權的臨時測試通道，使用者確認真帳號在電腦／手機重開後的餘額、紀錄與簽到一致。`npm run test:firestore` 使用官方本機模擬器，不消耗雲端額度；先執行 `npm run firestore:emulator:setup` 並準備 Java 21。設定與驗收流程見[Firestore Spark 接入](docs/deployment.md#firestore-spark-接入)。版本仍為 0.2.5，未升級計費、建立外部監控或部署。
 
 ## 遊戲與操作
 

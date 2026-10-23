@@ -161,7 +161,7 @@ test('monitoring deduplicates alerts, logs recovery and reports stale checks',as
 
 test('worker exceptions are reduced to safe monitor alerts and a later run recovers',async t=>{
   const h=fixture(t);let fail=true;
-  const ops=new Operations(h.settings,{job:async()=>{if(fail)throw new Error('provider-secret');return run(h.settings);}});
+  const ops=new Operations(h.settings,{clock:()=>now,job:async()=>{if(fail)throw new Error('provider-secret');return run(h.settings);}});
   await ops.tick();assert.deepEqual(ops.status().alerts,['MAINTENANCE_FAILED']);
   assert.ok(!readFileSync(h.settings.logFile,'utf8').includes('provider-secret'));
   fail=false;await ops.tick();assert.deepEqual(ops.status().alerts,[]);await ops.close();

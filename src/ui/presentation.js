@@ -4,6 +4,16 @@ export const REEL_BOUNCE_MS = 190;
 const REEL_CELL_MS = 60;
 export const SYMBOL_POP_MS = 960;
 
+// A bounded strip can cruise for any network delay without choosing a result.
+// Crossing a cell boundary replaces only offscreen cells, keeping motion continuous.
+export function pendingReelFrame(strip, from, elapsed, cellHeight) {
+  const travel = Math.max(0, elapsed) / REEL_CELL_MS;
+  const step = Math.floor(travel);
+  const wrap = n => ((n % strip.length) + strip.length) % strip.length;
+  return { step, names: Array.from({ length: 6 }, (_, row) => strip[wrap(from - step + row - 2)]),
+    offset: (travel - step) * cellHeight, speed: cellHeight / REEL_CELL_MS };
+}
+
 // Keep presentation speed independent of the length of the payout model's reels.
 // Prepare every cell before spinning; the starting and landing windows, including
 // their guard cells, come from the actual strip and never change while visible.
@@ -60,10 +70,9 @@ export function reelBounceOffset(elapsed, cellHeight, reduced = false) {
 
 // Stitch only the offscreen part of a short braking strip. The four cells that
 // can overlap the viewport keep their exact symbols and fractional positions.
-export function quickStopAnimation(strip, to, names, offset, speed, reel, cellHeight) {
+export function quickStopAnimation(strip, to, names, offset, speed, reel, cellHeight, steps = 4 + reel) {
   if (speed <= 0) return null;
   const scroll = -offset / cellHeight, base = Math.floor(scroll), fraction = scroll - base;
-  const steps = 4 + reel;
   const shortNames = Array.from({ length: steps + 5 }, (_, row) => strip[((to + row - 2) % strip.length + strip.length) % strip.length]);
   for (let row = 1; row <= 4; row++) shortNames[steps + row] = names[base + row];
   const distance = (steps + fraction) * cellHeight;
@@ -73,6 +82,10 @@ export function quickStopAnimation(strip, to, names, offset, speed, reel, cellHe
 export function quickStopOffset(offset, elapsed, duration) {
   const remaining = 1 - Math.min(1, Math.max(0, elapsed / duration));
   return offset * remaining ** 2;
+}
+
+export function quickStopSpeed(offset, elapsed, duration) {
+  return -2 * offset / duration * Math.max(0, 1 - Math.max(0, elapsed) / duration);
 }
 
 export function roundFeedbackTiming(round, tier, minimumDuration = 0) {

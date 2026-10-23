@@ -38,6 +38,8 @@ npm run test:bot
 
 `tests/firestore-quota.test.js` 包含持久額度、跨程序共用檔案、滾動 24 小時、傳輸／儲存門檻、文件覆寫成長及錯誤設定；列入 `npm test`。`npm run test:firestore` 另外啟動官方本機模擬器，執行 `tests/firestore.integration.js`：不同裝置同時簽到／開轉、重啟與遺失回應、管理發放／更正、完整摘要與 100 局快取、額度不足的交易回滾、非同步 HTTP／Discord、匿名存取拒絕，以及 SQLite 匯入、完整比對、中斷接續及不覆蓋既有資料。模擬器驗收不能取代 Spark 真實專案的 IAM、配額與跨裝置驗收。
 
+`tests/pending-reels.test.js` 驗證轉輪等待網路時的首幀移動、長時間固定緩衝、符號邊界連續性，以及收到權威停點後無跳動銜接、速度連續與快停不延長。SPIN 先啟動動畫再等待錢包；尚未確認結果時快停或切到背景都不能自行落下，連線失敗會取消動畫並回復已確認盤面，同一請求重試沿用原有去重機制。減少動態偏好保留靜態等待與短動畫。0.2.5 此修正的完整回歸為 273 項通過；另在瀏覽器實際場景驗證 7 項狀態切換及 6 秒慢回應，報告位於本機 `test-results/spin-immediate-0.2.5-summary.json`。
+
 ## Discord 電腦與手機同步驗收
 
 使用 `.env.server.local` 啟動 `npm run activity:server`，設定 `APP_ENV=test`、`WALLET_ENABLED=true`、明確的測試伺服器 allowlist 與資料庫；不可啟用 `LOCAL_WALLET_TEST`。僅把此服務的 4188 連接埠接到臨時通道，更新 Discord 活動根 URL 對應及互動端點。4189 的假帳號驗收服務維持本機使用。
