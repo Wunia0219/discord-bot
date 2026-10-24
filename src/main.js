@@ -15,6 +15,7 @@ import { createLoadingScreen } from './ui/loading.js';
 import { BigWinPresentation } from './ui/big-win.js';
 import { createGameRules } from './ui/game-rules.js';
 import { SpinControls } from './ui/spin-controls.js';
+import { bindSpinButton } from './ui/spin-button.js';
 import { installSpinShortcut } from './ui/spin-shortcut.js';
 import { roundFeedbackTiming } from './ui/presentation.js';
 import { setBitmapNumber } from './ui/bitmap-number.js';
@@ -69,6 +70,7 @@ const controls=new SpinControls({
     setBusy(busy);
   },
 });
+const renderSpinButton=bindSpinButton($('#spin'),controls);
 const motion=matchMedia('(prefers-reduced-motion: reduce)');scene.reduced=motion.matches;motion.addEventListener('change',()=>scene.reduced=motion.matches);
 const signed=n=>(n>0?'+':'')+fmt(n);
 function save(next) { if(walletClient){if((next.revision||0)>=(state.revision||0))state=next;return;}state=next;try{localStorage.setItem(KEY,JSON.stringify(state));}catch{storageAvailable=false;} }
@@ -97,13 +99,10 @@ function renderState() {
 }
 function setBusy(value) {
   busy=value;
-  $('#spin').disabled=value||claiming||!ready;
+  renderSpinButton({busy,presenting,claiming,ready});
   $('#max-bet').disabled=value||claiming||!ready||controls.auto;
   $('#auto-spin').disabled=claiming||!ready;
   document.querySelectorAll('[data-bet]').forEach(b=>b.disabled=value||claiming||!ready||controls.auto);
-  $('#spin').setAttribute('aria-label',value?(presenting?'中獎演出中':'轉動中'):'旋轉一次');
-  $('#spin').setAttribute('aria-busy',String(value));
-  $('#spin').classList.toggle('spinning',value&&!presenting);
   renderPlayer();
 }
 function result(title,detail) {
@@ -258,7 +257,6 @@ async function toggleMusic(){
   }finally{renderAudio();button.setAttribute('aria-busy','false');}
 }
 $('#max-bet').addEventListener('click',()=>{if(!busy)document.querySelector('[data-bet="500"]').click();});
-$('#spin').addEventListener('click',()=>spin());
 // Pointer interaction has no persistent ring; Tab navigation keeps a gold cue.
 document.addEventListener('pointerdown',()=>{document.documentElement.dataset.input='pointer';},true);
 document.addEventListener('keydown',event=>{
