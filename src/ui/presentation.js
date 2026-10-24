@@ -1,9 +1,9 @@
 export const WIN_HOLD_MS = 1600;
 export const REEL_SETTLE_MS = 160;
 export const REEL_BOUNCE_MS = 190;
-export const QUICK_STOP_MS = 360;
-export const QUICK_STOP_STAGGER_MS = 70;
 const REEL_CELL_MS = 60;
+const REEL_START_STEPS = 10, REEL_STOP_STEPS = 2;
+export const REEL_STOP_GAP_MS = REEL_STOP_STEPS * REEL_CELL_MS;
 export const SYMBOL_POP_MS = 960;
 
 // A bounded strip can cruise for any network delay without choosing a result.
@@ -20,7 +20,7 @@ export function pendingReelFrame(strip, from, elapsed, cellHeight) {
 // Prepare every cell before spinning; the starting and landing windows, including
 // their guard cells, come from the actual strip and never change while visible.
 export function reelAnimation(strip, from, to, reel, reduced = false) {
-  const steps = reduced ? 4 + reel : 20 + reel * 4;
+  const steps = reduced ? 4 + reel : REEL_START_STEPS + reel * REEL_STOP_STEPS;
   const wrap = n => ((n % strip.length) + strip.length) % strip.length;
   const names = Array.from({ length: steps + 5 }, (_, row) => {
     const stop = row >= steps ? from - steps : to;
@@ -70,27 +70,20 @@ export function reelBounceOffset(elapsed, cellHeight, reduced = false) {
   return cellHeight * .17 * Math.sin(progress * Math.PI * 2) * (1 - progress) ** 2;
 }
 
-// Stitch only the offscreen part of a short braking strip. The four cells that
-// can overlap the viewport keep their exact symbols and fractional positions.
-export function quickStopAnimation(strip, to, names, offset, speed, reel, cellHeight, steps = 3 + reel, maxDuration = QUICK_STOP_MS + reel * QUICK_STOP_STAGGER_MS) {
-  if (speed <= 0) return null;
+// Normal and quick spins share the same cruise speed, final deceleration and
+// reel cadence. Quick stop removes cruise cells, never compresses the landing.
+// Waiting for a result already counts toward the normal cruise duration.
+export function reelLandingAnimation(strip, to, names, offset, reel, cellHeight, { elapsed = 0, quick = false, reduced = false } = {}) {
   const scroll = -offset / cellHeight, base = Math.floor(scroll), fraction = scroll - base;
+  const settle = reduced ? 0 : REEL_SETTLE_MS;
+  const firstStop = (reduced ? 4 : REEL_START_STEPS) * REEL_CELL_MS + settle / 2;
+  const remaining = quick ? 0 : Math.max(0, firstStop - elapsed);
+  const cruiseSteps = Math.max(reduced ? 4 : 3, Math.ceil((remaining - settle / 2) / REEL_CELL_MS - fraction - 1e-8));
+  const steps = cruiseSteps + reel * (reduced ? 1 : REEL_STOP_STEPS);
   const shortNames = Array.from({ length: steps + 5 }, (_, row) => strip[((to + row - 2) % strip.length + strip.length) % strip.length]);
   for (let row = 1; row <= 4; row++) shortNames[steps + row] = names[base + row];
   const distance = (steps + fraction) * cellHeight;
-  return { names: shortNames, offset: -distance, duration: Math.min(2 * distance / speed, maxDuration), speed };
-}
-
-// Cubic Hermite braking keeps the current velocity when duration is capped.
-// A low incoming speed must not stretch a requested quick stop into seconds.
-export function quickStopOffset(offset, elapsed, duration, speed = -2 * offset / duration) {
-  const t = Math.min(1, Math.max(0, elapsed / duration));
-  return offset * (2 * t ** 3 - 3 * t ** 2 + 1) + speed * duration * (t ** 3 - 2 * t ** 2 + t);
-}
-
-export function quickStopSpeed(offset, elapsed, duration, speed = -2 * offset / duration) {
-  const t = Math.min(1, Math.max(0, elapsed / duration));
-  return offset / duration * (6 * t ** 2 - 6 * t) + speed * (3 * t ** 2 - 4 * t + 1);
+  return { names: shortNames, steps: distance / cellHeight, offset: -distance, stopAt: distance / (cellHeight / REEL_CELL_MS) + settle / 2, reduced };
 }
 
 export function roundFeedbackTiming(round, tier, minimumDuration = 0) {

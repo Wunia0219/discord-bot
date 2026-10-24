@@ -55,15 +55,12 @@ try { state=readState(localStorage.getItem(KEY)); } catch { state=freshState();s
 let bet=100, busy=false, presenting=false, ready=false, countAnimation=0, payoutAnimation=0, celebrationTimer=0;
 const scene=new SlotScene(), sound=new Sound({musicUrl:MUSIC_SOURCE,onStateChange:renderAudio});
 const bigWin=new BigWinPresentation($('#app'));
-let activityMode='browser', activityUser=null, walletClient=null, claiming=false, toastTimer=0;
+let activityMode='browser', activityUser=null, walletClient=null, claiming=false, toastTimer=0, historySync=null;
 const controls=new SpinControls({
   isReady:()=>ready&&!claiming&&!document.hidden&&!$('#dialog').open,
   isBusy:()=>busy,
   startSpin:()=>spin(),
-  stopReels:()=>{
-    scene.requestQuickStop();
-    if(scene.active?.waiting&&!document.hidden)notifyPlayer('快停已收到，正在取得本局結果…','info');
-  },
+  stopReels:()=>scene.requestQuickStop(),
   onAutoChange:enabled=>{
     const button=$('#auto-spin');
     button.setAttribute('aria-pressed',String(enabled));
@@ -162,18 +159,25 @@ async function spin() {
   controls.beginRound();
   setBusy(true);result('馬上開轉，請稍等一下。','');let nextDelay=650,settledRound;
   try{
+    // Dispatch settlement first; presentation and history synchronization run
+    // alongside it. Neither an animation nor a quick stop chooses the outcome.
+    const settlement=walletClient?walletClient.spin(bet,{deferHistory:true}):Promise.resolve(createRound(state,bet,drawStops(),crypto.randomUUID()));
+    settlement.catch(()=>{});
     showPayout(0);cancelAnimationFrame(countAnimation);hideCelebration();clearWinReadout();
-    if(walletClient){scene.beginSpin();sound.spin();result('轉輪開始，準備揭曉。',`本局下注 ${fmt(bet)}`);}
-    const update=walletClient?await walletClient.spin(bet):createRound(state,bet,drawStops(),crypto.randomUUID());
+    scene.beginSpin();sound.spin();result('轉輪開始，準備揭曉。',`本局下注 ${fmt(bet)}`);
+    const update=await settlement;
     const r=update.round;save(update.state);settledRound=r;
-    if(controls.quickStop){clearTimeout(toastTimer);$('#player-toast').hidden=true;}
+    if(update.synchronized){
+      historySync=update.synchronized.then(synced=>{save(synced.state);if(!busy&&!claiming)renderState();});
+      historySync.catch(()=>{});
+    }
     if(r.rules!==MODEL_VERSION){
+      if(update.synchronized){const synced=await update.synchronized;save(synced.state);}
       scene.cancelSpin(restoredStops(state));
       controls.stopAuto();renderState();showPayout(r.payout);
       result('上一局的結果已找回',`獲得 ${fmt(r.payout)} 籌碼，沒有再次扣除下注。可在遊玩紀錄查看。`);
       return;
     }
-    if(!walletClient)sound.spin();
     scene.prepareDealer(r);
     setBitmapNumber($('#balance'),fmt(r.before-r.bet));
     result('轉輪開始，準備揭曉。',`本局下注 ${fmt(r.bet)}`);
@@ -213,7 +217,21 @@ function openDialog(title,body,variant='notice') {
   $('#dialog-body').scrollTop=0;
 }
 function showRules(){openDialog('遊戲規則',createGameRules(bet),'rules');}
-function showHistory(){
+async function showHistory(){
+  if(historySync){
+    const syncing=historySync;
+    const pending=document.createElement('div');pending.className='records-loading';pending.textContent='正在載入紀錄…';
+    openDialog('遊玩紀錄',pending,'records');
+    try{await syncing;if(historySync===syncing)historySync=null;}
+    catch{
+      if(!$('#dialog').open||!pending.isConnected)return;
+      pending.className='records-empty';pending.textContent='紀錄暫時載入失敗，請再試一次。';
+      const retry=document.createElement('button');retry.className='notice-action';retry.textContent='重新載入';pending.append(retry);
+      retry.addEventListener('click',()=>{historySync=walletClient.state().then(update=>save(update.state));historySync.catch(()=>{});showHistory();});
+      return;
+    }
+    if(!$('#dialog').open||!pending.isConnected)return;
+  }
   const body=roundRecords(state.history);openDialog('遊玩紀錄',body,'records');
   if(!walletClient||!state.historyBefore||state.history.length<100)return;
   let cursor=state.historyBefore;

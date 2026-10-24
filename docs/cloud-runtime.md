@@ -140,3 +140,13 @@ Discord 網頁實際驗收：以既有帳號啟動雲端 Activity，登入成功
 雲端 Static Assets 的 Range 回應實測為 200，因此只將 `/assets/*.mp3` 交給 `cloud/audio-asset.js` 補齊單一範圍 GET；HEAD 沿用平台原生處理，其餘靜態檔案與玩家 API 不改動。330 項一般測試通過、1 項既有條件測試跳過；REST／持久 workerd 整合回歸與新增真實 workerd 音樂傳輸測試通過。瀏覽器確認精簡音樂可解碼播放、預設不載入、音效互相獨立及桌面／觸控快停。
 
 發布後公開 HTML、JS、CSS 與本機建置逐檔雜湊一致；MP3 完整下載與精簡檔相同，手機 Range probe 回傳 206。health／ready 均為 200，21 項雲端／Discord 診斷通過，原 namespace、active writer、備份、alarm 及額度保持正常。未啟動本機 writer、未 seed／release／搬動帳本、未下注或發訊息。驗收記錄：`test-results/discord-ui-music-portrait-verification.json`、`discord-ui-music-portrait-readiness.log`、`audio-lossless-optimization.json`、`audio-master-deletion.json`。回退可使用原 `f4079897-2ad0-4241-aef6-4566f61e521f`，不釋放 DO、不恢復過期帳本。真人 Discord 測試請關閉舊 Activity 再開啟。
+
+10/24 台灣時間 18:45 已發布 `fa35fb6c-72ad-460a-b55c-0ce851c8757e`，產品版本保持 0.2.6。移除快停文字提示，正常與快停共用原本 160ms 減速、240ms 逐軸落地間隔、190ms 回彈及相同停輪音；快停只移除空轉，已開始減速後保留完整收尾。網路等待計入正常空轉；SPIN 先發出請求，再同步開始動畫，本局權威結果不等待較舊歷史補齊。背景歷史失敗可從紀錄入口重試，確認過的結算不因紀錄失敗而重播原請求；未收到回應仍保留原請求編號。
+
+332 項一般測試通過、1 項既有條件測試跳過，前端建置及 Worker dry-run 成功。桌面／手機觸控模擬、慢回應、慢歷史與真實 Pixi 場景時序驗證通過；正常與快停的最後減速及回彈座標誤差小於 1e-7。公開建置逐檔雜湊、音樂下載、health／ready、21 項 Discord 診斷通過，原雲端 writer 與資料範圍維持 active，未下注或修改玩家資料。證據位於 `test-results/reel-landing/report.json`、`reel-landing-verification.json`、`reel-landing-readiness.log`；回退版本為 `8edc2a27-b60a-4ec3-8b1f-baf3d62bdee0`。
+
+10/24 台灣時間 19:16 已驗證發布 `922c4caa-616c-46ac-a826-129d4f7048cd`，產品版本保持 0.2.6。正常空轉從 20 格縮為 10 格，正常與快停共用的逐軸間隔從 240ms 縮為 120ms，減速 160ms、回彈 190ms 及停輪音保持一致。結果及時回來時，正常最後一軸約 1.16 秒落地、1.35 秒完成回彈；快停在權威結果就緒後約 100–160ms 開始減速，約 0.93–0.99 秒完成五軸收尾。較慢的後端回應仍須等候確認，動畫時間不能當作完整雲端平均延遲。
+
+結算交易將 meta／wallet／operation 合併為一次 getAll，通過重送、冷卻與餘額檢查後再讀 day，接受的新局仍為 4 份文件、6 份寫入，但讀取往返由 4 次減為 2 次；拒絕或重送仍只讀 3 份文件。回應的冷卻剩餘時間在提交完成後重算，扣除已消耗的交易時間，保留原 2 秒開轉規則。加入 Server-Timing 及私有 status 的最近 50 筆成功新局處理／結算耗時統計，僅存記憶體，重建 Worker 後歸零，不含用戶端網路／冷啟動等待。發布驗收時樣本為 0，因此沒有宣稱歷史或目前雲端平均數；未新增遊戲提示文字。
+
+337 項一般測試通過、1 項既有條件測試跳過；50 項 Firestore 模擬器回歸通過、2 項快照條件測試跳過；3 項 REST／workerd 整合測試通過。前端 build、Worker dry-run、桌面／手機與慢回應／慢歷史的 Pixi 時序驗證通過，共用減速與回彈座標誤差小於 1e-7。瀏覽器快停在結果就緒後實測約 125–147ms 開始減速。公開 HTML／JS／CSS 雜湊與本機建置一致，音樂完整下載及 Range probe 正常，health／ready 為 200，21 項雲端／Discord 診斷通過。相同 namespace、active writer、備份、alarm 與額度正常，未下注、seed、release、遷移資料或啟動本機 writer。證據：`test-results/spin-latency/report.json`、`spin-latency-verification.json`、`spin-latency-readiness.log`。回退版本為 `fa35fb6c-72ad-460a-b55c-0ce851c8757e`；只回退程式，不釋放 DO 或恢復過期帳本。

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reelAnimation, reelOffset, reelSpeed, quickStopAnimation, quickStopOffset, reelBounceOffset, REEL_BOUNCE_MS, roundFeedbackTiming, REEL_SETTLE_MS, WIN_HOLD_MS, WinCycle } from '../src/ui/presentation.js';
+import { reelAnimation, reelOffset, reelSpeed, reelBounceOffset, REEL_BOUNCE_MS, roundFeedbackTiming, REEL_SETTLE_MS, WIN_HOLD_MS, WinCycle } from '../src/ui/presentation.js';
 import { REEL_STRIPS, INITIAL_STOPS, gridFromStops } from '../src/game/slot-math.js';
 import { WinSymbolPop, SYMBOL_POP_MS } from '../src/ui/presentation.js';
 
@@ -94,77 +94,6 @@ test('each reel lands with the original downward overshoot and smaller upward re
     assert.equal(reelBounceOffset(0,cell),0);
     assert.equal(reelBounceOffset(REEL_BOUNCE_MS,cell),0);
     assert.equal(reelBounceOffset(REEL_BOUNCE_MS+1000,cell),0);
-  }
-});
-
-test('normal and quick stops share the landing bounce, while reduced motion skips it',()=>{
-  for(const reduced of [false,true]){
-    const impacts=REEL_STRIPS.map((strip,reel)=>{
-      const normal=reelAnimation(strip,INITIAL_STOPS[reel],0,reel,reduced);
-      const speed=reelSpeed(normal.steps*136,0,normal.stopAt,reduced);
-      const quick=quickStopAnimation(strip,0,normal.names,-normal.steps*136,speed,reel,136);
-      for(const impactAt of [normal.stopAt,Math.min(quick.duration,normal.stopAt)]){
-        const at=elapsed=>reelBounceOffset(elapsed-impactAt,136,reduced);
-        assert.equal(at(impactAt),0);
-        assert.equal(at(impactAt+REEL_BOUNCE_MS),0);
-        if(reduced){assert.equal(at(impactAt+40),0);assert.equal(at(impactAt+140),0);}
-        else {assert.ok(at(impactAt+40)>0);assert.ok(at(impactAt+140)<0);}
-      }
-      return Math.min(quick.duration,normal.stopAt)+(reduced?0:REEL_BOUNCE_MS);
-    });
-    assert.ok(impacts.every((time,reel)=>!reel||time>=impacts[reel-1]),'the bounce must preserve left-to-right stops');
-  }
-});
-
-test('quick stop preserves every visible symbol and its exact fractional position before braking',()=>{
-  const cell=136;
-  const visible=(names,offset)=>names.map((name,row)=>({name,y:(row-1)*cell+offset})).filter(({y})=>y+cell>1e-7&&y<3*cell-1e-7);
-  REEL_STRIPS.forEach((strip,reel)=>{
-    for(const from of [0,INITIAL_STOPS[reel],strip.length-1])for(const to of [from,0,strip.length-1]){
-      const regular=reelAnimation(strip,from,to,reel);
-      for(const elapsed of [0,73,340,811,1100]){
-        const offset=reelOffset(regular.steps*cell,elapsed,regular.stopAt);
-        const speed=reelSpeed(regular.steps*cell,elapsed,regular.stopAt);
-        const quick=quickStopAnimation(strip,to,regular.names,offset,speed,reel,cell);
-        const before=visible(regular.names,offset),after=visible(quick.names,quick.offset);
-        assert.deepEqual(after.map(row=>row.name),before.map(row=>row.name),'requesting a stop must not swap onscreen symbols');
-        after.forEach((row,i)=>assert.ok(Math.abs(row.y-before[i].y)<1e-7,'requesting a stop must not shift the current frame'));
-        const stops=[...INITIAL_STOPS];stops[reel]=to;
-        assert.deepEqual(visible(quick.names,0).map(row=>row.name),gridFromStops(stops)[reel]);
-        assert.ok(quick.names.every(name=>strip.includes(name)));
-        const initialSpeed=(quickStopOffset(quick.offset,.001,quick.duration,quick.speed)-quick.offset)/.001;
-        assert.ok(Math.abs(initialSpeed-speed)<.00001,'braking starts at the existing reel velocity');
-        for(const fps of [30,60,120]){
-          let previous=quick.offset;
-          for(let t=1000/fps;t<quick.duration;t+=1000/fps){
-            const next=quickStopOffset(quick.offset,t,quick.duration,quick.speed);
-            assert.ok(next>=previous&&next<=0,'quick stop must move down without reversing');
-            assert.ok(next-previous<cell*.6,'quick stop must not flash several cells in one frame');
-            previous=next;
-          }
-        }
-        assert.equal(Math.abs(quickStopOffset(quick.offset,quick.duration,quick.duration,quick.speed)),0);
-        assert.equal(Math.abs(quickStopOffset(quick.offset,quick.duration+1000,quick.duration,quick.speed)),0);
-      }
-    }
-  });
-});
-
-test('quick stop lands the five reels in order within a second, and never prolongs a late or reduced-motion stop',()=>{
-  for(const reduced of [false,true])for(const elapsed of [0,150,700,1100,1400,1800]){
-    const landing=REEL_STRIPS.map((strip,reel)=>{
-      const regular=reelAnimation(strip,INITIAL_STOPS[reel],0,reel,reduced);
-      const remaining=Math.max(0,regular.stopAt-elapsed);
-      if(!remaining)return 0;
-      const offset=reelOffset(regular.steps*136,elapsed,regular.stopAt,reduced);
-      const speed=reelSpeed(regular.steps*136,elapsed,regular.stopAt,reduced);
-      const quick=quickStopAnimation(strip,0,regular.names,offset,speed,reel,136);
-      const duration=Math.min(remaining,quick.duration);
-      assert.ok(duration<=remaining);
-      return duration;
-    });
-    assert.ok(landing.every((time,i)=>!i||time>=landing[i-1]),'reels should settle from left to right');
-    if(!reduced&&elapsed===0){assert.ok(landing[0]>=300);assert.ok(landing[4]+REEL_BOUNCE_MS<=830);}
   }
 });
 

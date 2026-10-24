@@ -38,6 +38,13 @@ export class FirestoreWalletCore {
     const data=unpack(snapshot);this.quota.observe(Buffer.byteLength(JSON.stringify(data)));
     return data;
   }
+  async readMany(refs,tx){
+    // Keep the same per-document retry allowance while sharing one transport
+    // round trip. All reads still belong to the same atomic transaction.
+    this.quota.reserve({reads:6*refs.length});
+    const snapshots=await tx.getAll(...refs);
+    return snapshots.map(snapshot=>{const data=unpack(snapshot);this.quota.observe(Buffer.byteLength(JSON.stringify(data)));return data;});
+  }
   write(tx,ref,data,{create=false,index={}}={}){
     const body={...packed(data),...index},bytes=Buffer.byteLength(JSON.stringify(body));
     if(bytes>maxDocument)throw problem(503,'遊玩紀錄暫時無法儲存，請稍後再試。','FIRESTORE_DOCUMENT_LIMIT');
@@ -124,8 +131,8 @@ export class FirestoreWalletCore {
         const key=kind==='checkin'?`daily:${user}:${day}`:kind==='spin'?`spin:${user}:${operation.requestId}`:
           ['grant','reversal','fixture'].includes(kind)?`admin:${operation.requestId}`:null;
         const opRef=key?this.root.collection('operations').doc(digest(guild+'\0'+key)):null;
-        const meta=await this.read(this.meta,tx);this.checkMeta(meta);
-        let wallet=await this.read(ref,tx);const existing=opRef?await this.read(opRef,tx):null;
+        const [meta,savedWallet,existing]=await this.readMany([this.meta,ref,...(opRef?[opRef]:[])],tx);this.checkMeta(meta);
+        let wallet=savedWallet;
         if(existing){if(existing.fingerprint!==operation.fingerprint)throw problem(409,'此請求編號已用於其他操作。','REQUEST_CONFLICT');
           return {...existing.result,duplicate:true,state:wallet?this.snapshot(wallet,now):undefined,wallet};}
         const fresh=!wallet;
@@ -199,8 +206,12 @@ export class FirestoreWalletCore {
         if(announcement)this.write(tx,this.db.doc(this.root.path+'/'+highlightEventPath(announcement)),announcement,{create:true,index:highlightEventIndex(announcement)});
         return {...answer,state:this.snapshot(wallet,now),wallet};
       },{maxAttempts:3});
-      if(result.wallet)this.cacheWallet(result.wallet);delete result.wallet;
+      const settledWallet=result.wallet;
+      if(settledWallet)this.cacheWallet(settledWallet);delete result.wallet;
       if(!compact&&result.state)result.state=await this.completeState(guild,user,result.state);
+      // Database round trips have already consumed part of the two-second
+      // interval. Do not make the client wait that elapsed time a second time.
+      if(result.state&&settledWallet)result.state.spinCooldownMs=Math.max(0,settledWallet.last_spin+this.spinDelay-this.clock());
       return result;
     }catch(error){throw this.safe(error);}
   }

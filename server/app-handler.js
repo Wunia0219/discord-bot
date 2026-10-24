@@ -48,8 +48,9 @@ export function createActivityHandler({ clientId, clientSecret, publicKey, walle
   const allowedOrigins = new Set([`https://${clientId}.discordsays.com`, 'http://127.0.0.1:4187', 'http://127.0.0.1:4188', `http://127.0.0.1:${localPort}`]);
   const handler=async (req, res) => {
     let route='static',errorCode;
+    const started=performance.now();
     if(operations){
-      const requestId=randomUUID(),started=performance.now();res.setHeader('X-Request-Id',requestId);
+      const requestId=randomUUID();res.setHeader('X-Request-Id',requestId);
       res.once('finish',()=>operations.recordRequest({requestId,route,errorCode,
         method:['GET','HEAD','POST','OPTIONS'].includes(req.method)?req.method:'OTHER',status:res.statusCode,durationMs:performance.now()-started}));
     }
@@ -162,7 +163,11 @@ export function createActivityHandler({ clientId, clientSecret, publicKey, walle
         if(path==='/api/ledger')return json(res,200,{entries:await wallet.store.history(guild,user,Number(new URL(req.url,'http://localhost').searchParams.get('before')||Number.MAX_SAFE_INTEGER))});
         const body=await readJson(req);
         if(path==='/api/checkin')return json(res,200,await wallet.store.checkin(guild,user,view));
+        const spinStarted=performance.now();
         const result=await wallet.store.spin(guild,user,body?.bet,body?.requestId,{...view,profileName:session.profile?.name});
+        const timing={requestMs:performance.now()-started,settlementMs:performance.now()-spinStarted,duplicate:!!result.duplicate};
+        res.setHeader('Server-Timing',`settlement;dur=${timing.settlementMs.toFixed(1)}, handler;dur=${timing.requestMs.toFixed(1)}`);
+        try{operations?.recordSpin?.(timing);}catch{ /* Diagnostics cannot fail a committed round. */ }
         try { wallet.highlights?.enqueue(session,result.round.id,result.round); }
         catch { console.warn('Discord highlights: could not queue result'); }
         return json(res,200,result);

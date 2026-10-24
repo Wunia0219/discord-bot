@@ -1,7 +1,7 @@
 import { Application, Assets, Container, Graphics, Sprite, Texture, Rectangle } from 'pixi.js';
 import 'pixi.js/prepare';
 import { SYMBOLS, SYMBOL_FRAMES, INITIAL_STOPS, REEL_STRIPS, gridFromStops } from '../game/index.js';
-import { reelAnimation, reelOffset, reelSpeed, pendingReelFrame, quickStopAnimation, quickStopOffset, quickStopSpeed, reelBounceOffset, REEL_BOUNCE_MS, WinCycle, WinSymbolPop } from './presentation.js';
+import { reelOffset, pendingReelFrame, reelLandingAnimation, reelBounceOffset, REEL_SETTLE_MS, REEL_BOUNCE_MS, WinCycle, WinSymbolPop } from './presentation.js';
 import { Dealer } from './dealer.js';
 import { dealerClipForRound } from './dealer-motion.js';
 import mainAtlas from '../../images/main.json';
@@ -198,27 +198,17 @@ export class SlotScene {
     this.setStops(stops); a?.resolve?.();
   }
   spin(stops, onStop) {
-    const waiting = this.active?.waiting ? this.active : null;
-    if (this.active && !waiting) throw new Error('轉輪正在運轉');
+    if (this.active && !this.active.waiting) throw new Error('轉輪正在運轉');
     gridFromStops(stops);
-    if (!waiting) { this.clearCelebration(); this.clearWins(); this.dealer?.play('idle',{reduced:this.reduced}); }
+    if (!this.active) this.beginSpin();
+    const waiting = this.active;
     return new Promise(resolve => {
-      this.active = { time: 0, resolve, onStop, stops, quickStop: waiting?.quickStop || false };
+      this.active = { time: 0, resolve, onStop, stops, quickStop: waiting.quickStop };
       this.reels.forEach((r, i) => {
-        if (waiting && !waiting.reduced) {
-          const plan = waiting.quickStop
-            ? quickStopAnimation(REEL_STRIPS[i], stops[i], r.names, r.strip.y, r.speed, i, CH)
-            : quickStopAnimation(REEL_STRIPS[i], stops[i], r.names, r.strip.y, r.speed, i, CH, 8 + i * 2, Infinity);
-          Object.assign(r, { steps: -plan.offset / CH, stopAt: plan.duration, names: plan.names, quickStop: { ...plan, start: 0 } });
-          this.populate(r, r.names, -1); r.strip.y = plan.offset;
-          return;
-        }
-        const reduced = waiting ? waiting.reduced : this.reduced;
-        const { steps, names, stopAt } = reelAnimation(REEL_STRIPS[i], this.currentStops[i], stops[i], i, reduced);
-        r.steps = steps; r.stopAt = stopAt; r.names = names; r.quickStop = null;
-        r.reduced = reduced; r.stopped = false; r.impacted = false;
-        this.populate(r, names, -1);
-        r.strip.y = -r.steps * CH;
+        const plan = reelLandingAnimation(REEL_STRIPS[i], stops[i], r.names, r.strip.y, i, CH,
+          { elapsed: waiting.time, quick: waiting.quickStop, reduced: waiting.reduced });
+        Object.assign(r, plan, { start: 0, duration: plan.stopAt, stopped: false, impacted: false });
+        this.populate(r, r.names, -1); r.strip.y = plan.offset;
       });
     });
   }
@@ -227,14 +217,14 @@ export class SlotScene {
     if (!a || a.quickStop) return;
     a.quickStop = true;
     if (a.waiting) return;
+    // Once the shared landing has begun, preserve every remaining impact and
+    // sound interval. A stop request can only remove the earlier cruise.
+    if (this.reels.some(r => r.impacted || r.stopAt - a.time <= (r.reduced ? 0 : REEL_SETTLE_MS))) return;
+    const plans = this.reels.map((r, i) => reelLandingAnimation(REEL_STRIPS[i], a.stops[i], r.names, r.strip.y, i, CH, { quick: true, reduced: r.reduced }));
+    if (plans[0].stopAt >= this.reels[0].stopAt - a.time) return;
     this.reels.forEach((r, i) => {
-      if (r.stopped || r.impacted) return;
-      const speed = r.quickStop ? quickStopSpeed(r.quickStop.offset, a.time - r.quickStop.start, r.quickStop.duration, r.quickStop.speed)
-        : reelSpeed(r.steps * CH, a.time, r.stopAt, r.reduced);
-      const plan = quickStopAnimation(REEL_STRIPS[i], a.stops[i], r.names, r.strip.y, speed, i, CH);
-      // A reel already near its landing keeps its existing, shorter deceleration.
-      if (!plan || plan.duration >= r.stopAt - a.time) return;
-      r.quickStop = { ...plan, start: a.time };
+      const plan = plans[i];
+      Object.assign(r, plan, { start: a.time, duration: plan.stopAt, stopAt: a.time + plan.stopAt });
       this.populate(r, plan.names, -1);
       r.strip.y = plan.offset;
     });
@@ -282,11 +272,9 @@ export class SlotScene {
       } else {
         this.reels.forEach((r, i) => {
           if (r.stopped) return;
-          const quick = r.quickStop;
-          const impactAt = quick ? quick.start + quick.duration : r.stopAt;
-          const landingElapsed = a.time - impactAt;
+          const landingElapsed = a.time - r.stopAt;
           r.strip.y = landingElapsed < 0
-            ? quick ? quickStopOffset(quick.offset, a.time - quick.start, quick.duration, quick.speed) : reelOffset(r.steps * CH, a.time, r.stopAt, r.reduced)
+            ? reelOffset(r.steps * CH, a.time - r.start, r.duration, r.reduced)
             : reelBounceOffset(landingElapsed, CH, r.reduced);
           if (!r.impacted && landingElapsed >= 0) { r.impacted = true; a.onStop(i); }
           if (landingElapsed >= (r.reduced ? 0 : REEL_BOUNCE_MS)) r.stopped = true;
