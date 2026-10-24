@@ -1,0 +1,44 @@
+{
+  "revision": 4,
+  "scope": [
+    "idle",
+    "small-win"
+  ],
+  "sourceCanvas": [
+    1152,
+    1664
+  ],
+  "runtimeCanvas": [
+    576,
+    832
+  ],
+  "fps": 30,
+  "frames": {
+    "idle": 96,
+    "small-win": 60,
+    "weight-shift": 60
+  },
+  "anchor": [
+    0.5,
+    0.9615384615384616
+  ],
+  "alpha": "RGBA transparent,min16pxpadding",
+  "source": "same painted master; no temporal AI redraw",
+  "approach": "One continuous source coordinate field for connected head/neck/collars/cape/rightarm/prop/legs. Rigid complete free bent arm remains separate, attached to same body shoulder. No fixed/moving RGBA neck blend.",
+  "bodyPivot": [
+    620,
+    425
+  ],
+  "rigidCore": "full face, complete neck/two collars/tie upper, x<=rightward transitioning corridor; no static patches in core",
+  "fixedCore": "right support joints, contacthand/wrist and full legs; legacy rough arm/rail polygons include cloth overlap and are not exact fixed plates",
+  "transition": "C2 quintic spatial map, cloth displacement bounded; single premultiplied source sampling; no successive frame warping",
+  "motion": "reuse time envelopes; calibrate amplitude about support pivot to avoid forcibly translated pinned shoulder",
+  "validation": "whole neck/collar region everyframe at native and adjacent transitions, original sleeve/freearm/waist, fullbody plus realbrowser>=3loops1x/half/scene",
+  "cleanup": "retire R3 preview/pin after final output validated; preserve reference/currentneededsource and approvedlean",
+  "deployment": "local only",
+  "bodyAngleDegrees": {
+    "idleMin": -0.425,
+    "smallWinMin": -0.18
+  },
+  "clothGate": "singular values .97..1.03 at visible alpha>24; exact anatomy rigid core"
+}

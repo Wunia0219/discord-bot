@@ -1,0 +1,64 @@
+{
+  "status": "scene layering draft; motion occlusion still requires review",
+  "placement": {
+    "scene": {
+      "canvas": [
+        1440,
+        900
+      ],
+      "position": [
+        208.04,
+        757.12
+      ],
+      "scale": 0.84,
+      "background": "/art/dealer/rebuild/motion-scene-background.webp",
+      "foreground": "/art/dealer/rebuild/motion-scene-foreground.webp"
+    }
+  },
+  "runtimeFrameSize": [
+    576,
+    832
+  ],
+  "sourceFrameSize": [
+    1152,
+    1664
+  ],
+  "anchor": [
+    0.5,
+    0.9615384615384616
+  ],
+  "sourceMasterOrigin": [
+    -7,
+    112
+  ],
+  "sourceMasterScale": 0.42,
+  "paddedFrameOrigin": [
+    -33.879999999999995,
+    85.12
+  ],
+  "contactProtectedBox": [
+    280,
+    258,
+    430,
+    416
+  ],
+  "foregroundMaskBounds": [
+    350,
+    177,
+    435,
+    735
+  ],
+  "actorPixelsInBackground": false,
+  "actorShadowsInBackground": false,
+  "sources": [
+    "images/main.webp",
+    "images/symbols.webp",
+    "images/jokers-circus/circus-background.webp"
+  ],
+  "limits": [
+    "Fixed foreground mask protects current contact forearm/hand only inside its declared box.",
+    "Foreground covers cabinet border x<435; no reel symbols or controls are masked.",
+    "No actor ground/contact shadow is baked; animated foot contact needs its own dynamic shadow.",
+    "Original static concept is preserved; all scene layers are newly composed from original game art."
+  ]
+}

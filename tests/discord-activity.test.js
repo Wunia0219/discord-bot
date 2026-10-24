@@ -36,7 +36,7 @@ test('an unresponsive Discord handshake produces a recoverable timeout (stub tra
   class SDK {ready(){return new Promise(()=>{});}}
   await assert.rejects(connectActivity({location,clientId,loadSdk:async()=>({DiscordSDK:SDK}),timeoutMs:10}),/連線逾時/);
 });
-test('responsive orientation is requested after READY and unsupported clients can still play',async()=>{
+test('mobile portrait lock is requested after READY and unsupported clients can still start',async()=>{
   let requested,ready=false;
   class SDK {
     commands={setOrientationLockState:async args=>{assert.equal(ready,true);requested=args;throw new Error('Unsupported client');}};
@@ -45,11 +45,25 @@ test('responsive orientation is requested after READY and unsupported clients ca
   const {mock}=await import('node:test');
   const warning=mock.method(console,'warn',()=>{});
   try {
-    const result=await connectActivity({location,clientId,loadSdk:async()=>({DiscordSDK:SDK,Common:{OrientationLockStateTypeObject:{UNLOCKED:1}}})});
+    const result=await connectActivity({location:{...location,search:location.search.replace('desktop','mobile')},clientId,loadSdk:async()=>({DiscordSDK:SDK,Common:{OrientationLockStateTypeObject:{UNLOCKED:1,PORTRAIT:2}}})});
     assert.equal(result.mode,'discord');
-    assert.deepEqual(requested,{lock_state:1,picture_in_picture_lock_state:1,grid_lock_state:1});
+    assert.deepEqual(requested,{lock_state:2,picture_in_picture_lock_state:2,grid_lock_state:2});
     assert.equal(warning.mock.callCount(),1);
   } finally {warning.mock.restore();}
+});
+
+test('mobile stays portrait in normal, picture-in-picture and grid views while desktop stays unlocked',async()=>{
+  const {Common}=await import('@discord/embedded-app-sdk');
+  for(const platform of ['mobile','desktop']){
+    let requested;
+    class SDK {
+      async ready(){}
+      commands={setOrientationLockState:async args=>{requested=args;}};
+    }
+    await connectActivity({location:{...location,search:location.search.replace('desktop',platform)},clientId,loadSdk:async()=>({DiscordSDK:SDK,Common})});
+    const orientation=platform==='mobile'?Common.OrientationLockStateTypeObject.PORTRAIT:Common.OrientationLockStateTypeObject.UNLOCKED;
+    assert.deepEqual(requested,{lock_state:orientation,picture_in_picture_lock_state:orientation,grid_lock_state:orientation});
+  }
 });
 
 test('enabled OAuth starts only after READY and exposes the authenticated identity',async()=>{

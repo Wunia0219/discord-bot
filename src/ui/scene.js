@@ -1,12 +1,18 @@
 import { Application, Assets, Container, Graphics, Sprite, Texture, Rectangle } from 'pixi.js';
+import 'pixi.js/prepare';
 import { SYMBOLS, SYMBOL_FRAMES, INITIAL_STOPS, REEL_STRIPS, gridFromStops } from '../game/index.js';
-import { reelAnimation, reelOffset, reelSpeed, quickStopAnimation, quickStopOffset, reelBounceOffset, REEL_BOUNCE_MS, WinCycle, WinSymbolPop } from './presentation.js';
+import { reelOffset, pendingReelFrame, reelLandingAnimation, reelBounceOffset, REEL_SETTLE_MS, REEL_BOUNCE_MS, WinCycle, WinSymbolPop } from './presentation.js';
+import { Dealer } from './dealer.js';
+import { dealerClipForRound } from './dealer-motion.js';
 import mainAtlas from '../../images/main.json';
 import symbolAtlas from '../../images/symbols.json';
 import mainUrl from '../../images/main.webp';
 import symbolsUrl from '../../images/symbols.webp';
 import backgroundUrl from '../../images/jokers-circus/circus-background.webp';
 import winFrameUrl from '../../images/fx/circus-win-frame.webp';
+import dealerManifest from '../../images/dealer/v4/dealer.json';
+
+const dealerPages = import.meta.glob('../../images/dealer/v4/*.webp', {eager:true, query:'?url', import:'default'});
 
 const W = 1200, H = 760;
 const GRID = { x: 255, y: 228, w: 690, h: 408 };
@@ -52,6 +58,13 @@ export class SlotScene {
       return [s, texture];
     }));
     this.app.stage.addChild(new Graphics().rect(GRID.x, GRID.y, GRID.w, GRID.h).fill(0x10172d));
+    this.dealer=new Dealer({
+      motionManifest:dealerManifest,
+      resolvePage:page=>dealerPages['../../images/dealer/v4/'+page.file],
+      uploadTextures:textures=>this.app.renderer.prepare.upload(textures),
+    });
+    try{await this.dealer.init();}
+    catch(error){console.warn('Dealer artwork unavailable:',error.message);}
     const frame = this.addArt('circus-reel-frame.png', GRID.x - 80 * GRID.w / 607, GRID.y - 90 * GRID.h / 335, 768 * GRID.w / 607);
     frame.height = 483 * GRID.h / 335;
     const ornament = new Graphics();
@@ -65,6 +78,8 @@ export class SlotScene {
       this.reels.push({ strip, x, mask, stopped: true });
     }
     this.app.stage.addChild(ornament);
+    // Keep the companion in front of the decorative curtains, below the reels.
+    if(this.dealer.sprite)this.app.stage.addChild(this.dealer.sprite);
     this.reels.forEach(r => this.app.stage.addChild(r.mask, r.strip));
     this.setStops(this.currentStops);
     const shade = new Graphics();
@@ -95,6 +110,7 @@ export class SlotScene {
       const x = Number(style.getPropertyValue('--scene-x')) || 0;
       this.app.renderer.resize(width, height);
       this.app.stage.position.set(-x, 0);
+      this.dealer.layout(width);
       Object.assign(this.app.canvas.style, { width: '100%', height: 'auto' });
     };
     this.resizeObserver = new ResizeObserver(fitViewport);
@@ -165,17 +181,34 @@ export class SlotScene {
     this.winShade.alpha = 1;
     return color;
   }
-  spin(stops, onStop) {
+  beginSpin() {
     if (this.active) throw new Error('轉輪正在運轉');
     this.clearCelebration(); this.clearWins();
+    this.dealer?.play('idle',{reduced:this.reduced});
+    this.active = { waiting: true, time: 0, quickStop: false, reduced: this.reduced };
+    this.reels.forEach((r, i) => {
+      const frame = pendingReelFrame(REEL_STRIPS[i], this.currentStops[i], 0, CH);
+      Object.assign(r, { names: frame.names, pendingStep: frame.step, speed: frame.speed, reduced: this.reduced, stopped: false, impacted: false });
+      this.populate(r, r.names, -1);
+    });
+  }
+  cancelSpin(stops = this.currentStops) {
+    const a = this.active; this.active = null;
+    this.reels.forEach(r => { r.stopped = true; });
+    this.setStops(stops); a?.resolve?.();
+  }
+  spin(stops, onStop) {
+    if (this.active && !this.active.waiting) throw new Error('轉輪正在運轉');
+    gridFromStops(stops);
+    if (!this.active) this.beginSpin();
+    const waiting = this.active;
     return new Promise(resolve => {
-      this.active = { time: 0, resolve, onStop, stops, quickStop: false };
+      this.active = { time: 0, resolve, onStop, stops, quickStop: waiting.quickStop };
       this.reels.forEach((r, i) => {
-        const { steps, names, stopAt } = reelAnimation(REEL_STRIPS[i], this.currentStops[i], stops[i], i, this.reduced);
-        r.steps = steps; r.stopAt = stopAt; r.names = names; r.quickStop = null;
-        r.reduced = this.reduced; r.stopped = false; r.impacted = false;
-        this.populate(r, names, -1);
-        r.strip.y = -r.steps * CH;
+        const plan = reelLandingAnimation(REEL_STRIPS[i], stops[i], r.names, r.strip.y, i, CH,
+          { elapsed: waiting.time, quick: waiting.quickStop, reduced: waiting.reduced });
+        Object.assign(r, plan, { start: 0, duration: plan.stopAt, stopped: false, impacted: false });
+        this.populate(r, r.names, -1); r.strip.y = plan.offset;
       });
     });
   }
@@ -183,17 +216,24 @@ export class SlotScene {
     const a = this.active;
     if (!a || a.quickStop) return;
     a.quickStop = true;
+    if (a.waiting) return;
+    // Once the shared landing has begun, preserve every remaining impact and
+    // sound interval. A stop request can only remove the earlier cruise.
+    if (this.reels.some(r => r.impacted || r.stopAt - a.time <= (r.reduced ? 0 : REEL_SETTLE_MS))) return;
+    const plans = this.reels.map((r, i) => reelLandingAnimation(REEL_STRIPS[i], a.stops[i], r.names, r.strip.y, i, CH, { quick: true, reduced: r.reduced }));
+    if (plans[0].stopAt >= this.reels[0].stopAt - a.time) return;
     this.reels.forEach((r, i) => {
-      if (r.stopped || r.impacted) return;
-      const speed = reelSpeed(r.steps * CH, a.time, r.stopAt, r.reduced);
-      const plan = quickStopAnimation(REEL_STRIPS[i], a.stops[i], r.names, r.strip.y, speed, i, CH);
-      // A reel already near its landing keeps its existing, shorter deceleration.
-      if (!plan || plan.duration >= r.stopAt - a.time) return;
-      r.quickStop = { ...plan, start: a.time };
+      const plan = plans[i];
+      Object.assign(r, plan, { start: a.time, duration: plan.stopAt, stopAt: a.time + plan.stopAt });
       this.populate(r, plan.names, -1);
       r.strip.y = plan.offset;
     });
   }
+  prepareDealer(round){this.dealer?.preload(dealerClipForRound(round));}
+  reactToRound(round){this.dealer?.play(dealerClipForRound(round),{reduced:this.reduced});}
+  dealerFeedbackDuration(round){return dealerClipForRound(round)==='win'?this.dealer?.motionManifest?.clips.win?.durationMs??0:0;}
+  reactToMilestone(){this.dealer?.play('idle',{reduced:this.reduced});}
+  setDealerVisible(visible){this.dealer?.setVisible(visible);}
   celebrate(big = false, showLine = true) {
     this.presentationPaused = big || !showLine;
     this.links.alpha = this.presentationPaused ? 0 : 1;
@@ -216,21 +256,33 @@ export class SlotScene {
     if (this.winCycle.index >= 0) { this.links.alpha = 1; this.winShade.alpha = 1; }
   }
   tick(t) {
+    this.dealer?.update(t,this.reduced);
     const dt = Math.min(t.elapsedMS, 50) / 1000;
     if (this.active) {
-      const a = this.active; a.time += t.deltaMS;
-      this.reels.forEach((r, i) => {
-        if (r.stopped) return;
-        const quick = r.quickStop;
-        const impactAt = quick ? quick.start + quick.duration : r.stopAt;
-        const landingElapsed = a.time - impactAt;
-        r.strip.y = landingElapsed < 0
-          ? quick ? quickStopOffset(quick.offset, a.time - quick.start, quick.duration) : reelOffset(r.steps * CH, a.time, r.stopAt, r.reduced)
-          : reelBounceOffset(landingElapsed, CH, r.reduced);
-        if (!r.impacted && landingElapsed >= 0) { r.impacted = true; a.onStop(i); }
-        if (landingElapsed >= (r.reduced ? 0 : REEL_BOUNCE_MS)) r.stopped = true;
-      });
-      if (this.reels.every(r => r.stopped)) { this.active = null; this.setStops(a.stops); a.resolve(); }
+      // Ticker deltaMS is capped during slow frames. Reel duration must follow
+      // actual elapsed time so a rendering hitch cannot stretch a quick stop.
+      const a = this.active; a.time += Math.max(0,t.elapsedMS);
+      if (a.waiting) {
+        if (!a.reduced) this.reels.forEach((r, i) => {
+          const frame = pendingReelFrame(REEL_STRIPS[i], this.currentStops[i], a.time, CH);
+          if (frame.step !== r.pendingStep) {
+            r.pendingStep = frame.step; r.names = frame.names;
+            r.strip.children.forEach((sprite, row) => { sprite.texture = this.textures[r.names[row]]; });
+          }
+          r.strip.y = frame.offset;
+        });
+      } else {
+        this.reels.forEach((r, i) => {
+          if (r.stopped) return;
+          const landingElapsed = a.time - r.stopAt;
+          r.strip.y = landingElapsed < 0
+            ? reelOffset(r.steps * CH, a.time - r.start, r.duration, r.reduced)
+            : reelBounceOffset(landingElapsed, CH, r.reduced);
+          if (!r.impacted && landingElapsed >= 0) { r.impacted = true; a.onStop(i); }
+          if (landingElapsed >= (r.reduced ? 0 : REEL_BOUNCE_MS)) r.stopped = true;
+        });
+        if (this.reels.every(r => r.stopped)) { this.active = null; this.setStops(a.stops); a.resolve(); }
+      }
     }
     this.winCycle.tick(t.deltaMS, this.presentationPaused || !!this.active);
     const popScale = this.symbolPop.tick(dt * 1000, this.presentationPaused || !!this.active, this.reduced);
@@ -241,7 +293,7 @@ export class SlotScene {
     });
   }
   finish() {
-    if (!this.active) return;
+    if (!this.active || this.active.waiting) return;
     const a = this.active; this.active = null;
     this.reels.forEach((r,i)=>{if(!r.stopped){r.stopped=true;if(!r.impacted){r.impacted=true;a.onStop(i);}}});
     this.setStops(a.stops); a.resolve();

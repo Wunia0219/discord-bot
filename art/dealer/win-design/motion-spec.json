@@ -1,0 +1,103 @@
+{
+  "status": "historical initial 9-degree geometry study; superseded by final calibrated 15-degree production candidate",
+  "scope": "Only preserve current idle; design an independent joyful, alluring host win. No production renderer, idle PNG, atlas or manifest is changed by these design files.",
+  "name": "喜悅邀請",
+  "characterDirection": "成熟牛郎式的從容與親近：視線留在玩家，嘴角有可讀的喜悅，身體微昂首側傾並向外展手。避免冷淡閉眼、低頭托盤或重複舊small-win只加幅度。",
+  "referenceMaster": "art/dealer/rebuild/host-master.webp",
+  "sourceSize": [
+    1024,
+    1536
+  ],
+  "fps": 30,
+  "samples": 108,
+  "durationMs": 3600,
+  "newOriginalDrawingCountClaimed": 0,
+  "artRequirements": {
+    "identity": "保留黑白長髮、紅金異色眼、臉型、金飾、白領與黑紅金服裝；同一視角與光源。",
+    "joySource": "由美術產生精確對齊的喜悅／嫵媚表情來源；雙眼看向玩家，眉眼放鬆，嘴角與臉頰有明顯笑意。不能以程式拉扯五官、局部縮放或兩套眼口透明重影代替表情繪製。",
+    "continuousOwnership": "表情合入來源後與完整頭、頸、領口使用同一座標場。不得以固定pin或跨頸髮alpha補丁掩蓋交界。",
+    "armArtGate": "8–10度完整彎臂只是幾何姿勢目標，未通過肩口／披風遮擋視覺驗收。不得直接重用舊肩口fade後宣稱無接縫。若既有完整臂無法在真實衣料遮擋下接合，需畫完整相容的動作原畫，而不是新增肘腕切片或補羽化遮罩。"
+  },
+  "bodyField": {
+    "helper": "art/dealer/win-design/continuous_win_candidate.py",
+    "pivot": [
+      920,
+      650
+    ],
+    "contactCoreRadius": 200,
+    "contactOuterRadius": 370,
+    "lowerBodyTransitionY": [
+      420,
+      1280
+    ],
+    "bodyPeakDegrees": 0.95,
+    "purpose": "讓接觸手／金框核心及靴腳固定，放開肩與上袖；頭頸領口保持剛體。下身可作小量連續衣料過渡，未使用腿部IK或關節切片。",
+    "measurementGate": "報告Jacobian、可見來源像素的奇異值與逆解殘差；不沿用舊粗mask的整片固定假設。數值不是視覺驗收。"
+  },
+  "freeArm": {
+    "shoulder": [
+      450,
+      410
+    ],
+    "gesturePeakDegrees": 9,
+    "rangeToReviewDegrees": [
+      8,
+      10
+    ],
+    "method": "完整原畫彎臂，所有肩肘腕手指骰子共用一次剛性變換；肩點跟隨實際body field。不得以handX假位移、肘腕IK或手掌變形假裝翻掌。",
+    "limitation": "此原畫小角度肩旋轉的掌部主要橫向移動；搭配上身正向傾斜才有整體抬起感，不能稱為新畫的招手、翻掌或手抬到胸口。單一連續warp也不能自動填補手臂移開後的遮擋區。"
+  },
+  "phases": [
+    {
+      "seconds": [
+        0,
+        0.32
+      ],
+      "beat": "察覺中獎",
+      "motion": "身體約−0.10度、完整臂約−0.8度的短蓄勢；不以大幅縮頭或閉眼演出。"
+    },
+    {
+      "seconds": [
+        0.16,
+        1.2
+      ],
+      "beat": "喜悅靠近",
+      "motion": "頭身先升至+0.95度，完整臂延遲約0.14秒開始、展至+9度；表情看向玩家。"
+    },
+    {
+      "seconds": [
+        1.2,
+        1.75
+      ],
+      "beat": "留住眼神",
+      "motion": "身體短停留；手於1.6秒開始先放鬆，維持可讀笑意，不眨眼遮住回饋高點。"
+    },
+    {
+      "seconds": [
+        1.6,
+        3.15
+      ],
+      "beat": "從容回復",
+      "motion": "完整臂先回到來源姿勢，身體稍後收穩；不加連續抖手或重複彈跳。"
+    },
+    {
+      "seconds": [
+        3.15,
+        3.6
+      ],
+      "beat": "共用收尾姿勢",
+      "motion": "身體與完整臂回到共同原畫姿勢。相較原102時間樣本規劃，新增六個明列的neutral tail樣本，不是新增原畫。表情回到idle所需的美術過渡與runtime entry bridge仍待製作。"
+    }
+  ],
+  "runtimeEntryExit": "不可在任意idle相位硬跳到來源第0格。整合前需同一取樣座標的入場／退場橋接並檢查速度；不可用角色RGBA重影淡化掩蓋跳格。這個候選尚未實作橋接。",
+  "pending": [
+    "喜悅表情美術來源接入與審查",
+    "8–10度完整臂的遮擋／肩口原尺寸驗收",
+    "新表情與單次來源取樣的實際試片",
+    "全108時間樣本的像素與播放驗收",
+    "與現行idle的連續入場／退場",
+    "手機與遊戲實際場景"
+  ],
+  "supersededBy": "art/dealer/win-design/spec.json",
+  "probeImages": "Superseded body/combined probe images deleted after current full108 review; see test-results/dealer-win/cleanup-report.json."
+}

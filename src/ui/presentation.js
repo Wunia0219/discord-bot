@@ -2,13 +2,25 @@ export const WIN_HOLD_MS = 1600;
 export const REEL_SETTLE_MS = 160;
 export const REEL_BOUNCE_MS = 190;
 const REEL_CELL_MS = 60;
+const REEL_START_STEPS = 22, REEL_STOP_STEPS = 1;
+export const REEL_STOP_GAP_MS = REEL_STOP_STEPS * REEL_CELL_MS;
 export const SYMBOL_POP_MS = 960;
+
+// A bounded strip can cruise for any network delay without choosing a result.
+// Crossing a cell boundary replaces only offscreen cells, keeping motion continuous.
+export function pendingReelFrame(strip, from, elapsed, cellHeight) {
+  const travel = Math.max(0, elapsed) / REEL_CELL_MS;
+  const step = Math.floor(travel);
+  const wrap = n => ((n % strip.length) + strip.length) % strip.length;
+  return { step, names: Array.from({ length: 6 }, (_, row) => strip[wrap(from - step + row - 2)]),
+    offset: (travel - step) * cellHeight, speed: cellHeight / REEL_CELL_MS };
+}
 
 // Keep presentation speed independent of the length of the payout model's reels.
 // Prepare every cell before spinning; the starting and landing windows, including
 // their guard cells, come from the actual strip and never change while visible.
 export function reelAnimation(strip, from, to, reel, reduced = false) {
-  const steps = reduced ? 4 + reel : 20 + reel * 4;
+  const steps = reduced ? 4 + reel : REEL_START_STEPS + reel * REEL_STOP_STEPS;
   const wrap = n => ((n % strip.length) + strip.length) % strip.length;
   const names = Array.from({ length: steps + 5 }, (_, row) => {
     const stop = row >= steps ? from - steps : to;
@@ -58,29 +70,28 @@ export function reelBounceOffset(elapsed, cellHeight, reduced = false) {
   return cellHeight * .17 * Math.sin(progress * Math.PI * 2) * (1 - progress) ** 2;
 }
 
-// Stitch only the offscreen part of a short braking strip. The four cells that
-// can overlap the viewport keep their exact symbols and fractional positions.
-export function quickStopAnimation(strip, to, names, offset, speed, reel, cellHeight) {
-  if (speed <= 0) return null;
+// Normal and quick spins share the same cruise speed, final deceleration and
+// reel cadence. Quick stop removes cruise cells, never compresses the landing.
+// Waiting for a result already counts toward the normal cruise duration.
+export function reelLandingAnimation(strip, to, names, offset, reel, cellHeight, { elapsed = 0, quick = false, reduced = false } = {}) {
   const scroll = -offset / cellHeight, base = Math.floor(scroll), fraction = scroll - base;
-  const steps = 4 + reel;
+  const settle = reduced ? 0 : REEL_SETTLE_MS;
+  const firstStop = (reduced ? 4 : REEL_START_STEPS) * REEL_CELL_MS + settle / 2;
+  const remaining = quick ? 0 : Math.max(0, firstStop - elapsed);
+  const cruiseSteps = Math.max(reduced ? 4 : 3, Math.ceil((remaining - settle / 2) / REEL_CELL_MS - fraction - 1e-8));
+  const steps = cruiseSteps + reel * (reduced ? 1 : REEL_STOP_STEPS);
   const shortNames = Array.from({ length: steps + 5 }, (_, row) => strip[((to + row - 2) % strip.length + strip.length) % strip.length]);
   for (let row = 1; row <= 4; row++) shortNames[steps + row] = names[base + row];
   const distance = (steps + fraction) * cellHeight;
-  return { names: shortNames, offset: -distance, duration: 2 * distance / speed };
+  return { names: shortNames, steps: distance / cellHeight, offset: -distance, stopAt: distance / (cellHeight / REEL_CELL_MS) + settle / 2, reduced };
 }
 
-export function quickStopOffset(offset, elapsed, duration) {
-  const remaining = 1 - Math.min(1, Math.max(0, elapsed / duration));
-  return offset * remaining ** 2;
-}
-
-export function roundFeedbackTiming(round, tier) {
+export function roundFeedbackTiming(round, tier, minimumDuration = 0) {
   const regularDelay = tier ? (round.milestone ? 9800 : 5200) : round.milestone ? 7000 : round.wins.length ? Math.min(4000, round.wins.length * WIN_HOLD_MS) : 650;
   // Protect the count-up and one full pass of ordinary wins. Big-win and
   // milestone sequences retain their full existing presentation durations.
   const hold = tier ? (round.milestone ? 9000 : 4500) : round.milestone ? 6300 : round.wins.length * WIN_HOLD_MS;
-  return { hold, autoDelay: Math.max(0, regularDelay - hold) };
+  return { hold, autoDelay: Math.max(0, regularDelay - hold, minimumDuration - hold) };
 }
 
 // Owned by the render loop: pausing the scene also pauses win presentation.

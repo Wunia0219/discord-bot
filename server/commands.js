@@ -1,5 +1,5 @@
 import { createPublicKey, verify } from 'node:crypto';
-import { problem } from './wallet.js';
+import { problem } from './wallet-common.js';
 import { privateReply, commandError } from './bot-replies.js';
 
 export const commandDefinitions = [
@@ -24,7 +24,7 @@ export function validSignature(publicKey, headers, raw, now=Date.now()) {
     return verify(null,Buffer.concat([Buffer.from(timestamp),raw]),key,Buffer.from(signature,'hex'));
   }catch{return false;}
 }
-export function handleCommand(interaction, store, adminRoles=[]) {
+export async function handleCommand(interaction, store, adminRoles=[]) {
   const reply=(...args)=>privateReply(store.environment,...args);
   try {
     if(interaction.type===1)return {type:1};
@@ -34,11 +34,11 @@ export function handleCommand(interaction, store, adminRoles=[]) {
     // APP_HANDLER opens the Activity without Discord's automatic channel invite.
     if(interaction.data?.type===4)return {type:12};
     if(interaction.data.name==='簽到'){
-      const r=store.checkin(guild,user);
+      const r=await store.checkin(guild,user,{compact:true});
       return reply(`${r.duplicate?`今天的 **${number(store.daily)} 籌碼**已經領過囉。`:`今天的 **${number(store.daily)} 籌碼**領到了！`}\n你現在有 **${number(r.state.balance)} 籌碼**。\n\n台灣時間過午夜，就能再領下一份。`,r.duplicate?'今天已經領過囉':'今天的簽到領到了',r.duplicate?'warning':'success');
     }
     if(interaction.data.name==='籌碼'){
-      const state=store.state(guild,user);
+      const state=await store.state(guild,user,{compact:true});
       return reply(`**${number(state.balance)} 籌碼**\n\n${state.claimed?'今天的簽到已經領過了，明天再來補充吧。':`今天的簽到還沒領，輸入 /簽到 就能領 **${number(store.daily)} 籌碼**。`}`);
     }
     if(interaction.data.name!=='籌碼管理')throw problem(400,'不支援此指令。','COMMAND_UNKNOWN');
@@ -47,7 +47,7 @@ export function handleCommand(interaction, store, adminRoles=[]) {
     const sub=interaction.data.options?.[0];
     const args=Object.fromEntries((sub?.options||[]).map(option=>[option.name,option.value]));
     if(sub?.name==='更正'){
-      const r=store.reverse(guild,user,args['紀錄編號'],args['原因'],interaction.id);
+      const r=await store.reverse(guild,user,args['紀錄編號'],args['原因'],interaction.id);
       return reply(r.duplicate?`這筆 **${number(-r.entry.delta)} 籌碼**已經收回過，這次沒有再扣一次。`:`已收回 **${number(-r.entry.delta)} 籌碼**，原本的發放紀錄也會保留。`,r.duplicate?'這筆已經收回了':'這筆籌碼收回了','warning',[
         {name:'這筆收回前後',value:`${number(r.entry.before)} → **${number(r.entry.after)}**`,inline:true},
         {name:'對應發放',value:`#${args['紀錄編號']}`,inline:true},
@@ -58,7 +58,7 @@ export function handleCommand(interaction, store, adminRoles=[]) {
     const target=args['成員'];
     if(!interaction.data.resolved?.members?.[target]||interaction.data.resolved?.users?.[target]?.bot)throw problem(400,'請選擇本伺服器中的真人成員。','COMMAND_MEMBER');
     if(sub?.name==='發放'){
-      const r=store.grant(guild,user,target,args['數量'],args['原因'],interaction.id);
+      const r=await store.grant(guild,user,target,args['數量'],args['原因'],interaction.id);
       return reply(r.duplicate?`這筆 **${number(r.entry.delta)} 籌碼**之前已經送給 <@${target}>，這次沒有再加一次。`:`已幫 <@${target}> 加上 **${number(r.entry.delta)} 籌碼**。`,r.duplicate?'這筆已經發過了':'籌碼送到了',r.duplicate?'warning':'success',[
         {name:'這筆發放前後',value:`${number(r.entry.before)} → **${number(r.entry.after)}**`,inline:true},
         {name:'紀錄編號',value:`#${r.entry.id}`,inline:true},
@@ -73,15 +73,15 @@ export function handleCommand(interaction, store, adminRoles=[]) {
       let description=`<@${target}> · ${period}（台灣時間）`;
       if(category==='summary'){
         if(args['早於編號']!==undefined)throw problem(400,'遊戲摘要不使用早於編號，請改選遊戲明細查詢逐局紀錄。','SUMMARY_CURSOR');
-        const {game}=store.auditSummary(guild,target,days);
+        const {game}=await store.auditSummary(guild,target,days);
         return reply(description+`\n${game.rounds?`這段時間一共玩了 ${number(game.rounds)} 局。`:'這段時間還沒玩過，之後的紀錄會放在這裡。'}\n想看每一局，把「分類」改成「遊戲明細」就好。`,'遊戲摘要','info',[
           {name:'遊戲局數',value:number(game.rounds),inline:true},{name:'總下注',value:number(game.bet),inline:true},
           {name:'總得獎',value:number(game.payout),inline:true},{name:'籌碼變化',value:signed(game.net),inline:true},
         ]);
       }
-      const {rows,next}=store.auditHistory(guild,target,{category,days,before:args['早於編號']});
+      const {rows,next}=await store.auditHistory(guild,target,{category,days,before:args['早於編號']});
       if(category==='checkin'){
-        const {checkin}=store.auditSummary(guild,target,days);
+        const {checkin}=await store.auditSummary(guild,target,days);
         description+=`\n這段時間簽到 ${number(checkin.days)} 天，共領了 ${number(checkin.total)} 籌碼。`;
       }
       const empty={rewards:'還沒有發放或收回的紀錄。',checkin:'這段時間還沒有簽到紀錄。',game:'這位玩家在這段時間還沒玩過。',all:'這段時間還沒有籌碼變動。'};

@@ -47,7 +47,6 @@ for i, char in enumerate(chars):
     sheet.alpha_composite(tile,(x,y))
     l,t,r,b=box
     rows.append(f'char id={ord(char)} x={x+l} y={y+t} width={r-l} height={b-t} xoffset={l-18} yoffset={t} xadvance={math.ceil(font.getlength(char))+8} page=0 chnl=15')
-sheet.save(root/'circus-gold.png')
 sheet.save(root/'circus-gold.webp', lossless=True, method=6, exact=True)
 (root/'circus-gold.fnt').write_text('\n'.join([
     'info face="Circus Gold Numerals" size=190 bold=1 italic=0 charset="" unicode=1 stretchH=100 smooth=1 aa=1 padding=8,8,8,8 spacing=0,0',

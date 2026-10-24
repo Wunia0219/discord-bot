@@ -1,0 +1,27 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,mkdirSync} from 'node:fs';
+import {join,resolve} from 'node:path';
+import {randomUUID} from 'node:crypto';
+import {FirestoreWalletStore} from '../server/firestore-wallet.js';
+import {FirestoreWalletCore} from '../server/firestore-wallet-core.js';
+import {FirestoreQuota} from '../server/firestore-quota.js';
+import {FirestoreRest} from '../cloud/firestore-rest.js';
+import {WalletStore} from '../server/wallet.js';
+import {firestoreImportPlan,importFirestore} from '../server/firestore-import.js';
+import {snapshotForCloud} from '../server/cloud-handoff.js';
+assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8787');
+test('REST adapter preserves SDK import, all history, summaries, concurrent retry, checkin and namespace isolation',async t=>{
+ const root=resolve('test-results/cloud-rest');mkdirSync(root,{recursive:true});const dir=mkdtempSync(join(root,'case-')),guild='100000000000000001',user='100000000000000002';let now=Date.now()-86400000;
+ const sql=new WalletStore({filename:join(dir,'source.sqlite'),environment:'test',guildIds:[guild],clock:()=>now,spinDelay:0});sql.checkin(guild,user);for(let i=0;i<110;i++){sql.spin(guild,user,20,randomUUID());now+=2001;}sql.close();
+ const settings={projectId:'demo-jokers-circus',environment:'test',namespace:'rest-'+randomUUID()+'-test',schemaVersion:2,emulator:process.env.FIRESTORE_EMULATOR_HOST,quota:{filename:join(dir,'usage.sqlite'),projectId:'demo-jokers-circus'}},sdk=new FirestoreWalletStore(settings,{guildIds:[guild]}),plan=firestoreImportPlan(join(dir,'source.sqlite'),'test',{version:2});
+ await importFirestore(sdk,plan);t.after(()=>sdk.close());const quota=new FirestoreQuota(settings.quota),db=new FirestoreRest(settings),s=new FirestoreWalletCore(settings,{guildIds:[guild],db,quota,spinDelay:0});t.after(()=>s.close());s.safe=error=>error;await s.initialize();
+ const expected=plan.resources.find(r=>r.path===`wallets/${guild}_${user}`).data;assert.deepEqual(await s.read(s.walletRef(guild,user)),expected);assert.deepEqual(await s.auditSummary(guild,user),expected.summary);
+ let all=[],cursor=Number.MAX_SAFE_INTEGER;do{const page=await s.rounds(guild,user,{before:cursor,limit:50});all.push(...page.rows);cursor=page.next;}while(cursor);assert.equal(all.length,110);assert.equal(new Set(all.map(r=>r.round.id)).size,110);
+ const source=snapshotForCloud(join(dir,'source.sqlite'),'test'),before=quota.status().used.writes;
+ for(const op of source.tables.operations){let result;if(op.key.startsWith('spin:'))result=await s.spin(guild,user,20,op.key.slice(`spin:${user}:`.length),{compact:true});else{s.clock=()=>Date.parse(source.tables.ledger.find(e=>e.id===JSON.parse(op.result).entry.id).time);result=await s.checkin(guild,user,{compact:true});s.clock=Date.now;}assert.equal(result.duplicate,true);for(const [k,v] of Object.entries(JSON.parse(op.result)))assert.deepEqual(result[k],v);}
+ assert.equal(quota.status().used.writes,before);const key=randomUUID(),both=await Promise.all([s.spin(guild,user,20,key,{compact:true}),sdk.spin(guild,user,20,key,{compact:true})]);assert.equal(both.filter(r=>r.duplicate).length,1);assert.deepEqual(both[0].round,both[1].round);
+ const claims=await Promise.all([s.checkin(guild,user,{compact:true}),s.checkin(guild,user,{compact:true})]);assert.equal(claims.filter(r=>r.duplicate).length,1);const h=await s.auditHistory(guild,user,{category:'checkin'});assert.equal(h.rows.length,2);
+ assert.equal((await s.history(guild,user)).length,50);assert.equal((await s.auditSummary(guild,user,1)).checkin.days,1);await assert.rejects(s.state('100000000000000099',user));
+ const readonly=new FirestoreRest({...settings,readOnly:true});await assert.rejects(readonly.runTransaction(tx=>tx.set(readonly.doc(`circus_wallet_v1/${settings.namespace}/meta/state`),{json:'{}'})));await readonly.terminate();
+});

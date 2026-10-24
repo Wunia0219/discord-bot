@@ -1,27 +1,59 @@
 {
   "name": "luna-arcade-preview",
-  "version": "0.2.3",
+  "version": "0.2.7",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 4187 --strictPort",
     "build": "vite build",
+    "audio:preview": "node scripts/audio/render-previews.js",
     "preview": "vite preview --host 127.0.0.1 --port 4187 --strictPort",
     "activity:serve": "npm run build && npm run activity:server",
     "activity:server": "node --env-file=.env.server.local server/index.js",
     "commands:register": "node --env-file=.env.server.local scripts/admin/register-commands.js",
     "activity:configure-launch": "node --env-file=.env.server.local scripts/admin/configure-launch.js",
+    "discord:check": "node --env-file=.env.server.local scripts/admin/check-discord.js",
     "db:backup": "node --env-file=.env.server.local scripts/admin/backup-db.js",
+    "db:status": "node --env-file=.env.server.local scripts/admin/operations-status.js",
+    "backup:portable": "node scripts/admin/portable-backup.js",
+    "backend:dev": "node --watch --env-file=.env.backend.local server/index.js",
+    "backend:start": "node --env-file=.env.backend.local server/index.js",
+    "backend:init": "node --env-file=.env.backend.local scripts/admin/init-db.js",
+    "backend:check": "node --env-file=.env.backend.local scripts/admin/check-db.js",
+    "backend:backup": "node --env-file=.env.backend.local scripts/admin/backup-db.js",
+    "backend:status": "node --env-file=.env.backend.local scripts/admin/operations-status.js",
+    "backend:restore": "node --env-file=.env.backend.local scripts/admin/restore-db.js",
+    "firestore:start": "node --env-file=.env.firestore.local server/index.js",
+    "firestore:status": "node --env-file=.env.firestore.local scripts/admin/firestore-status.js",
+    "firestore:backup": "node --env-file=.env.server.local scripts/admin/backup-firestore.js",
+    "firestore:operations": "node --env-file=.env.server.local scripts/admin/operations-status.js",
+    "firestore:migrate": "node --env-file=.env.firestore.local scripts/admin/import-firestore.js",
+    "firestore:emulator:setup": "node scripts/admin/setup-firestore-emulator.js",
+    "test:firestore": "node scripts/admin/test-firestore.js",
     "test": "node --test tests/*.test.js",
-    "test:bot": "node --test tests/bot-interactions.test.js tests/commands.test.js tests/entry-point.test.js tests/highlights.test.js tests/activity-server.test.js tests/wallet.test.js tests/wallet-service.test.js",
+    "test:bot": "node --test tests/bot-interactions.test.js tests/commands.test.js tests/entry-point.test.js tests/highlights.test.js tests/activity-server.test.js tests/wallet.test.js tests/wallet-service.test.js tests/database.test.js tests/database-audit.test.js tests/operations.test.js tests/firestore-quota.test.js tests/deferred-command.test.js",
     "assets:webp": "python scripts/assets/optimize-images.py",
     "verify:math": "node scripts/game/verify-math.js",
     "verify:sessions": "node scripts/game/verify-sessions.js",
-    "export:model": "node scripts/game/export-model.js"
+    "export:model": "node scripts/game/export-model.js",
+    "cloud:build": "node scripts/admin/cloud-local.js build",
+    "test:cloud": "node scripts/admin/cloud-local.js test",
+    "cloud:handoff": "node scripts/admin/cloud-handoff.js",
+    "cloud:control": "node scripts/admin/cloud-control.js",
+    "monitor:build": "node scripts/admin/cloud-local.js monitor-build",
+    "test:monitor": "node scripts/admin/cloud-local.js monitor-test"
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "2.5.0",
+    "@google-cloud/firestore": "9.3.1",
     "pixi.js": "^8.22.0",
     "vite": "^7.3.7"
+  },
+  "devDependencies": {
+    "miniflare": "5.20261019.2-beta",
+    "wrangler": "4.152.0"
+  },
+  "overrides": {
+    "undici": "7.30.1"
   }
 }

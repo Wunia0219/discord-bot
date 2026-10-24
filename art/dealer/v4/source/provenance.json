@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-20",
+  "identityReferences": [
+    "art/dealer/references/portrait-reference.webp",
+    "art/dealer/references/costume-reference.webp"
+  ],
+  "master": {
+    "path": "art/dealer/rebuild/host-master.webp",
+    "nativeSize": [
+      1024,
+      1536
+    ],
+    "prompt": "art/dealer/rebuild/host-master-prompt.txt",
+    "tool": "built-in image_gen"
+  },
+  "underpaint": {
+    "path": "art/dealer/v4/source/occlusion-underpaint.webp",
+    "prompt": "art/dealer/v4/source/underpaint-prompt.txt",
+    "usedFor": "R4: hidden free-left-arm occlusion only. The original master remains continuous across neck, collars, supported arm and cushion. Legacy approved lean retains its original backing and plate assembly.",
+    "tool": "built-in image_gen"
+  },
+  "closedEyeReference": {
+    "path": "art/dealer/v4/source/eyes-closed-generated.webp",
+    "prompt": "art/dealer/v4/source/eyes-closed-prompt.txt",
+    "usedFor": "two masked eye sockets only; generated crop resized to original reference crop, not extra native detail",
+    "tool": "built-in image_gen"
+  },
+  "renderedSamples": 204,
+  "newDrawingsPerFrame": false,
+  "runtimeFrames": [
+    576,
+    832
+  ],
+  "HDCanvas": [
+    1152,
+    1664
+  ],
+  "fps": 30,
+  "fixedGeometry": "Common canvas and anchor; no per-frame crop, scale or character redraw. R4 uses one continuous source-coordinate map with rigid head-neck-collar core, fixed contact joints/feet and measured bounded cloth transition; intact free arm rigidly follows its shoulder.",
+  "outputs": "images/dealer/v4/dealer.json",
+  "status": "Retained idle and new win local candidate only; no main-game animation integration or deployment",
+  "motionRevision": 6,
+  "continuousBodyRevision4": {
+    "method": "Single original body surface sampled once with premultiplied alpha; no fixed/moving neck image composite. Existing generated underpaint fills hidden free-arm occlusion only. Closed-eye plate masked before body sampling.",
+    "helper": "scripts/assets/dealer_continuous_body.py",
+    "pivotSourcePixels": [
+      620,
+      425
+    ],
+    "meshGridPx": 8,
+    "idleBodyAngleDegrees": -0.425,
+    "smallWinBodyAngleDegrees": -0.18,
+    "newArtGenerated": false,
+    "scope": [
+      "idle"
+    ],
+    "approvedLean": "Retired by current user request; source/runtime images deleted",
+    "rejectedRevision3": "Fixed support pin moved the seam from sleeve into neck/hair/collar; previous neck acceptance withdrawn."
+  },
+  "newWin": {
+    "spec": "art/dealer/win-design/spec.json",
+    "expressions": "art/dealer/win-design/expression-provenance.json",
+    "renderer": "scripts/assets/build-dealer-win.py",
+    "geometry": "scripts/assets/dealer_win_body.py",
+    "registeredLipContours": "scripts/assets/dealer_expression_morph.py",
+    "frames": 108,
+    "fps": 30,
+    "bodyPeakDegrees": 0.95,
+    "wholeArmRelativePeakDegrees": 6.5,
+    "timingCalibration": "R6 continuous beta arcs; no newly generated art or changes to retained idle."
+  }
+}

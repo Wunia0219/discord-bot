@@ -35,14 +35,16 @@ export async function connectActivity({
   } finally {
     clearTimeout(timer);
   }
-  // Let the available Discord window/device shape drive our responsive layout.
-  // Older clients may reject this optional command; that must not block the game.
+  // Mobile uses the portrait composition in every Discord presentation mode.
+  // Older clients may reject this optional command; that must not block startup.
   if (sdk.commands?.setOrientationLockState) {
-    const unlocked = Common.OrientationLockStateTypeObject.UNLOCKED;
+    const orientation = params.get('platform') === 'mobile'
+      ? Common.OrientationLockStateTypeObject.PORTRAIT
+      : Common.OrientationLockStateTypeObject.UNLOCKED;
     sdk.commands.setOrientationLockState({
-      lock_state: unlocked,
-      picture_in_picture_lock_state: unlocked,
-      grid_lock_state: unlocked,
+      lock_state: orientation,
+      picture_in_picture_lock_state: orientation,
+      grid_lock_state: orientation,
     }).catch(error => console.warn('Discord orientation remains client-controlled:', error.message));
   }
   const identity = authEnabled ? await authenticateActivity(sdk, clientId, fetchImpl,walletEnabled) : null;

@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Wallet access is exclusively through the trusted Node server and IAM.
+    // Local emulator tests use this file; it is not automatically deployed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

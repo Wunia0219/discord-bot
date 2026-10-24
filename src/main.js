@@ -1,5 +1,4 @@
 import { mainArt } from './ui/main-art.js';
-import { APP_VERSION } from './version.js';
 import { icon } from './ui/icons.js';
 import { createPlayerBar } from './ui/player-bar.js';
 import { playerError } from './ui/player-copy.js';
@@ -7,12 +6,16 @@ import { roundRecords } from './ui/player-records.js';
 import './style.css';
 import { SlotScene } from './ui/scene.js';
 import { Sound } from './ui/audio.js';
+import { MUSIC_SOURCE } from './ui/audio-cues.js';
+import { presentRoundWin } from './ui/round-win.js';
 import { connectActivity } from './platform/discord-activity.js';
+import { connectLocalWallet } from './platform/local-wallet.js';
 import { createLoadingScreen } from './ui/loading.js';
 import { BigWinPresentation } from './ui/big-win.js';
-import { winTier } from './game/win-tier.js';
 import { createGameRules } from './ui/game-rules.js';
 import { SpinControls } from './ui/spin-controls.js';
+import { bindSpinButton } from './ui/spin-button.js';
+import { installSpinShortcut } from './ui/spin-shortcut.js';
 import { roundFeedbackTiming } from './ui/presentation.js';
 import { setBitmapNumber } from './ui/bitmap-number.js';
 import { installResponsiveLayout } from './ui/responsive-layout.js';
@@ -50,9 +53,9 @@ const KEY='kemet-slot-preview-v2';
 let state, storageAvailable=true;
 try { state=readState(localStorage.getItem(KEY)); } catch { state=freshState();storageAvailable=false; }
 let bet=100, busy=false, presenting=false, ready=false, countAnimation=0, payoutAnimation=0, celebrationTimer=0;
-const scene=new SlotScene(), sound=new Sound();
+const scene=new SlotScene(), sound=new Sound({musicUrl:MUSIC_SOURCE,onStateChange:renderAudio});
 const bigWin=new BigWinPresentation($('#app'));
-let activityMode='browser', activityUser=null, walletClient=null, claiming=false, toastTimer=0;
+let activityMode='browser', activityUser=null, walletClient=null, claiming=false, toastTimer=0, historySync=null;
 const controls=new SpinControls({
   isReady:()=>ready&&!claiming&&!document.hidden&&!$('#dialog').open,
   isBusy:()=>busy,
@@ -66,12 +69,15 @@ const controls=new SpinControls({
     setBusy(busy);
   },
 });
+const renderSpinButton=bindSpinButton($('#spin'),controls);
 const motion=matchMedia('(prefers-reduced-motion: reduce)');scene.reduced=motion.matches;motion.addEventListener('change',()=>scene.reduced=motion.matches);
 const signed=n=>(n>0?'+':'')+fmt(n);
 function save(next) { if(walletClient){if((next.revision||0)>=(state.revision||0))state=next;return;}state=next;try{localStorage.setItem(KEY,JSON.stringify(state));}catch{storageAvailable=false;} }
-const playerBar=createPlayerBar({icon,version:APP_VERSION,onCheckin:claimDaily,onHistory:showHistory,onRules:showRules,onSound:toggleSound});
+const playerBar=createPlayerBar({icon,onCheckin:claimDaily,onHistory:showHistory,onRules:showRules,onSound:toggleSound,onMusic:toggleMusic});
 $('#player-header').append(playerBar.element);
-function renderPlayer(){playerBar.update({user:activityUser,connected:!!walletClient,ready,busy,claiming,claimed:state.claimed,daily:state.daily,storageAvailable});}
+function renderAudio(){playerBar.audio(sound.state);}
+renderAudio();
+function renderPlayer(){playerBar.update({user:activityUser,connected:!!walletClient,localTest:activityMode==='local',ready,busy,claiming,claimed:state.claimed,daily:state.daily,storageAvailable});}
 function notifyPlayer(message,tone='success'){
   const toast=$('#player-toast');clearTimeout(toastTimer);
   toast.replaceChildren();const text=document.createElement('span');text.textContent=message;
@@ -92,13 +98,10 @@ function renderState() {
 }
 function setBusy(value) {
   busy=value;
-  $('#spin').disabled=value||claiming||!ready;
+  renderSpinButton({busy,presenting,claiming,ready});
   $('#max-bet').disabled=value||claiming||!ready||controls.auto;
   $('#auto-spin').disabled=claiming||!ready;
   document.querySelectorAll('[data-bet]').forEach(b=>b.disabled=value||claiming||!ready||controls.auto);
-  $('#spin').setAttribute('aria-label',value?(presenting?'中獎演出中':'轉動中'):'旋轉一次');
-  $('#spin').setAttribute('aria-busy',String(value));
-  $('#spin').classList.toggle('spinning',value&&!presenting);
   renderPlayer();
 }
 function result(title,detail) {
@@ -138,7 +141,7 @@ function celebrate(kind,amount) {
   const milestone=kind==='milestone';
   if(!milestone){
     bigWin.show(amount,scene.reduced,kind);
-    scene.celebrate(true,true);sound.win(true);
+    scene.celebrate(true,true);
     celebrationTimer=setTimeout(hideCelebration,4500);
     return;
   }
@@ -148,7 +151,7 @@ function celebrate(kind,amount) {
   $('#celebration-amount').textContent=milestone?'12,000':`+${fmt(amount)}`;
   $('#celebration-note').textContent=milestone?'第一枚馬戲團徽章，已為你收藏。':'這一刻，傳說再次閃耀。';
   $('#celebration').classList.add('show');$('.game-panel').classList.add('big-win');
-  scene.celebrate(!milestone,!milestone);sound.win(true);
+  scene.celebrate(!milestone,!milestone);scene.reactToMilestone();sound.win('big');
   celebrationTimer=setTimeout(hideCelebration,4500);
 }
 async function spin() {
@@ -156,16 +159,31 @@ async function spin() {
   controls.beginRound();
   setBusy(true);result('馬上開轉，請稍等一下。','');let nextDelay=650,settledRound;
   try{
-    const update=walletClient?await walletClient.spin(bet):createRound(state,bet,drawStops(),crypto.randomUUID());
-    const r=update.round;save(update.state);settledRound=r;
-    // Keep the previous round's effects visible during wallet/network waits.
+    const recovering=walletClient?.hasPending()===true;
+    // Dispatch settlement first; presentation and history synchronization run
+    // alongside it. Neither an animation nor a quick stop chooses the outcome.
+    const settlement=walletClient?walletClient.spin(bet,{deferHistory:true}):Promise.resolve(createRound(state,bet,drawStops(),crypto.randomUUID()));
+    settlement.catch(()=>{});
     showPayout(0);cancelAnimationFrame(countAnimation);hideCelebration();clearWinReadout();
+    // Reserve the new wager visually while settlement is pending. Keep the
+    // authoritative wallet untouched; failures render it again, and recovering
+    // an existing request must not preview another debit.
+    if(!recovering&&state.balance>=bet)setBitmapNumber($('#balance'),fmt(state.balance-bet));
+    scene.beginSpin();sound.spin();result('轉輪開始，準備揭曉。',`本局下注 ${fmt(bet)}`);
+    const update=await settlement;
+    const r=update.round;save(update.state);settledRound=r;
+    if(update.synchronized){
+      historySync=update.synchronized.then(synced=>{save(synced.state);if(!busy&&!claiming)renderState();});
+      historySync.catch(()=>{});
+    }
     if(r.rules!==MODEL_VERSION){
+      if(update.synchronized){const synced=await update.synchronized;save(synced.state);}
+      scene.cancelSpin(restoredStops(state));
       controls.stopAuto();renderState();showPayout(r.payout);
       result('上一局的結果已找回',`獲得 ${fmt(r.payout)} 籌碼，沒有再次扣除下注。可在遊玩紀錄查看。`);
       return;
     }
-    sound.tone(220,.2);
+    scene.prepareDealer(r);
     setBitmapNumber($('#balance'),fmt(r.before-r.bet));
     result('轉輪開始，準備揭曉。',`本局下注 ${fmt(r.bet)}`);
     const animation=scene.spin(r.stops,i=>sound.stop(i));
@@ -176,14 +194,15 @@ async function spin() {
     renderState();animateBalance(r.before-r.bet,state.balance);presentWins(r);showPayout(r.payout,true);
     const symbols=r.wins.length?r.wins.map(w=>`${SYMBOL_NAMES[w.symbol]} ${w.count} 連・${w.ways} 組`).join('、'):'這局沒有連出中獎組合';
     result(r.payout?`這局獲得 ${fmt(r.payout)} 籌碼`:'這局沒有得獎',`${symbols}｜籌碼變化 ${signed(r.net)}`);
-    const tier=winTier(r.payout,r.bet);
-    if(tier)celebrate(tier,r.payout);
-    else if(r.payout>r.bet){scene.celebrate();sound.win(false);}
-    const timing=roundFeedbackTiming(r,tier);nextDelay=timing.autoDelay;
+    const tier=presentRoundWin(r,{sound,celebrate,celebrateSmall:()=>scene.celebrate()});
+    scene.reactToRound(r);
+    // Let the authored gesture return to its neutral pose before AUTO SPIN.
+    const timing=roundFeedbackTiming(r,tier,scene.dealerFeedbackDuration(r));nextDelay=timing.autoDelay;
     if(r.milestone){clearTimeout(celebrationTimer);celebrationTimer=setTimeout(()=>celebrate('milestone',12000),tier?4500:1800);}
     // Space can shorten reel travel, but cannot cut off the resulting win.
     if(timing.hold&&!document.hidden)await new Promise(resolve=>setTimeout(resolve,timing.hold));
   }catch(error){
+    scene.cancelSpin(restoredStops(state));
     controls.stopAuto();renderState();
     if(settledRound)showPayout(settledRound.payout);
     if(settledRound){const body=document.createElement('p');body.textContent='這局的結果已保存，可以到遊玩紀錄查看。自動旋轉已暫停。';openDialog('這局的結果已保存',body);}
@@ -203,7 +222,39 @@ function openDialog(title,body,variant='notice') {
   $('#dialog-body').scrollTop=0;
 }
 function showRules(){openDialog('遊戲規則',createGameRules(bet),'rules');}
-function showHistory(){openDialog('遊玩紀錄',roundRecords(state.history),'records');}
+async function showHistory(){
+  if(historySync){
+    const syncing=historySync;
+    const pending=document.createElement('div');pending.className='records-loading';pending.textContent='正在載入紀錄…';
+    openDialog('遊玩紀錄',pending,'records');
+    try{await syncing;if(historySync===syncing)historySync=null;}
+    catch{
+      if(!$('#dialog').open||!pending.isConnected)return;
+      pending.className='records-empty';pending.textContent='紀錄暫時載入失敗，請再試一次。';
+      const retry=document.createElement('button');retry.className='notice-action';retry.textContent='重新載入';pending.append(retry);
+      retry.addEventListener('click',()=>{historySync=walletClient.state().then(update=>save(update.state));historySync.catch(()=>{});showHistory();});
+      return;
+    }
+    if(!$('#dialog').open||!pending.isConnected)return;
+  }
+  const body=roundRecords(state.history);openDialog('遊玩紀錄',body,'records');
+  if(!walletClient||!state.historyBefore||state.history.length<100)return;
+  let cursor=state.historyBefore;
+  const button=document.createElement('button'),status=document.createElement('p');
+  button.type='button';button.className='notice-action';button.textContent='載入更早的紀錄';
+  status.setAttribute('role','status');body.append(status,button);
+  button.addEventListener('click',async()=>{
+    button.disabled=true;status.textContent='正在載入紀錄…';
+    try{
+      const page=await walletClient.rounds(cursor),extra=roundRecords(page.rows.map(row=>row.round));
+      for(const card of [...extra.querySelectorAll('.play-record')])body.insertBefore(card,status);
+      cursor=page.next;status.textContent=cursor?'':'已顯示所有遊玩紀錄。';button.hidden=!cursor;
+      const caption=body.querySelector('.records-caption');
+      if(caption)caption.textContent=`已顯示 ${body.querySelectorAll('.play-record').length} 局 · 點開一局查看得獎組合`;
+    }catch{status.textContent='紀錄暫時載入失敗，請再試一次。';}
+    finally{button.disabled=false;}
+  });
+}
 async function claimDaily(){
   if(!walletClient||!ready||busy||claiming||state.claimed)return;
   controls.stopAuto();claiming=true;setBusy(busy);
@@ -214,36 +265,38 @@ async function claimDaily(){
   finally{claiming=false;setBusy(busy);}
 }
 async function toggleSound(){
+  const button=$('#sound');button.disabled=true;button.setAttribute('aria-busy','true');
   try{
-    if(sound.enabled)sound.enabled=false;
-    else if(!await sound.enable()){notifyPlayer('暫時無法播放音效，請稍後再試。','info');return;}
-    playerBar.sound(sound.enabled);if(sound.enabled)sound.tone(659,.2);
+    const enable=!sound.enabled;
+    const enabled=await sound.setEffectsEnabled(enable);
+    if(enable&&!enabled)notifyPlayer('暫時無法播放音效，請稍後再試。','info');
+    if(enabled)sound.win('return');
   }catch{notifyPlayer('暫時無法播放音效，請稍後再試。','info');}
+  finally{renderAudio();button.setAttribute('aria-busy','false');}
+}
+async function toggleMusic(){
+  if(!sound.musicAvailable)return;
+  const button=$('#music');button.disabled=true;button.setAttribute('aria-busy','true');
+  try{
+    const enable=!sound.musicEnabled;
+    if(!await sound.setMusicEnabled(enable)&&enable)notifyPlayer('暫時無法播放音樂，請稍後再試。','info');
+  }finally{renderAudio();button.setAttribute('aria-busy','false');}
 }
 $('#max-bet').addEventListener('click',()=>{if(!busy)document.querySelector('[data-bet="500"]').click();});
-$('#spin').addEventListener('click',()=>spin());
 // Pointer interaction has no persistent ring; Tab navigation keeps a gold cue.
 document.addEventListener('pointerdown',()=>{document.documentElement.dataset.input='pointer';},true);
 document.addEventListener('keydown',event=>{
   if(event.key==='Tab')document.documentElement.dataset.input='keyboard';
-  if(event.code!=='Space'&&event.key!==' ')return;
-  if(event.defaultPrevented||event.isComposing||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey||document.hidden||$('#dialog').open)return;
-  // Account/navigation buttons keep native Space activation. A keyboard-focused
-  // bet also keeps its native action; clicking a bet still allows rapid Space spins.
-  if(event.target.closest?.('header,summary'))return;
-  if(document.documentElement.dataset.input==='keyboard'&&event.target.closest?.('button:not(#spin)'))return;
-  if(event.target.closest?.('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"]'))return;
-  event.preventDefault();
-  if(!event.repeat)controls.space();
-});
+},true);
+installSpinShortcut({target:document,controls,isBlocked:()=>document.hidden,isModalOpen:()=>$('#dialog').open});
 $('#auto-spin').addEventListener('click',()=>controls.toggleAuto());
 document.querySelectorAll('[data-bet]').forEach(b=>b.addEventListener('click',()=>{if(busy)return;bet=Number(b.dataset.bet);document.querySelectorAll('[data-bet]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));}));
 $('#close-dialog').addEventListener('click',()=>$('#dialog').close());
 $('#dialog').addEventListener('click',e=>{if(e.target===$('#dialog')){const r=$('#dialog').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)$('#dialog').close();}});
 
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden){controls.stopAuto();controls.stopCurrent();scene.finish();if(ready)scene.app.stop();sound.context?.suspend();}
-  else {if(ready)scene.app.start();if(sound.enabled)sound.context?.resume().catch(()=>{});refreshWallet();}
+  if(document.hidden){scene.setDealerVisible(false);controls.stopAuto();controls.stopCurrent();scene.finish();if(ready)scene.app.stop();sound.setVisible(false);}
+  else {scene.setDealerVisible(true);if(ready)scene.app.start();sound.setVisible(true);refreshWallet();}
 });
 renderState();
 // History restores the wallet and reels, but a new visit has no current win.
@@ -253,7 +306,7 @@ async function startGame() {
   const loading = createLoadingScreen();
   loading.update(8, '正在喚醒馬戲團');
   try {
-    const activity=await connectActivity();
+    const activity=await connectLocalWallet(window.location)||await connectActivity();
     activityMode=activity.mode;
     activityUser=activity.user || null;
     if(activity.session){walletClient=createWalletClient(activity.session);state=(await walletClient.state()).state;renderState();}

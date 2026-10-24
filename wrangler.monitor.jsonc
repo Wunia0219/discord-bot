@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "jokers-circus-monitor",
+  "main": "monitor/worker.js",
+  "compatibility_date": "2026-07-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "durable_objects": {"bindings": [{"name": "CIRCUS_MONITOR", "class_name": "CircusMonitor"}]},
+  "migrations": [{"tag": "monitor-v1", "new_sqlite_classes": ["CircusMonitor"]}],
+  "triggers": {"crons": ["*/10 * * * *"]},
+  "vars": {"CLOUD_PLAN": "free", "MONITOR_ENABLED": "false"},
+  "observability": {"enabled": false}
+}
