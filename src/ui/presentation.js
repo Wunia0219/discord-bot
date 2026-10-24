@@ -2,7 +2,7 @@ export const WIN_HOLD_MS = 1600;
 export const REEL_SETTLE_MS = 160;
 export const REEL_BOUNCE_MS = 190;
 const REEL_CELL_MS = 60;
-const REEL_START_STEPS = 10, REEL_STOP_STEPS = 2;
+const REEL_START_STEPS = 22, REEL_STOP_STEPS = 1;
 export const REEL_STOP_GAP_MS = REEL_STOP_STEPS * REEL_CELL_MS;
 export const SYMBOL_POP_MS = 960;
 

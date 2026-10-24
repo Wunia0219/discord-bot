@@ -50,8 +50,8 @@ test('network waiting counts toward normal cruise and quick stop only removes cr
     const normal=reelLandingAnimation(REEL_STRIPS[0],0,frame.names,frame.offset,0,cell,{elapsed});
     const quick=reelLandingAnimation(REEL_STRIPS[0],0,frame.names,frame.offset,0,cell,{elapsed,quick:true});
     assert.ok(quick.stopAt<=normal.stopAt);
-    assert.ok(quick.stopAt+4*REEL_STOP_GAP_MS+REEL_BOUNCE_MS<=990);
-    if(elapsed<=300)close(normal.stopAt+elapsed,680);
+    assert.ok(quick.stopAt+4*REEL_STOP_GAP_MS+REEL_BOUNCE_MS<=750);
+    if(elapsed<=600)close(normal.stopAt+elapsed,1400);
     else close(normal.stopAt,quick.stopAt,'a slow response must not restart the long normal cruise');
   }
 });

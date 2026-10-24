@@ -131,14 +131,16 @@ export class FirestoreWalletCore {
         const key=kind==='checkin'?`daily:${user}:${day}`:kind==='spin'?`spin:${user}:${operation.requestId}`:
           ['grant','reversal','fixture'].includes(kind)?`admin:${operation.requestId}`:null;
         const opRef=key?this.root.collection('operations').doc(digest(guild+'\0'+key)):null;
-        const [meta,savedWallet,existing]=await this.readMany([this.meta,ref,...(opRef?[opRef]:[])],tx);this.checkMeta(meta);
+        const dayRef=ref.collection('days').doc(day),needsDay=kind==='spin'||kind==='checkin';
+        // Accepted rounds still read exactly four documents. Fetching the daily
+        // total with the first batch removes another network round trip.
+        const [meta,savedWallet,existing,savedDay]=await this.readMany([this.meta,ref,...(opRef?[opRef]:[]),...(needsDay?[dayRef]:[])],tx);this.checkMeta(meta);
         let wallet=savedWallet;
         if(existing){if(existing.fingerprint!==operation.fingerprint)throw problem(409,'此請求編號已用於其他操作。','REQUEST_CONFLICT');
           return {...existing.result,duplicate:true,state:wallet?this.snapshot(wallet,now):undefined,wallet};}
         const fresh=!wallet;
         wallet ||= {guild,user,balance:0,last_spin:0,milestone:false,claimedDay:null,revision:0,
           ...(this.schemaVersion===2?{historyRevision:0,historyCache:encodeHistory([])}:{history:[]}),summary:zeroSummary()};
-        const dayRef=ref.collection('days').doc(day),needsDay=kind==='spin'||kind==='checkin';
         const adminRef=kind==='grant'?this.root.collection('adminDays').doc(guild+'_'+operation.actor+'_'+day):null;
         const adminDay=adminRef?(await this.read(adminRef,tx)||{used:0}):null;
         let original,reversalRef;
@@ -155,9 +157,7 @@ export class FirestoreWalletCore {
           if(wallet.balance+(fresh&&this.environment==='test'?10000:0)<operation.bet)throw problem(409,'籌碼不足，請降低下注、簽到或聯絡管理員。');
         }
         if(adminDay&&adminDay.used+operation.amount>this.grantDaily)throw problem(409,'已超過這位管理員今日的發放額度。','GRANT_DAILY');
-        // Rejected spins need no daily summary; accepted operations still read it
-        // in this transaction before any writes, preserving atomic accounting.
-        const daySummary=needsDay?(await this.read(dayRef,tx)||zeroSummary()):null;
+        const daySummary=needsDay?(savedDay||zeroSummary()):null;
         const entries=[];
         const credit=(delta,entryKind,actor,reason,reference=null)=>{
           const before=wallet.balance,after=before+delta;

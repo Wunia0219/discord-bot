@@ -55,11 +55,12 @@ class Query {
   get(){return this.db.query(this);}
 }
 export class FirestoreRest {
-  constructor({projectId,namespace,credentials,emulator,fetchImpl=globalThis.fetch.bind(globalThis),readOnly=false}){
+  constructor({projectId,namespace,credentials,emulator,fetchImpl=globalThis.fetch.bind(globalThis),readOnly=false,endpoint}){
     if(!/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(projectId)||!namespace)throw new Error('Invalid Firestore identity');
     if(emulator&&(!projectId.startsWith('demo-')||!/^127\.0\.0\.1:\d+$/.test(emulator)))throw new Error('Unsafe emulator');
+    if(endpoint&&(emulator||!/^https:\/\/firestore\.[a-z0-9-]+\.rep\.googleapis\.com$/.test(endpoint)))throw new Error('Invalid regional Firestore endpoint');
     Object.assign(this,{projectId,namespace,fetchImpl,readOnly});this.prefix=`projects/${projectId}/databases/(default)/documents`;
-    this.base=emulator?'http://'+emulator:'https://firestore.googleapis.com';this.auth=emulator?{get:async()=>'owner'}:new GoogleAccessToken(credentials,{fetchImpl});
+    this.base=emulator?'http://'+emulator:endpoint||'https://firestore.googleapis.com';this.auth=emulator?{get:async()=>'owner'}:new GoogleAccessToken(credentials,{fetchImpl});
   }
   doc(path){const root='circus_wallet_v1/'+this.namespace;if(pathSegments(path).length%2!==0||(path!==root&&!path.startsWith(root+'/')))throw new Error('Namespace boundary');return new Reference(this,path);}
   collection(path){if(pathSegments(path).length%2!==1)throw new Error('Invalid collection');return new Query(this,path);}
@@ -70,9 +71,10 @@ export class FirestoreRest {
     return r.json();
   }
   async getAll(...refs){return this.batchGet(refs);}
-  async batchGet(refs,consistency={}){
+  async batchGet(refs,consistency={},onTransaction){
     if(!refs.length)return [];for(const ref of refs)this.doc(ref.path);
     const rows=await this.call(this.prefix+':batchGet',{documents:refs.map(r=>this.prefix+'/'+r.path),...consistency}),found=new Map();
+    if(consistency.newTransaction){const transaction=rows.find(row=>row.transaction)?.transaction;if(typeof transaction!=='string'||!transaction)throw new Error('Missing transaction');onTransaction?.(transaction);}
     for(const row of rows){const name=row.found?.name||row.missing;if(name)found.set(name,new Snapshot(this,name,row.found,row.readTime));}
     return refs.map(ref=>{const row=found.get(this.prefix+'/'+ref.path);if(!row)throw new Error('Incomplete Firestore response');return row;});
   }
@@ -85,12 +87,27 @@ export class FirestoreRest {
   }
   async runTransaction(callback,{maxAttempts=3,readOnly=false}={}){
     for(let attempt=0;attempt<maxAttempts;attempt++){
-      const {transaction}=await this.call(this.prefix+':beginTransaction',{options:readOnly?{readOnly:{}}:{readWrite:{}}});if(!transaction)throw new Error('Missing transaction');
-      const writes=[];let wrote=false;
+      const options=readOnly?{readOnly:{}}:{readWrite:{}};
+      const writes=[];let wrote=false,transaction,starting;
+      const begin=async()=>{
+        if(!transaction&&!starting)starting=this.call(this.prefix+':beginTransaction',{options}).then(result=>{transaction=result.transaction;if(!transaction)throw new Error('Missing transaction');});
+        if(starting)try{await starting;}finally{starting=null;}
+        return transaction;
+      };
+      const read=async refs=>{
+        if(wrote)throw new Error('Read after write');if(!refs.length)return [];
+        if(!transaction&&!starting){
+          // Firestore can open the transaction with its first document batch.
+          // This saves one full network round trip without optimistic results.
+          starting=this.batchGet(refs,{newTransaction:options},id=>{transaction=id;});
+          try{return await starting;}finally{starting=null;}
+        }
+        await begin();return this.batchGet(refs,{transaction});
+      };
       const write=(ref,data,create)=>{if(readOnly||this.readOnly)throw new Error('Read-only transport');this.doc(ref.path);wrote=true;writes.push({update:{name:this.prefix+'/'+ref.path,fields:Object.fromEntries(Object.entries(data).map(([k,v])=>[k,encodeValue(v)]))},...(create?{currentDocument:{exists:false}}:{})});};
-      const tx={get:ref=>{if(wrote)throw new Error('Read after write');return ref instanceof Query?this.query(ref,{transaction}):this.batchGet([ref],{transaction}).then(r=>r[0]);},getAll:(...refs)=>{if(wrote)throw new Error('Read after write');return this.batchGet(refs,{transaction});},set:(r,d)=>write(r,d,false),create:(r,d)=>write(r,d,true)};
-      try{const result=await callback(tx);if(writes.length)await this.call(this.prefix+':commit',{transaction,writes});else await this.call(this.prefix+':rollback',{transaction});return result;}
-      catch(error){try{await this.call(this.prefix+':rollback',{transaction});}catch{}if(error.restStatus==='ABORTED'&&!readOnly&&attempt+1<maxAttempts)continue;throw error;}
+      const tx={get:ref=>{if(wrote)throw new Error('Read after write');return ref instanceof Query?begin().then(()=>this.query(ref,{transaction})):read([ref]).then(r=>r[0]);},getAll:(...refs)=>read(refs),set:(r,d)=>write(r,d,false),create:(r,d)=>write(r,d,true)};
+      try{const result=await callback(tx);if(writes.length){await begin();await this.call(this.prefix+':commit',{transaction,writes});}else if(transaction)await this.call(this.prefix+':rollback',{transaction});return result;}
+      catch(error){if(transaction)try{await this.call(this.prefix+':rollback',{transaction});}catch{}if(error.restStatus==='ABORTED'&&!readOnly&&attempt+1<maxAttempts)continue;throw error;}
     }
   }
   async terminate(){}

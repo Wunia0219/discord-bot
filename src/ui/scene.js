@@ -259,7 +259,9 @@ export class SlotScene {
     this.dealer?.update(t,this.reduced);
     const dt = Math.min(t.elapsedMS, 50) / 1000;
     if (this.active) {
-      const a = this.active; a.time += t.deltaMS;
+      // Ticker deltaMS is capped during slow frames. Reel duration must follow
+      // actual elapsed time so a rendering hitch cannot stretch a quick stop.
+      const a = this.active; a.time += Math.max(0,t.elapsedMS);
       if (a.waiting) {
         if (!a.reduced) this.reels.forEach((r, i) => {
           const frame = pendingReelFrame(REEL_STRIPS[i], this.currentStops[i], a.time, CH);

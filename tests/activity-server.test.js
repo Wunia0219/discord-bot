@@ -238,7 +238,7 @@ test('wallet HTTP routes require verified sessions, isolate callers and settle c
  assert.equal(store.history(guild,id).filter(e=>e.kind==='spin').length,1);
  now+=2000;
  const retry=await request('/api/spin',next);assert.equal(retry.status,200);
- assert.match(retry.headers.get('server-timing'),/^settlement;dur=\d+\.\d, handler;dur=\d+\.\d$/);
+ assert.equal(retry.headers.get('server-timing'),null);
  assert.equal(store.history(guild,id).filter(e=>e.kind==='spin').length,2);
  assert.equal((await request('/api/interactions',post({type:2}))).status,401);
 });

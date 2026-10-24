@@ -150,3 +150,35 @@ Discord 網頁實際驗收：以既有帳號啟動雲端 Activity，登入成功
 結算交易將 meta／wallet／operation 合併為一次 getAll，通過重送、冷卻與餘額檢查後再讀 day，接受的新局仍為 4 份文件、6 份寫入，但讀取往返由 4 次減為 2 次；拒絕或重送仍只讀 3 份文件。回應的冷卻剩餘時間在提交完成後重算，扣除已消耗的交易時間，保留原 2 秒開轉規則。加入 Server-Timing 及私有 status 的最近 50 筆成功新局處理／結算耗時統計，僅存記憶體，重建 Worker 後歸零，不含用戶端網路／冷啟動等待。發布驗收時樣本為 0，因此沒有宣稱歷史或目前雲端平均數；未新增遊戲提示文字。
 
 337 項一般測試通過、1 項既有條件測試跳過；50 項 Firestore 模擬器回歸通過、2 項快照條件測試跳過；3 項 REST／workerd 整合測試通過。前端 build、Worker dry-run、桌面／手機與慢回應／慢歷史的 Pixi 時序驗證通過，共用減速與回彈座標誤差小於 1e-7。瀏覽器快停在結果就緒後實測約 125–147ms 開始減速。公開 HTML／JS／CSS 雜湊與本機建置一致，音樂完整下載及 Range probe 正常，health／ready 為 200，21 項雲端／Discord 診斷通過。相同 namespace、active writer、備份、alarm 與額度正常，未下注、seed、release、遷移資料或啟動本機 writer。證據：`test-results/spin-latency/report.json`、`spin-latency-verification.json`、`spin-latency-readiness.log`。回退版本為 `fa35fb6c-72ad-460a-b55c-0ce851c8757e`；只回退程式，不釋放 DO 或恢復過期帳本。
+
+10/24 台灣時間 19:34 已發布 `13fc95a4-d651-465a-af67-1a8b674da032`，產品版本保持 0.2.6。依使用者要求稍微拉長一般旋轉，正常空轉由 10 格改為 14 格，多 240ms；第一軸目標落地 920ms、完整停輪約 1.59 秒。快速停輪、共同的減速／回彈／音效及開轉規則維持原設定。立即提供模擬權威結果的本機瀏覽器各 20 次實測：正常從 SPIN 到停妥平均 1.593 秒；快停按下到停妥平均 0.951 秒，從最初 SPIN 到提早快停完成平均 1.114 秒。這些是動畫實測，不包含真實 Discord 網路或後端等待。
+
+337 項一般測試通過、1 項既有條件測試跳過，前端 build 成功；桌機／手機觸控、慢結果、慢歷史及原減速／回彈時序回歸通過。發布後公開建置雜湊、MP3 下載與 Range、health／ready、21 項雲端／Discord 診斷均通過；相同 namespace 與 writer 保持 active，備份、alarm 及額度正常。證據：`test-results/normal-spin-average/report.json`、`normal-spin-pacing/report.json`、`normal-spin-verification.json`、`normal-spin-readiness.log`。回退版本為 `922c4caa-616c-46ac-a826-129d4f7048cd`，只回退程式，不釋放 DO 或恢復過期帳本。
+
+10/24 台灣時間 19:38 已發布 `90fbfb5a-c2cc-4bea-b09e-8f203ab8e077`，產品版本保持 0.2.6。依使用者要求將一般旋轉再延長至約 1.8 秒，正常空轉由 14 格改為 18 格，多 240ms；第一軸目標落地 1160ms、五軸含回彈約 1.83 秒。快停的銜接、減速、逐軸間隔、回彈與音效維持既有設定。立即回傳模擬結果的瀏覽器回歸中，正常從動畫開始到停妥為 1.824 秒，減速後才要求快停的情境為 1.827 秒；這是本機單次情境實測，非真實 Discord 平均。
+
+337 項一般測試通過、1 項既有條件測試跳過，前端 build 成功；桌機／手機觸控、慢結果、慢歷史與減速／回彈時序驗證通過。發布後公開建置雜湊、MP3 下載與 Range、health／ready、21 項雲端／Discord 診斷通過；原 namespace 與 writer 保持 active，備份、alarm 及額度正常。證據：`test-results/normal-spin-18-pacing/report.json`、`normal-spin-18-tests.log`、`normal-spin-18-verification.json`、`normal-spin-18-readiness.log`。回退版本為 `13fc95a4-d651-465a-af67-1a8b674da032`，只回退程式，不釋放 DO 或恢復過期帳本。
+
+10/24 台灣時間 20:00 已發布 `7b740462-efaf-4bbe-9a96-2ef3fc5dfe85`，產品版本保持 0.2.6。處理使用者回報每局快停仍不明顯：正常約 1.83 秒及快停既有收尾設定保留，轉輪時鐘改用實際 elapsedMS，避免 ticker 限幅使慢幀拉長動畫。REST 首批讀取同時開啟 readWrite 交易，並合併每日摘要，正常新局從四次往返減為兩次，四份讀取與六份原子寫入不變。拒絕／重播也批次讀四份文件，較前版多讀每日摘要，仍零寫入；沿用保守額度與原上限。僅明確 ABORTED 可重試，提交回應遺失仍保留原請求解決，不推測未確認結果。
+
+服務端最近 50 筆耗時改存原 DO SQLite，包含初始化耗時及時間範圍，休眠／重建不再清空。另由已授權用戶端將按 SPIN 至收到結果、冷卻等待、SPIN 至停妥、按快停至停妥及等結果時間，附於下一個既有錢包請求；不增加請求或 Firestore 讀寫，去重並與服務端統計分開，最多保存 50 筆，不保存玩家身分／下注／結果，不影響結算。發布驗收時真實新樣本仍為 0，未宣稱已取得雲端平均。後續查詢可使用相同私有 status 的 spinTiming.client；最後一局可能待下一個既有請求才送達。
+
+344 項一般測試通過、1 項條件測試跳過；3 項 REST／真實 workerd 整合測試通過，含原請求互通、原子性及統計跨重啟保存。Firestore 52 項範圍分批覆蓋：核心 21 項重跑全通過，其餘 29 項通過、2 項快照條件跳過；冷卻拒絕的讀取額度斷言已由 18 調為 24，以反映四份文件各預留六次的既有保守計數。前端 build 及 Worker dry-run 通過。桌機／手機、慢結果／歷史、減速／回彈與每秒五幀模擬通過；慢幀快停在 930ms 規劃期限後的下一幀、實際 1000ms 完成。一般本機情境正常約 1.825 秒；快停結果就緒後 958ms，而模擬 1.5 秒回應時，從按快停至停妥為 2.361 秒（含 1.380 秒等結果），確認量測不再省略等待。這些是本機情境值，不能作為真人 Discord 平均或一秒內保證。
+
+公開建置雜湊、MP3／Range、health／ready 與 21 項雲端／Discord 診斷通過；原 namespace、active writer、備份、alarm 與額度正常，未下注、重設資料或啟動本機 writer。證據：`test-results/quick-feel/report.json`、`quick-feel-tests.log`、`quick-feel-cloud.log`、`quick-feel-firestore.log`、`quick-feel-firestore-core.log`、`quick-feel-verification.json`、`quick-feel-readiness.log`。回退版本為 `90fbfb5a-c2cc-4bea-b09e-8f203ab8e077`，只回退程式，不釋放 DO 或恢復過期帳本。
+
+10/24 台灣時間 20:21 已驗證發布 `b53b9835-9142-4305-9060-7d8b19a4d2f2`，產品版本仍為 0.2.6。原版真人紀錄共正常 5 局、快停 10 局，含等待的 SPIN 至停妥平均為 2.3584／1.9755 秒，收到結果後仍各需約 0.9772／0.9644 秒，證據 `test-results/quick-handoff-before.json`。本次保持每軸 160ms 減速與 190ms 回彈，兩種模式共用逐軸間隔從 120ms 縮為 60ms，正常空轉從 18 格改為 22 格以維持完整約 1.83 秒；快停含必要可見圖標銜接的收尾約 0.69–0.75 秒。仍須等後端確認，不能以理想動畫時間保證實際按下快停後的秒數。
+
+唯讀資料庫資訊確認原 `(default)` 位於 `nam5`，Google 官方對應入口為 `https://firestore.us.rep.googleapis.com`。原子交易、文件、去重及配額流程均保留，僅配置 `FIRESTORE_ENDPOINT` 使用該入口；本機 emulator 禁止配置真實區域入口。既有私有 status 可用 `?database=info` 查詢官方資料庫中繼資料及兩入口可用性，不讀寫玩家文件。3 次暖機唯讀探測全球入口為 356／255／249ms、區域入口為 357／223／211ms，此為 metadata 耗時，不當作真實結算速度保證。未遷移資料庫，也未改動 DO 身分。先前診斷發布版本 `8b413d04-fb8c-48d8-bff2-97745f23de8b` 保留原前端資產。
+
+新量測使用獨立 `quick-handoff-v2` 分組，舊數據仍保存在原鍵，新版不接受舊客戶端回報。346 項一般測試通過、1 項條件測試跳過，3 項 REST／workerd 整合測試通過（含官方區域主機路徑與唯讀 metadata 驗證）；前端 build 與 Worker dry-run 成功。桌機／手機、慢回應、可見圖標連續性、相同減速／回彈及慢幀計時驗證通過。本機立即回應情境：正常 1.820 秒、快停按下後 0.708 秒；模擬回應 1.5 秒時，快停仍從 SPIN 起共約 2.244 秒，顯示量測包含等待。發布後公開建置雜湊、音樂／Range、health／ready、21 項 Discord 診斷通過。驗收時新版真人樣本為 0，已通知使用者以原遊戲流程測正常約 5 局、快停約 10 局；完整真人成效待新分組資料確認。
+
+自動審核拒絕了快取版本直接提交錢包的交易改寫，以及新增寫入型 QA 端點，分別因記帳一致性與雲端寫入介面風險；兩方案均未實作。使用既有遊玩紀錄驗證，不建立額外測試帳本。證據：`test-results/quick-handoff-tests.log`、`quick-handoff-cloud.log`、`quick-handoff/report.json`、`quick-handoff-database.json`、`quick-handoff-region-probes.json`、`quick-handoff-verification.json`、`quick-handoff-readiness.log`。回退至 `7b740462-efaf-4bbe-9a96-2ef3fc5dfe85` 時一併恢復原全球入口及 legacy 量測設定；不釋放 DO、不還原過期帳本或刪除統計資料。
+
+10/24 台灣時間 20:40 已驗證發布 `c7ae9254-91eb-47bd-ac4d-bd3d95389d08`，產品版本仍為 0.2.6。使用者已接受目前體驗，要求清除臨時量測。最後真人驗收為正常 17 局、快停 11 局，含等待的 SPIN 至停妥平均 1.8284／1.6536 秒，按快停至停妥平均 1.3205 秒；這些為該批實測值，非硬性秒數保證。動畫、音效、兩次往返結算核心及官方美國區域入口均保留，相關六份來源檔 SHA-256 與清理前完全相同。
+
+已移除前端計時 hooks、回報標頭、Server-Timing、雲端彙總與版本分組、私有區域探測，以及只用於量測的模組與測試。保留正常冷卻計時、原請求重送與背景歷史同步。先發布 `15522730-9999-4818-b0c5-4b7191fa9b69`，以綁定參數 SQL 僅清除原 DO cloud_state 的 `spin-timings-v1` 與 `spin-timings:quick-handoff-v2` 兩鍵；其他狀態不變，完成後最終版也移除該一次性清理程式。沒有刪除 Firestore 帳本、玩家歷史、備份、quota 或 sessions。
+
+自動審核拒絕以 --keep-vars=false 更新整份設定清單，故改用保留設定的發布，再透過精準合併更新只刪除 `SPIN_MEASUREMENT_COHORT`；中間版本 `da65fc70-a36b-45b7-8bac-b6678d074f8d` 在發布前逐項核對，最終版本除該變數外的全部雲端綁定與清理前完全相同，五組密鑰與同一 DO 均保留。沒有新增管理寫入介面。
+
+339 項一般測試通過、1 項條件測試跳過；3 項 REST／workerd 整合測試通過，前端 build、桌機／手機、慢結果／歷史、共用落地／音效及慢幀回歸通過；前端請求不再帶測速回報。最終公開建置雜湊、音樂／Range、health／ready 與 21 項 Discord 診斷通過，原資料範圍、active writer、備份與額度正常。證據：`test-results/measurement-cleanup-preserved.json`、`measurement-cleanup-sql-guard.json`、`measurement-cleanup-purge-verification.json`、`measurement-cleanup-variable-guard.json`、`measurement-cleanup-final-guard.json`、`measurement-cleanup-tests.log`、`measurement-cleanup-cloud.log`、`measurement-cleanup/report.json`、`measurement-cleanup-verification.json`、`measurement-cleanup-readiness.log`。本文件的舊量測敘述為歷史發布記錄，現行遊戲不持續收集停輪耗時。回退至 `b53b9835-9142-4305-9060-7d8b19a4d2f2` 會恢復量測程式，不能當作保留清理的回退；任何回退都不釋放 DO 或恢復過期帳本。

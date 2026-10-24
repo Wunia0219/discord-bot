@@ -15,12 +15,14 @@ function fixture({cooldown=false,duplicate=false,commitMs=0}={}){
     if(url.endsWith(':beginTransaction')){calls.push('begin');return Response.json({transaction:'isolated-transaction'});}
     if(url.endsWith(':batchGet')){
       calls.push('read:'+body.documents.length);
-      return Response.json(body.documents.map(name=>{
+      const rows=body.documents.map(name=>{
         const data=name.endsWith('/meta/state')?{version:2,environment:'test',status:'ready',nextId:1}:
           name.includes('/wallets/')&&!name.includes('/days/')?wallet:
           duplicate&&name.includes('/operations/')?{fingerprint:'20',result:{round:{id:'original-round'}}}:null;
         return data?{found:{name,fields:{json:{stringValue:JSON.stringify(data)}}}}:{missing:name};
-      }));
+      });
+      if(body.newTransaction){assert.deepEqual(body.newTransaction,{readWrite:{}});rows.unshift({transaction:'isolated-transaction'});}
+      return Response.json(rows);
     }
     if(url.endsWith(':commit')){calls.push('commit:'+body.writes.length);now+=commitMs;return Response.json({});}
     if(url.endsWith(':rollback')){calls.push('rollback');return Response.json({});}
@@ -31,9 +33,9 @@ function fixture({cooldown=false,duplicate=false,commitMs=0}={}){
   return {store,calls,usage,began};
 }
 
-test('a new spin uses two transactional read round trips instead of four, preserving four reads and six atomic writes',async()=>{
+test('a new spin opens and reads in one batch then commits, preserving four reads and six atomic writes',async()=>{
   const f=fixture();const result=await f.store.spin(guild,user,20,'batch-spin-latency-0001',{compact:true});
-  assert.deepEqual(f.calls,['begin','read:3','read:1','commit:6']);
+  assert.deepEqual(f.calls,['read:4','commit:6']);
   assert.deepEqual(f.usage,{reads:24,writes:12});assert.equal(result.state.balance,result.round.after);
 });
 
@@ -44,11 +46,11 @@ test('commit time is deducted from the returned cooldown without lowering the ac
     assert.equal(Date.parse(result.round.time),f.began);
   }
   const denied=fixture({cooldown:true});await assert.rejects(denied.store.spin(guild,user,20,'cooldown-denied-000001',{compact:true}),{code:'SPIN_COOLDOWN'});
-  assert.deepEqual(denied.calls,['begin','read:3','rollback']);assert.deepEqual(denied.usage,{reads:18,writes:0});
+  assert.deepEqual(denied.calls,['read:4','rollback']);assert.deepEqual(denied.usage,{reads:24,writes:0});
 });
 
-test('an existing request still returns its original round using three reads and no daily read or write',async()=>{
+test('an existing request still returns its original round without any writes',async()=>{
   const f=fixture({duplicate:true});const result=await f.store.spin(guild,user,20,'duplicate-latency-00001',{compact:true});
   assert.equal(result.duplicate,true);assert.equal(result.round.id,'original-round');
-  assert.deepEqual(f.calls,['begin','read:3','rollback']);assert.deepEqual(f.usage,{reads:18,writes:0});
+  assert.deepEqual(f.calls,['read:4','rollback']);assert.deepEqual(f.usage,{reads:24,writes:0});
 });

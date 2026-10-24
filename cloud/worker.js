@@ -14,7 +14,6 @@ import {CloudBackup} from './backup.js';
 import {MODEL_VERSION} from '../src/game/slot-math.js';
 import {audioAsset} from './audio-asset.js';
 import {handleFetch} from './http-bridge.js';
-import {SpinTimings} from '../server/spin-timing.js';
 
 // Workers supports manual redirects; every caller rejects non-2xx responses.
 const cloudFetch=(url,options={})=>globalThis.fetch(url,{...options,redirect:options.redirect==='error'?'manual':options.redirect});
@@ -29,7 +28,7 @@ const authorized=(req,env)=>{const expected=env.CLOUD_ADMIN_TOKEN;if(!/^[a-f0-9]
 async function body(req,limit=12*1024**2){let n=0,parts=[];for await(const chunk of req.body||[]){n+=chunk.length;if(n>limit)throw new Error('Body too large');parts.push(chunk);}return JSON.parse(Buffer.concat(parts).toString('utf8'));}
 
 export class CircusProject extends DurableObject {
-  constructor(ctx,env){super(ctx,env);Object.assign(this,{ctx,env});this.state=new CloudState(ctx.storage);this.quota=new CloudQuota(ctx.storage,this.state);this.active=new Set();this.opsTail=Promise.resolve();this.spinTimings=new SpinTimings();}
+  constructor(ctx,env){super(ctx,env);Object.assign(this,{ctx,env});this.state=new CloudState(ctx.storage);this.quota=new CloudQuota(ctx.storage,this.state);this.active=new Set();this.opsTail=Promise.resolve();}
   track(promise){this.active.add(promise);void promise.finally(()=>this.active.delete(promise)).catch(()=>{});return promise;}
   backupStep(rt){this.backupPending ||= this.track(rt.backup.step()).finally(()=>this.backupPending=null);return this.backupPending;}
   async runtime(){
@@ -40,7 +39,7 @@ export class CircusProject extends DurableObject {
     const settings=identity(this.env),saved=this.state.get('source');if(!saved||saved.projectId!==settings.projectId||saved.namespace!==settings.namespace||this.quota.identity().projectId!==settings.projectId)throw new Error('Handoff is required');
     const credentials=JSON.parse(this.env.GOOGLE_SERVICE_ACCOUNT_JSON||'null');if(credentials?.type!=='service_account'||credentials.project_id!==settings.projectId||!credentials.private_key||!credentials.client_email)throw new Error('Credentials mismatch');
     const sealer=new Sealer(this.env.CLOUD_ENCRYPTION_KEY),vault=new SnapshotVault(this.ctx.storage,this.state,sealer),guildIds=(this.env.ALLOWED_GUILD_IDS||'').split(',').map(x=>x.trim());
-    const transport=()=>new FirestoreRest({...settings,credentials,fetchImpl:cloudFetch}),options={guildIds,daily:Number(this.env.DAILY_CHIPS||500),grantMax:Number(this.env.ADMIN_GRANT_MAX||100000),grantDaily:Number(this.env.ADMIN_DAILY_MAX||1000000)};
+    const transport=()=>new FirestoreRest({...settings,credentials,fetchImpl:cloudFetch,endpoint:this.env.FIRESTORE_ENDPOINT}),options={guildIds,daily:Number(this.env.DAILY_CHIPS||500),grantMax:Number(this.env.ADMIN_GRANT_MAX||100000),grantDaily:Number(this.env.ADMIN_DAILY_MAX||1000000)};
     const store=new FirestoreWalletCore(settings,{...options,db:transport(),quota:this.quota});
     // Never initialize an empty remote namespace from a public request.
     store.checkMeta(await store.read(store.meta));store.ready=true;store.readyAt=Date.now();
@@ -49,7 +48,7 @@ export class CircusProject extends DurableObject {
     if(hs)store.highlightsGuild=hs.guild;
     const backup=new CloudBackup(new FirestoreWalletCore(settings,{...options,db:transport(),quota:new CloudQuota(this.ctx.storage,this.state,{scope:'maintenance'})}),this.state,vault);
     const wallet={store,service,adminRoles:(this.env.ADMIN_ROLE_IDS||'').split(',').filter(Boolean),highlights:highlights?{enqueue:(session,id,round)=>{if(highlights.enqueue(session,id,round)){this.state.set('highlights-dirty',true);this.ctx.waitUntil(this.schedule(10000));}}}:null};
-    const handler=createActivityHandler({fetchImpl:cloudFetch,clientId:this.env.DISCORD_CLIENT_ID,clientSecret:this.env.DISCORD_CLIENT_SECRET,publicKey:this.env.DISCORD_PUBLIC_KEY,wallet,loginLimiter:new CloudLoginLimit(this.state),defer:p=>this.ctx.waitUntil(this.track(p)),operations:{isReady:()=>this.ready(),recordRequest:()=>{},recordSpin:sample=>this.spinTimings.record(sample)}});
+    const handler=createActivityHandler({fetchImpl:cloudFetch,clientId:this.env.DISCORD_CLIENT_ID,clientSecret:this.env.DISCORD_CLIENT_SECRET,publicKey:this.env.DISCORD_PUBLIC_KEY,wallet,loginLimiter:new CloudLoginLimit(this.state),defer:p=>this.ctx.waitUntil(this.track(p)),operations:{isReady:()=>this.ready(),recordRequest:()=>{}}});
     return {settings,store,service,highlights,backup,vault,handler};
   }
   ready(){const b=this.state.get('backup-status');return this.state.get('mode')==='active'&&b?.ok===true&&Date.now()-b.at<48*3600000;}
@@ -69,7 +68,7 @@ export class CircusProject extends DurableObject {
   }
   async admin(path,request){
     const settings=identity(this.env);
-    if(path==='/__ops/status'&&request.method==='GET')return json({mode:this.state.get('mode')||'unseeded',source:this.state.get('source'),backup:this.state.get('backup-status'),alarm:this.state.get('alarm-status'),quota:this.state.get('quota-identity')?this.quota.status():null,spinTiming:this.spinTimings.snapshot()});
+    if(path==='/__ops/status'&&request.method==='GET')return json({mode:this.state.get('mode')||'unseeded',source:this.state.get('source'),backup:this.state.get('backup-status'),alarm:this.state.get('alarm-status'),quota:this.state.get('quota-identity')?this.quota.status():null});
     if(request.method!=='POST')return json({error:'POST required'},405);
     if(path==='/__ops/seed'){
       if(this.state.get('source'))throw new Error('Already seeded');const input=await body(request);

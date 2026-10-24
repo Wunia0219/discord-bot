@@ -70,7 +70,9 @@ test('cooldowns, insufficient funds and invalid requests cannot partially commit
   await s.spin(guild,user,20,randomUUID());const before=await s.history(guild,user);
   const reads=s.quota.status().used.reads,writes=s.quota.status().used.writes;
   await assert.rejects(s.spin(guild,user,20,randomUUID()),{code:'SPIN_COOLDOWN'});
-  assert.equal(s.quota.status().used.reads-reads,18);assert.equal(s.quota.status().used.writes,writes);
+  // The daily summary now shares the first batch; denied rounds reserve the
+  // same four-document read budget as accepted rounds and still write nothing.
+  assert.equal(s.quota.status().used.reads-reads,24);assert.equal(s.quota.status().used.writes,writes);
   assert.deepEqual(await s.history(guild,user),before);assert.throws(()=>s.spin(guild,user,21,randomUUID()),/無效/);
   await s.ensureFixture(guild,admin,0,'zero');await assert.rejects(s.spin(guild,admin,20,randomUUID()),/籌碼不足/);
   assert.equal((await s.state(guild,admin)).balance,0);
