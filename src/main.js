@@ -159,11 +159,16 @@ async function spin() {
   controls.beginRound();
   setBusy(true);result('馬上開轉，請稍等一下。','');let nextDelay=650,settledRound;
   try{
+    const recovering=walletClient?.hasPending()===true;
     // Dispatch settlement first; presentation and history synchronization run
     // alongside it. Neither an animation nor a quick stop chooses the outcome.
     const settlement=walletClient?walletClient.spin(bet,{deferHistory:true}):Promise.resolve(createRound(state,bet,drawStops(),crypto.randomUUID()));
     settlement.catch(()=>{});
     showPayout(0);cancelAnimationFrame(countAnimation);hideCelebration();clearWinReadout();
+    // Reserve the new wager visually while settlement is pending. Keep the
+    // authoritative wallet untouched; failures render it again, and recovering
+    // an existing request must not preview another debit.
+    if(!recovering&&state.balance>=bet)setBitmapNumber($('#balance'),fmt(state.balance-bet));
     scene.beginSpin();sound.spin();result('轉輪開始，準備揭曉。',`本局下注 ${fmt(bet)}`);
     const update=await settlement;
     const r=update.round;save(update.state);settledRound=r;
