@@ -12,6 +12,7 @@ import {auditSnapshot,SnapshotVault} from './snapshot.js';
 import {verifyCloudSnapshot} from './verify.js';
 import {CloudBackup} from './backup.js';
 import {MODEL_VERSION} from '../src/game/slot-math.js';
+import {audioAsset} from './audio-asset.js';
 import {handleFetch} from './http-bridge.js';
 
 // Workers supports manual redirects; every caller rejects non-2xx responses.
@@ -123,5 +124,6 @@ export default {async fetch(request,env){
     try{const settings=identity(env);return await env.CIRCUS_PROJECT.get(env.CIRCUS_PROJECT.idFromName(settings.projectId)).fetch(request);}catch{return json({error:'服務尚未就緒。'},503);}
   }
   if(!['GET','HEAD'].includes(request.method))return json({error:'不支援此操作。'},405);
+  if(path.startsWith('/assets/')&&path.endsWith('.mp3'))return audioAsset(request,env.ASSETS);
   return env.ASSETS.fetch(request);
 }};

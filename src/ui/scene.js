@@ -206,8 +206,9 @@ export class SlotScene {
       this.active = { time: 0, resolve, onStop, stops, quickStop: waiting?.quickStop || false };
       this.reels.forEach((r, i) => {
         if (waiting && !waiting.reduced) {
-          const steps = waiting.quickStop ? 4 + i : 8 + i * 2;
-          const plan = quickStopAnimation(REEL_STRIPS[i], stops[i], r.names, r.strip.y, r.speed, i, CH, steps);
+          const plan = waiting.quickStop
+            ? quickStopAnimation(REEL_STRIPS[i], stops[i], r.names, r.strip.y, r.speed, i, CH)
+            : quickStopAnimation(REEL_STRIPS[i], stops[i], r.names, r.strip.y, r.speed, i, CH, 8 + i * 2, Infinity);
           Object.assign(r, { steps: -plan.offset / CH, stopAt: plan.duration, names: plan.names, quickStop: { ...plan, start: 0 } });
           this.populate(r, r.names, -1); r.strip.y = plan.offset;
           return;
@@ -228,7 +229,7 @@ export class SlotScene {
     if (a.waiting) return;
     this.reels.forEach((r, i) => {
       if (r.stopped || r.impacted) return;
-      const speed = r.quickStop ? quickStopSpeed(r.quickStop.offset, a.time - r.quickStop.start, r.quickStop.duration)
+      const speed = r.quickStop ? quickStopSpeed(r.quickStop.offset, a.time - r.quickStop.start, r.quickStop.duration, r.quickStop.speed)
         : reelSpeed(r.steps * CH, a.time, r.stopAt, r.reduced);
       const plan = quickStopAnimation(REEL_STRIPS[i], a.stops[i], r.names, r.strip.y, speed, i, CH);
       // A reel already near its landing keeps its existing, shorter deceleration.
@@ -285,7 +286,7 @@ export class SlotScene {
           const impactAt = quick ? quick.start + quick.duration : r.stopAt;
           const landingElapsed = a.time - impactAt;
           r.strip.y = landingElapsed < 0
-            ? quick ? quickStopOffset(quick.offset, a.time - quick.start, quick.duration) : reelOffset(r.steps * CH, a.time, r.stopAt, r.reduced)
+            ? quick ? quickStopOffset(quick.offset, a.time - quick.start, quick.duration, quick.speed) : reelOffset(r.steps * CH, a.time, r.stopAt, r.reduced)
             : reelBounceOffset(landingElapsed, CH, r.reduced);
           if (!r.impacted && landingElapsed >= 0) { r.impacted = true; a.onStop(i); }
           if (landingElapsed >= (r.reduced ? 0 : REEL_BOUNCE_MS)) r.stopped = true;

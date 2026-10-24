@@ -7,6 +7,7 @@
 - `images/fonts/circus-gold.webp`＋`.fnt`：HUD、大獎共用的金色數字，含逗號及正負號，DOM 保留可讀文字。
 - `images/fx/circus-win-frame.webp`：紅金得獎外框。
 - `images/jokers-circus/circus-background.webp`：背景。
+- `audio/circus-background-optimized.mp3`：使用者於 2026-10-24 提供的 `Untitled.mp3`（182.76 秒、48kHz 立體聲），以 stream copy 移除內嵌封面與標籤，未重編碼。4,342,331 → 4,317,696 bytes（減少 0.57%），音訊封包與解碼 PCM 的 SHA-256 均與母檔一致。按下音樂圖示才載入，獨立循環播放；本機與雲端入口使用 `audio/mpeg` 並支援單一位元組範圍請求。
 - `images/dealer/v4/dealer.json` 與同目錄 WebP 圖集：主遊戲使用的 idle（96 格／3.2 秒）及 win（108 格／3.6 秒）人物動畫。idle 循環，小獎獲利時播放 win 並回待機；大獎沿用 WIN 演出。詳見 [角色動畫](dealer-animation.md)。
 
 專案內 PNG 母檔已經驗證轉存並刪除。人物原畫、參考、原幀、HD 圖集及 QA 截圖改存 exact lossless WebP；現有遊戲圖集、字體與外框也為無損 WebP，背景沿用品質 90。`npm run assets:webp` 會驗證轉檔後的尺寸與透明度，無損項目另驗證完整 RGBA，再刪除 PNG；清單輸出至被忽略的 `test-results/image-compression.json`。第三方套件及 Git 內部不在清理範圍。
@@ -17,7 +18,7 @@
 
 ## 構圖與互動
 
-桌面以 1160×740 的整組機台與單排控制列等比例縮放；手機依方向使用直向多排或橫向配置。Discord platform 優先於瀏覽器輸入裝置判斷，安全區與方向解鎖集中在 `responsive-layout.js`。
+桌面以 1160×740 的整組機台與單排控制列等比例縮放；手機固定直向多排配置，已移除橫向側邊控制列。Discord platform 優先於瀏覽器輸入裝置判斷，版面與安全區集中在 `responsive-layout.js`；`discord-activity.js` 在 SDK READY 後將手機的一般、子母畫面及網格模式都鎖定為 PORTRAIT，不增加轉向提示。
 
 每輪向下移動且速度不受輪帶長度影響。`presentation.js` 管理減速、960ms 雙彈動及每 1.6 秒輪播的得獎圖標；`scene.js` 依結算資料中的 cells 標示所有有效格子，不再套用固定賠線。
 

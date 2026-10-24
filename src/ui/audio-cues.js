@@ -8,7 +8,7 @@ export const GLASS_LAYERS = Object.freeze([
 ]);
 export const EFFECTS_VOLUME = .8;
 export const EFFECTS_PITCH_RATIO = 2; // One octave higher for a brighter, sparkling bell tone.
-export const MUSIC_SOURCE = null; // Set a local asset URL when the supplied music is ready.
+export const MUSIC_SOURCE = new URL('../../audio/circus-background-optimized.mp3', import.meta.url).href;
 const note=(frequency,at,duration,volume)=>({frequency,at,duration,volume});
 
 export function audioCue(kind,index=0){

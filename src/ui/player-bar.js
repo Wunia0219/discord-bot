@@ -2,12 +2,12 @@ import './player-ui.css';
 import { dailyRewardView } from './player-copy.js';
 import { discordAvatarUrl } from '../platform/discord-avatar.js';
 
-export function createPlayerBar({ icon, version, onCheckin, onHistory, onRules, onSound, onMusic, avatarUrlForUser = discordAvatarUrl }) {
+export function createPlayerBar({ icon, onCheckin, onHistory, onRules, onSound, onMusic, avatarUrlForUser = discordAvatarUrl }) {
   const element = document.createElement('div');
   element.className = 'player-bar';
   element.innerHTML = `<div class="player-identity" role="group" aria-label="玩家資訊"><span class="player-avatar" aria-hidden="true"><span class="player-avatar-fallback">${icon('user')}</span><img class="player-avatar-image" alt="" decoding="async" referrerpolicy="no-referrer" hidden /><i></i></span><div class="player-identity-text"><strong id="player-name">歡迎來到馬戲團</strong><span id="player-id">正在準備遊戲</span></div></div>
     <button id="daily-checkin" class="daily-checkin" hidden disabled>${icon('gift')}<span><strong>每日簽到</strong><small>領取今日籌碼</small></span></button>
-    <nav class="player-tools" aria-label="遊戲工具"><span class="game-version" aria-label="遊戲版本 ${version}">v${version}</span><button id="all-history" class="utility" aria-label="遊玩紀錄" title="遊玩紀錄" aria-haspopup="dialog">${icon('clock')}<span>遊玩紀錄</span></button><div class="audio-controls" role="group" aria-label="聲音設定"><button id="sound" class="audio-toggle" aria-label="開啟音效" title="開啟音效" aria-pressed="false">${icon('muted')}<span class="audio-copy"><span>音效</span><small>關閉</small></span></button><button id="music" class="audio-toggle" aria-label="背景音樂尚未加入" title="背景音樂尚未加入" aria-pressed="false" aria-describedby="music-availability" disabled>${icon('musicMuted')}<span class="audio-copy"><span>音樂</span><small>待加入</small></span></button><span id="music-availability" class="sr-only">背景音樂將於曲目加入後提供開關，目前不會播放。</span></div><button id="help" class="utility" aria-label="遊戲規則" title="遊戲規則" aria-haspopup="dialog">${icon('info')}<span>遊戲規則</span></button></nav>`;
+    <nav class="player-tools" aria-label="遊戲工具"><div class="audio-controls" role="group" aria-label="聲音設定"><button id="sound" class="audio-toggle" aria-label="開啟音效" title="開啟音效" aria-pressed="false">${icon('muted')}</button><button id="music" class="audio-toggle" aria-label="開啟音樂" title="開啟音樂" aria-pressed="false">${icon('musicMuted')}</button></div><button id="help" class="utility" aria-label="遊戲規則" title="遊戲規則" aria-haspopup="dialog">${icon('info')}<span>遊戲規則</span></button><button id="all-history" class="utility" aria-label="遊玩紀錄" title="遊玩紀錄" aria-haspopup="dialog">${icon('clock')}<span>遊玩紀錄</span></button></nav>`;
   for (const [id, handler] of [['daily-checkin', onCheckin], ['all-history', onHistory], ['help', onRules], ['sound', onSound], ['music', onMusic]]) if(handler)element.querySelector(`#${id}`).addEventListener('click', handler);
   const avatarImage = element.querySelector('.player-avatar-image');
   const avatarFallback = element.querySelector('.player-avatar-fallback');
@@ -57,13 +57,9 @@ export function createPlayerBar({ icon, version, onCheckin, onHistory, onRules, 
       ]){
         const button=element.querySelector('#'+id);
         const action=available?(enabled?'關閉':'開啟')+label:'背景音樂尚未加入';
-        button.innerHTML=icon(enabled?onIcon:offIcon)+`<span class="audio-copy"><span>${label}</span><small>${available?(enabled?'開啟':'關閉'):'待加入'}</small></span>`;
+        button.innerHTML=icon(enabled?onIcon:offIcon);
         button.setAttribute('aria-pressed',String(enabled));button.setAttribute('aria-label',action);
         button.title=action;button.disabled=!available;
-        if(id==='music'){
-          if(available)button.removeAttribute('aria-describedby');
-          else button.setAttribute('aria-describedby','music-availability');
-        }
       }
     },
   };

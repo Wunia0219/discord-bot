@@ -132,19 +132,19 @@ test('quick stop preserves every visible symbol and its exact fractional positio
         const stops=[...INITIAL_STOPS];stops[reel]=to;
         assert.deepEqual(visible(quick.names,0).map(row=>row.name),gridFromStops(stops)[reel]);
         assert.ok(quick.names.every(name=>strip.includes(name)));
-        const initialSpeed=(quickStopOffset(quick.offset,.001,quick.duration)-quick.offset)/.001;
+        const initialSpeed=(quickStopOffset(quick.offset,.001,quick.duration,quick.speed)-quick.offset)/.001;
         assert.ok(Math.abs(initialSpeed-speed)<.00001,'braking starts at the existing reel velocity');
         for(const fps of [30,60,120]){
           let previous=quick.offset;
           for(let t=1000/fps;t<quick.duration;t+=1000/fps){
-            const next=quickStopOffset(quick.offset,t,quick.duration);
+            const next=quickStopOffset(quick.offset,t,quick.duration,quick.speed);
             assert.ok(next>=previous&&next<=0,'quick stop must move down without reversing');
             assert.ok(next-previous<cell*.6,'quick stop must not flash several cells in one frame');
             previous=next;
           }
         }
-        assert.equal(Math.abs(quickStopOffset(quick.offset,quick.duration,quick.duration)),0);
-        assert.equal(Math.abs(quickStopOffset(quick.offset,quick.duration+1000,quick.duration)),0);
+        assert.equal(Math.abs(quickStopOffset(quick.offset,quick.duration,quick.duration,quick.speed)),0);
+        assert.equal(Math.abs(quickStopOffset(quick.offset,quick.duration+1000,quick.duration,quick.speed)),0);
       }
     }
   });
@@ -164,7 +164,7 @@ test('quick stop lands the five reels in order within a second, and never prolon
       return duration;
     });
     assert.ok(landing.every((time,i)=>!i||time>=landing[i-1]),'reels should settle from left to right');
-    if(!reduced&&elapsed===0){assert.ok(landing[0]>=400);assert.ok(landing[4]<=1000);}
+    if(!reduced&&elapsed===0){assert.ok(landing[0]>=300);assert.ok(landing[4]+REEL_BOUNCE_MS<=830);}
   }
 });
 

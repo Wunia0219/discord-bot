@@ -12,6 +12,22 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {roundFromStops} from '../src/game/index.js';
 import {QUOTA_LIMITS} from '../cloud/quota.js';
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8787');
+
+test('real workerd supplies mobile audio byte ranges even when its static asset binding returns full files',async t=>{
+ const bytes=new Uint8Array([0x49,0x44,0x33,1,2,3]);
+ const mf=new Miniflare(convertV4MiniflareOptions({modules:true,scriptPath:'test-results/cloud-bundle/worker.js',compatibilityDate:'2026-07-30',compatibilityFlags:['nodejs_compat'],serviceBindings:{ASSETS:async request=>{
+   if(new URL(request.url).pathname.endsWith('.mp3')){assert.equal(request.headers.has('range'),false);return new MFResponse(request.method==='HEAD'?null:bytes,{headers:{'Content-Type':'audio/mpeg','Content-Length':'6'}});}
+   return new MFResponse('ordinary asset');
+ }},outboundService:()=>{throw new Error('Audio test must not access external services');}}));
+ t.after(()=>mf.dispose());
+ const response=await mf.dispatchFetch('http://localhost/assets/music.mp3',{headers:{Range:'bytes=0-1'}});
+ assert.equal(response.status,206);assert.equal(response.headers.get('content-range'),'bytes 0-1/6');assert.equal(response.headers.get('content-length'),'2');
+ assert.deepEqual([...new Uint8Array(await response.arrayBuffer())],[0x49,0x44]);
+ const head=await fetch(new URL('/assets/music.mp3',await mf.ready),{method:'HEAD'});
+ assert.equal(head.status,200);assert.equal(head.headers.get('content-length'),'6');assert.equal(await head.text(),'');
+ assert.equal(await (await mf.dispatchFetch('http://localhost/assets/main.js')).text(),'ordinary asset');
+});
+
 test('real workerd persists quotas/sessions, runs Discord API, backs up new progress, releases ownership and restores for rollback',async t=>{
  const root=resolve('test-results/cloud-runtime');mkdirSync(root,{recursive:true});const dir=mkdtempSync(join(root,'case-')),guild='100000000000000001',user='100000000000000002',client='100000000000000003',namespace='runtime-'+randomUUID()+'-test';
  const source=join(dir,'source.sqlite'),local=new WalletStore({filename:source,environment:'test',guildIds:[guild],clock:()=>Date.now()-86400000,spinDelay:0});local.checkin(guild,user);local.spin(guild,user,20,'runtime-original-spin-0001');local.close();

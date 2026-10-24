@@ -13,6 +13,7 @@ const id='1561284960986599626';
 async function fixture(t, options={}) {
   const root=await mkdtemp(join(tmpdir(),'kemet-auth-'));
   await writeFile(join(root,'index.html'),'<html>game</html>');
+  await writeFile(join(root,'background.mp3'),Buffer.from([0x49,0x44,0x33]));
   await writeFile(join(root,'.env.server.local'),'private-secret');
   const server=createActivityServer({distDir:root,clientId:id,clientSecret:'test-secret',publicKey:'ab'.repeat(32),...options});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -185,6 +186,34 @@ test('static server serves the built entry but blocks dotfiles, source paths, an
     assert.equal((await request(path)).status,404,path);
   }
   const head=await request('/',{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
+  const music=await request('/background.mp3');assert.equal(music.status,200);assert.equal(music.headers.get('content-type'),'audio/mpeg');
+  assert.equal(music.headers.get('accept-ranges'),'bytes');
+  assert.deepEqual(Buffer.from(await music.arrayBuffer()),Buffer.from([0x49,0x44,0x33]));
+});
+
+test('MP3 media supports iOS range probes, suffixes and seeking without changing ordinary static responses',async t=>{
+  const request=await fixture(t);
+  for(const [range,expected,contentRange] of [
+    ['bytes=0-1',[0x49,0x44],'bytes 0-1/3'],
+    ['bytes=1-',[0x44,0x33],'bytes 1-2/3'],
+    ['bytes=-1',[0x33],'bytes 2-2/3'],
+    ['bytes=-5',[0x49,0x44,0x33],'bytes 0-2/3'],
+    ['bytes=1-99',[0x44,0x33],'bytes 1-2/3'],
+  ]){
+    const response=await request('/background.mp3',{headers:{Range:range}});
+    assert.equal(response.status,206);assert.equal(response.headers.get('content-type'),'audio/mpeg');
+    assert.equal(response.headers.get('content-range'),contentRange);assert.equal(response.headers.get('content-length'),String(expected.length));
+    assert.deepEqual([...new Uint8Array(await response.arrayBuffer())],expected);
+  }
+  for(const range of ['bytes=3-','bytes=2-1','bytes=-0','bytes=9007199254740992-']){
+    const response=await request('/background.mp3',{headers:{Range:range}});
+    assert.equal(response.status,416);assert.equal(response.headers.get('content-range'),'bytes */3');assert.equal(await response.text(),'');
+  }
+  for(const range of ['bytes=-','bytes=0-1,2-2','invalid'])assert.equal((await request('/background.mp3',{headers:{Range:range}})).status,200);
+  const head=await request('/background.mp3',{method:'HEAD',headers:{Range:'bytes=0-1'}});
+  assert.equal(head.status,200);assert.equal(head.headers.get('content-length'),'3');assert.equal(await head.text(),'');
+  assert.equal((await request('/background.mp3',{headers:{Range:'bytes=0-1','If-Range':'unknown-validator'}})).status,200);
+  assert.equal((await request('/',{headers:{Range:'bytes=0-1'}})).status,200);
 });
 
 test('wallet HTTP routes require verified sessions, isolate callers and settle concurrent retries once',async t=>{

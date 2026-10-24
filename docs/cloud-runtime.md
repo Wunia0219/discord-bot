@@ -134,3 +134,9 @@ Discord 網頁實際驗收：以既有帳號啟動雲端 Activity，登入成功
 10/24 手機 SPIN 修正已部署 f4079897-2ad0-4241-aef6-4566f61e521f：轉動及網路等待期間保留 SPIN 按鈕啟用，點擊與空白鍵共用快速停輪控制器；得獎演出、簽到及未就緒時仍停用。15 項點擊／快捷鍵／單局結算回歸與 build 通過，發布後 21 項雲端／Discord 檢查通過。只有前端變更，無資料或額度遷移。前版本 653861c9-396c-4906-96c7-43463707aa88 保留；純前端回退不得釋放 DO 或還原舊資料。手機需關閉舊 Activity 再開啟驗收。
 
 首次跨日備份後驗收：已建立本對話本機 heartbeat（automation），台灣時間每日 17:40 檢查，首次預計 10/25；確認自動備份及手機新進度可完整還原後刪除。只在有問題時通知。此驗收需本機 Codex 可執行，雲端每日備份不依賴本機。不要先手動備份覆蓋自動執行證據。
+
+10/24 台灣時間 18:16 更新已發布：`8edc2a27-b60a-4ec3-8b1f-baf3d62bdee0`，產品版本仍為 0.2.6。包含有上限的快速停輪、背景音樂、精簡工具列及手機 PORTRAIT 鎖定，已移除手機橫向側邊控制列。音樂以 stream copy 移除封面與標籤，4,342,331 → 4,317,696 bytes；封包與解碼 PCM SHA-256 一致，無額外音質損失，測試後依使用者要求刪除 Downloads 母檔及專案原始副本，保留 optimized MP3。
+
+雲端 Static Assets 的 Range 回應實測為 200，因此只將 `/assets/*.mp3` 交給 `cloud/audio-asset.js` 補齊單一範圍 GET；HEAD 沿用平台原生處理，其餘靜態檔案與玩家 API 不改動。330 項一般測試通過、1 項既有條件測試跳過；REST／持久 workerd 整合回歸與新增真實 workerd 音樂傳輸測試通過。瀏覽器確認精簡音樂可解碼播放、預設不載入、音效互相獨立及桌面／觸控快停。
+
+發布後公開 HTML、JS、CSS 與本機建置逐檔雜湊一致；MP3 完整下載與精簡檔相同，手機 Range probe 回傳 206。health／ready 均為 200，21 項雲端／Discord 診斷通過，原 namespace、active writer、備份、alarm 及額度保持正常。未啟動本機 writer、未 seed／release／搬動帳本、未下注或發訊息。驗收記錄：`test-results/discord-ui-music-portrait-verification.json`、`discord-ui-music-portrait-readiness.log`、`audio-lossless-optimization.json`、`audio-master-deletion.json`。回退可使用原 `f4079897-2ad0-4241-aef6-4566f61e521f`，不釋放 DO、不恢復過期帳本。真人 Discord 測試請關閉舊 Activity 再開啟。

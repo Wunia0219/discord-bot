@@ -1,6 +1,8 @@
 export const WIN_HOLD_MS = 1600;
 export const REEL_SETTLE_MS = 160;
 export const REEL_BOUNCE_MS = 190;
+export const QUICK_STOP_MS = 360;
+export const QUICK_STOP_STAGGER_MS = 70;
 const REEL_CELL_MS = 60;
 export const SYMBOL_POP_MS = 960;
 
@@ -70,22 +72,25 @@ export function reelBounceOffset(elapsed, cellHeight, reduced = false) {
 
 // Stitch only the offscreen part of a short braking strip. The four cells that
 // can overlap the viewport keep their exact symbols and fractional positions.
-export function quickStopAnimation(strip, to, names, offset, speed, reel, cellHeight, steps = 4 + reel) {
+export function quickStopAnimation(strip, to, names, offset, speed, reel, cellHeight, steps = 3 + reel, maxDuration = QUICK_STOP_MS + reel * QUICK_STOP_STAGGER_MS) {
   if (speed <= 0) return null;
   const scroll = -offset / cellHeight, base = Math.floor(scroll), fraction = scroll - base;
   const shortNames = Array.from({ length: steps + 5 }, (_, row) => strip[((to + row - 2) % strip.length + strip.length) % strip.length]);
   for (let row = 1; row <= 4; row++) shortNames[steps + row] = names[base + row];
   const distance = (steps + fraction) * cellHeight;
-  return { names: shortNames, offset: -distance, duration: 2 * distance / speed };
+  return { names: shortNames, offset: -distance, duration: Math.min(2 * distance / speed, maxDuration), speed };
 }
 
-export function quickStopOffset(offset, elapsed, duration) {
-  const remaining = 1 - Math.min(1, Math.max(0, elapsed / duration));
-  return offset * remaining ** 2;
+// Cubic Hermite braking keeps the current velocity when duration is capped.
+// A low incoming speed must not stretch a requested quick stop into seconds.
+export function quickStopOffset(offset, elapsed, duration, speed = -2 * offset / duration) {
+  const t = Math.min(1, Math.max(0, elapsed / duration));
+  return offset * (2 * t ** 3 - 3 * t ** 2 + 1) + speed * duration * (t ** 3 - 2 * t ** 2 + t);
 }
 
-export function quickStopSpeed(offset, elapsed, duration) {
-  return -2 * offset / duration * Math.max(0, 1 - Math.max(0, elapsed) / duration);
+export function quickStopSpeed(offset, elapsed, duration, speed = -2 * offset / duration) {
+  const t = Math.min(1, Math.max(0, elapsed / duration));
+  return offset / duration * (6 * t ** 2 - 6 * t) + speed * (3 * t ** 2 - 4 * t + 1);
 }
 
 export function roundFeedbackTiming(round, tier, minimumDuration = 0) {

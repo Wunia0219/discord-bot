@@ -1,5 +1,4 @@
 import { mainArt } from './ui/main-art.js';
-import { APP_VERSION } from './version.js';
 import { icon } from './ui/icons.js';
 import { createPlayerBar } from './ui/player-bar.js';
 import { playerError } from './ui/player-copy.js';
@@ -61,7 +60,10 @@ const controls=new SpinControls({
   isReady:()=>ready&&!claiming&&!document.hidden&&!$('#dialog').open,
   isBusy:()=>busy,
   startSpin:()=>spin(),
-  stopReels:()=>scene.requestQuickStop(),
+  stopReels:()=>{
+    scene.requestQuickStop();
+    if(scene.active?.waiting&&!document.hidden)notifyPlayer('快停已收到，正在取得本局結果…','info');
+  },
   onAutoChange:enabled=>{
     const button=$('#auto-spin');
     button.setAttribute('aria-pressed',String(enabled));
@@ -74,7 +76,7 @@ const renderSpinButton=bindSpinButton($('#spin'),controls);
 const motion=matchMedia('(prefers-reduced-motion: reduce)');scene.reduced=motion.matches;motion.addEventListener('change',()=>scene.reduced=motion.matches);
 const signed=n=>(n>0?'+':'')+fmt(n);
 function save(next) { if(walletClient){if((next.revision||0)>=(state.revision||0))state=next;return;}state=next;try{localStorage.setItem(KEY,JSON.stringify(state));}catch{storageAvailable=false;} }
-const playerBar=createPlayerBar({icon,version:APP_VERSION,onCheckin:claimDaily,onHistory:showHistory,onRules:showRules,onSound:toggleSound,onMusic:toggleMusic});
+const playerBar=createPlayerBar({icon,onCheckin:claimDaily,onHistory:showHistory,onRules:showRules,onSound:toggleSound,onMusic:toggleMusic});
 $('#player-header').append(playerBar.element);
 function renderAudio(){playerBar.audio(sound.state);}
 renderAudio();
@@ -164,6 +166,7 @@ async function spin() {
     if(walletClient){scene.beginSpin();sound.spin();result('轉輪開始，準備揭曉。',`本局下注 ${fmt(bet)}`);}
     const update=walletClient?await walletClient.spin(bet):createRound(state,bet,drawStops(),crypto.randomUUID());
     const r=update.round;save(update.state);settledRound=r;
+    if(controls.quickStop){clearTimeout(toastTimer);$('#player-toast').hidden=true;}
     if(r.rules!==MODEL_VERSION){
       scene.cancelSpin(restoredStops(state));
       controls.stopAuto();renderState();showPayout(r.payout);

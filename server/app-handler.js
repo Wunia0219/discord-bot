@@ -9,7 +9,7 @@ import { LoginRateLimit } from './login-rate-limit.js';
 import { randomUUID } from 'node:crypto';
 import {completeDeferredCommand,validInteractionToken} from './deferred-command.js';
 
-const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.webp':'image/webp', '.png':'image/png', '.svg':'image/svg+xml', '.json':'application/json', '.woff2':'font/woff2' };
+const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.webp':'image/webp', '.png':'image/png', '.svg':'image/svg+xml', '.json':'application/json', '.woff2':'font/woff2', '.mp3':'audio/mpeg' };
 const json = (res, status, data) => {
   res.writeHead(status, { 'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff' });
   res.end(JSON.stringify(data));
@@ -178,8 +178,25 @@ export function createActivityHandler({ clientId, clientSecret, publicKey, walle
       const file = await realpath(candidate);
       if (!inside(root, file) || !(await stat(file)).isFile()) return json(res, 404, { error:'找不到檔案。' });
       const data = await readFile(file);
-      res.writeHead(200, { 'Content-Type':types[extname(file)] || 'application/octet-stream', 'Content-Length':data.length, 'X-Content-Type-Options':'nosniff', 'Cache-Control':decoded.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache' });
-      res.end(req.method === 'HEAD' ? undefined : data);
+      const headers = { 'Content-Type':types[extname(file)] || 'application/octet-stream', 'Content-Length':data.length, 'X-Content-Type-Options':'nosniff', 'Cache-Control':decoded.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache' };
+      let status=200,body=data;
+      // iOS media playback probes and seeks with single byte-range GETs.
+      if(extname(file)==='.mp3'){
+        headers['Accept-Ranges']='bytes';
+        const range=req.method==='GET'&&!req.headers['if-range']&&/^bytes=(\d*)-(\d*)$/.exec(req.headers.range||'');
+        if(range&&(range[1]||range[2])){
+          const first=range[1]?Number(range[1]):Math.max(0,data.length-Number(range[2]));
+          const last=range[1]&&range[2]?Number(range[2]):data.length-1;
+          if(!Number.isSafeInteger(first)||!Number.isSafeInteger(last)||first>=data.length||last<first){
+            res.writeHead(416,{...headers,'Content-Range':`bytes */${data.length}`,'Content-Length':0});return res.end();
+          }
+          const end=Math.min(last,data.length-1);
+          body=data.subarray(first,end+1);status=206;
+          headers['Content-Range']=`bytes ${first}-${end}/${data.length}`;headers['Content-Length']=body.length;
+        }
+      }
+      res.writeHead(status,headers);
+      res.end(req.method === 'HEAD' ? undefined : body);
     } catch (error) {
       errorCode=['SQLITE_ERROR','SQLITE_BUSY','SQLITE_FULL','SQLITE_CORRUPT','EIO','EACCES','ENOSPC','ENOENT','ENOTDIR'].includes(error.code)?error.code:'UNEXPECTED_ERROR';
       // Do not echo provider responses, authorization codes, filesystem paths or secrets.
