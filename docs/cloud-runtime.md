@@ -2,7 +2,7 @@
 
 2026-10-24 更新，工作區版本 **0.2.7**。**Cloudflare Workers Free 已確認，Secrets、原額度與同一 v2 帳本交接、Discord 固定入口切換及雲端備份下載還原均已完成。** 現行入口為 `https://jokers-circus.nini900219.workers.dev`，本機 writer 與舊通道已停止，服務與雲端排程不依賴個人電腦開機。
 
-0.2.7 依使用者要求更新隱私頁、文件及版本，沿用 [已驗收停輪基準](reel-timing-baseline.md)，未改動畫、音效或結算核心。最近已驗證發布為 0.2.6／`c7ae9254-91eb-47bd-ac4d-bd3d95389d08`；工作區升號不代表 0.2.7 已發布。下方 10/24 發布歷史的版本、筆數與量測保留當時原值。
+0.2.7 依使用者要求更新隱私頁、文件及版本，後續補齊維運摘要、版本核對及獨立監控／通知模組；沿用 [已驗收停輪基準](reel-timing-baseline.md)，未改動畫、音效或結算核心。最近已驗證發布為 0.2.6／`c7ae9254-91eb-47bd-ac4d-bd3d95389d08`；工作區升號不代表 0.2.7 已發布。下方 10/24 發布歷史的版本、筆數與量測保留當時原值。
 
 仍待收尾：首次跨日自動備份含新增進度的還原驗收、恢復金鑰獨立保管、外部故障通知、真人手機／雙裝置及自然大獎驗收，以及小群持續試玩的 CPU／用量觀察；見 [收尾計畫](roadmap.md)。
 
@@ -31,6 +31,8 @@ Cloudflare 已登入且確認 Workers **Free / Active**、沒有付款方式；�
 後續也需要把加密恢復金鑰保存到使用者可取回的獨立私密位置。原有 `data/backup-keys` 金鑰與新雲端金鑰分開；不隨備份一起上傳。
 
 平時使用 `npm run cloud:control -- status --env .env.cloud.local` 查詢私有狀態；下載有效加密備份使用下方 `archive`，不使用 `export`。公開／Discord 診斷使用 `npm run discord:check -- --cloud --discord --public-origin https://jokers-circus.nini900219.workers.dev`。不要為驗收重建本機通道或重新 seed／activate；原三個額度檔及本機 live 關閉設定保持不變。
+
+0.2.7 新增 `cloud:control health`，唯讀核對版本及維運摘要；版本未發布時會明確回報不符。獨立監控使用新的 `CLOUD_MONITOR_TOKEN`，只允許遊戲 `GET /__ops/status`，不使用 admin token；通知位置依使用者選擇稍後設定，目前預設停用、未部署。完整設定與失敗處理見 [維運監控](operations-monitor.md)。
 
 ## 既有部署設定清單
 
@@ -101,7 +103,11 @@ npm run cloud:handoff -- return-quota --from backups/cloud-handoff/released.json
 
 10/24 依使用者要求同步隱私頁、README、架構、部署、測試及收尾文件，產品版本更新至 0.2.7，`package.json` 與 lockfile 一致。原始 0.2.6 發布與驗收數字保留。一般回歸 339 項通過、1 項既有條件測試跳過；前端 build、Worker dry-run 及 91 個本機 Markdown 連結檢查通過，建置內的版本與隱私頁內容已核對。
 
-動畫、音效與結算核心六份來源檔的 SHA-256 均與已驗收基準相同，`src/`、`server/`、`cloud/` 無程式修改。驗證記錄：`test-results/version-0.2.7-preserved.json`、`version-0.2.7-validation.json`、`version-0.2.7-tests.log`、`version-0.2.7-build.log`、`version-0.2.7-worker-build.log`。此次只完成工作區更新與建置，尚未推送或部署；現行雲端仍使用上方最後已驗證的 0.2.6 發布。
+首輪文件更新時，動畫、音效與結算核心六份來源檔的 SHA-256 均與已驗收基準相同，當時 `src/`、`server/`、`cloud/` 無程式修改。該輪記錄：`test-results/version-0.2.7-preserved.json`、`version-0.2.7-validation.json`、`version-0.2.7-tests.log`、`version-0.2.7-build.log`、`version-0.2.7-worker-build.log`。這些為文件更新當時的驗證，不取代下方新增維運功能的驗證。
+
+後續依使用者要求補齊跨日驗收以外的小功能：私有維運摘要、整體／子額度提醒、唯讀監控 token、`health` 版本核對，以及獨立 Worker 的持久告警／恢復通知。遊戲 `/healthz` 改讀產品版本，停輪、音效與結算核心六份來源仍保留已驗收雜湊。一般回歸 352 項通過、1 項條件跳過，3 項 REST／workerd 整合及 1 項獨立監控 scheduled handler 整合通過；通知模組的 13 項單元測試包含在一般回歸內。
+
+新增驗證記錄：`test-results/operations-0.2.7-tests.log`、`operations-0.2.7-cloud-tests.log`、`monitor-runtime-tests.log`。使用者已選擇先完成程式與測試、通知位置稍後設定；獨立監控維持預設停用，未設定真實 Webhook，也未發送訊息。上述 0.2.7 更新尚未部署；現行雲端仍使用上方最後已驗證的 0.2.6 發布。
 
 ## 本機驗證方式與初次移植歷史
 

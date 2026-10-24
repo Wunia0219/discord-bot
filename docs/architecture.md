@@ -1,6 +1,6 @@
 # 現行架構
 
-2026-10-24 更新，工作區版本 **0.2.7**。目前 Discord 服務使用 Cloudflare Workers Free／SQLite Durable Object 與原 Firestore Spark v2；版本更新僅涉及隱私頁與文件，停輪依 [已驗收基準](reel-timing-baseline.md)維持。收尾條件見 [實作計畫](roadmap.md)，現行雲端操作見 [雲端手冊](cloud-runtime.md)，Node／SQLite 設定見 [部署說明](deployment.md)。
+2026-10-24 更新，工作區版本 **0.2.7**。目前 Discord 服務使用 Cloudflare Workers Free／SQLite Durable Object 與原 Firestore Spark v2；本版更新隱私頁與文件，並補齊唯讀維運摘要、版本核對及獨立監控／通知模組，停輪依 [已驗收基準](reel-timing-baseline.md)維持。收尾條件見 [實作計畫](roadmap.md)，現行雲端操作見 [雲端手冊](cloud-runtime.md)，Node／SQLite 設定見 [部署說明](deployment.md)。
 
 ## 模組與邊界
 
@@ -20,6 +20,7 @@
 | 可攜式備份 | `portable-backup.js` | 已驗帳快照加密、驗證及離線還原到新檔，不存取雲端 |
 | 雲端入口／傳輸 | `cloud/worker.js`、`cloud/firestore-rest.js`、`server/app-handler.js` | Worker HTTP、共用授權與結算核心、受 namespace 限制的 REST 原子交易 |
 | 雲端狀態／備份 | `cloud/storage.js`、`quota.js`、`backup.js`、`snapshot.js` | 單一 DO 持久額度、加密 session、alarm、可接續一致快照及還原驗證 |
+| 維運摘要／獨立監控 | `cloud/operations-health.js`、`monitor/` | 備份／排程／額度摘要、獨立監控 DO 與告警恢復；目前未啟用，只有唯讀遊戲權限 |
 
 ## 一次旋轉如何保存
 

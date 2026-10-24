@@ -2,7 +2,7 @@
 
 Discord Activity 內部試玩遊戲。後端負責算獎、籌碼、每日簽到與請求去重；每個伺服器的玩家錢包獨立。
 
-版本 **0.2.7**，`package.json` 為唯一版本來源。本次依使用者要求更新隱私頁與過期文件，沿用 0.2.6 已驗收的停輪設定；只有使用者明確指定時才更新版本。規則識別碼 `circus-243-v2` 獨立維護，歷史回合保留原規則及結果。
+版本 **0.2.7**，`package.json` 為唯一版本來源。本次依使用者要求更新隱私頁與過期文件，補齊維運狀態、版本核對與獨立監控／通知模組，沿用 0.2.6 已驗收的停輪設定；只有使用者明確指定時才更新版本。規則識別碼 `circus-243-v2` 獨立維護，歷史回合保留原規則及結果。
 
 ## 現況與下一步
 
@@ -12,6 +12,7 @@ Discord Activity 內部試玩遊戲。後端負責算獎、籌碼、每日簽到
 - 本輪已完成 v2：每局 10→6 次寫入、無損近期快取、輕量狀態與增量同步、較舊紀錄載入、空白命名空間遷移及雙向還原測試。10/24 已安全切換現有服務至 v2，採用步驟與量測見 [Firestore v2](docs/firestore-v2.md)。第一輪讀取優化見[用量與驗證](docs/spark-optimization.md)。
 - 已完成 [加密備份與離線還原](docs/portable-backup.md) 及雲端切換驗證，Worker、持久額度、加密登入、備份與公告 alarm 已上線。額外 Google Drive 副本尚未接入；備份進度與回退限制見 [雲端執行與回退](docs/cloud-runtime.md)。下一步、依賴與驗收條件集中在[實作計畫](docs/roadmap.md)。
 - 剩餘收尾：首次跨日自動備份含新增進度的還原驗收、獨立恢復金鑰保管、外部故障通知、真人手機／雙裝置與自然大獎驗收，以及小群持續試玩的載入、記憶體與免費額度觀察。已完成的雲端切換、備份下載還原及背景音樂不再列為待開發。
+- 維運小功能已補齊：私有狀態提供備份／排程／額度告警與百分比，`health` 指令核對遠端版本；獨立 Worker 的通知、恢復、去重與唯讀 token 已完成隔離測試。依使用者選擇，通知位置待設定，監控預設停用且尚未部署；操作見 [維運監控](docs/operations-monitor.md)。
 
 此階段在本機修改與測試；推送、PR、合併或部署另行安排。分支不保證 Netlify 不建置，推送前須確認 Branch deploys／Deploy Previews 設定。
 
@@ -35,11 +36,13 @@ npm run dev
 | `npm run backend:init`／`backend:dev` | 初始化／啟動 4189 SQLite 開發服務 |
 | `npm run backend:check` | 唯讀驗帳 |
 | `npm run cloud:control -- status --env .env.cloud.local` | 目前雲端服務的私有狀態，不重設額度 |
+| `npm run cloud:control -- health --env .env.cloud.local` | 唯讀核對版本及維運摘要；異常／版本不同時非零結束 |
 | `npm run cloud:control -- archive --env .env.cloud.local --to <新檔案.json>` | 下載最後有效加密備份，不停止服務或釋放 writer |
 | `npm run discord:check -- --cloud --discord --public-origin https://jokers-circus.nini900219.workers.dev` | 目前雲端入口與 Discord 唯讀診斷 |
 | `npm run activity:serve` | Node 本機／完成交接後的回退工具；雲端 active 時不可直連現行 Firestore |
 | `npm run db:backup`／`db:status`、`firestore:backup`／`firestore:operations` | Node 備份／維運工具；雲端 active 時不對現行 Firestore 執行 |
 | `npm run backup:portable -- ...` | 完整快照加密匯出、驗證及還原到新檔 |
+| `npm run monitor:build`／`test:monitor` | 獨立監控的 dry-run／真正 workerd 隔離測試，不部署或發真實通知 |
 | `npm run verify:math`／`verify:sessions` | 完整數學枚舉／固定 seed 回合驗算 |
 | `npm run export:model`／`audio:preview` | 匯出模型／音效試聽 |
 
@@ -56,6 +59,7 @@ npm run dev
 | [Spark 優化](docs/spark-optimization.md) | 本輪變更、情境成本、測試證據與適用範圍 |
 | [Firestore v2](docs/firestore-v2.md) | 六次寫入、壓縮與同步、資料格式切換及回退 |
 | [部署與維運](docs/deployment.md) | 環境設定、帳本、遷移、備份及歷史驗收 |
+| [維運監控](docs/operations-monitor.md) | 唯讀狀態、版本核對、獨立監控及通知設定／失敗處理 |
 | [測試](docs/bot-testing.md) | 自動回歸及人工驗收操作 |
 | [玩家體驗](docs/player-experience.md) | 文案、玩法操作、視聽與鍵盤契約 |
 | [停輪基準](docs/reel-timing-baseline.md) | 已驗收的時間參數、快停回饋與後續維護限制 |

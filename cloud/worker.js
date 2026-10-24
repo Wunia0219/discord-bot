@@ -14,6 +14,8 @@ import {CloudBackup} from './backup.js';
 import {MODEL_VERSION} from '../src/game/slot-math.js';
 import {audioAsset} from './audio-asset.js';
 import {handleFetch} from './http-bridge.js';
+import {APP_VERSION} from '../src/version.js';
+import {operationsHealth} from './operations-health.js';
 
 // Workers supports manual redirects; every caller rejects non-2xx responses.
 const cloudFetch=(url,options={})=>globalThis.fetch(url,{...options,redirect:options.redirect==='error'?'manual':options.redirect});
@@ -24,7 +26,7 @@ function identity(env){
   if(env.LOCAL_WALLET_TEST==='true'||env.FIRESTORE_EMULATOR_HOST)throw new Error('Fixture configuration is not deployable');
   return {projectId:env.FIRESTORE_PROJECT_ID,namespace:env.FIRESTORE_NAMESPACE,environment:env.APP_ENV,schemaVersion:2};
 }
-const authorized=(req,env)=>{const expected=env.CLOUD_ADMIN_TOKEN;if(!/^[a-f0-9]{64}$/i.test(expected||''))return false;const value=req.headers.get('authorization')?.replace(/^Bearer /,'')||'';return value.length===expected.length&&timingSafeEqual(Buffer.from(value),Buffer.from(expected));};
+const authorized=(req,env,name='CLOUD_ADMIN_TOKEN')=>{const expected=env[name];if(!/^[a-f0-9]{64}$/i.test(expected||''))return false;const value=req.headers.get('authorization')?.replace(/^Bearer /,'')||'';return /^[a-f0-9]{64}$/i.test(value)&&timingSafeEqual(Buffer.from(value),Buffer.from(expected));};
 async function body(req,limit=12*1024**2){let n=0,parts=[];for await(const chunk of req.body||[]){n+=chunk.length;if(n>limit)throw new Error('Body too large');parts.push(chunk);}return JSON.parse(Buffer.concat(parts).toString('utf8'));}
 
 export class CircusProject extends DurableObject {
@@ -56,10 +58,11 @@ export class CircusProject extends DurableObject {
   async fetch(request){
     const url=new URL(request.url);
     if(url.pathname.startsWith('/__ops/')){
-      if(!authorized(request,this.env))return json({error:'Forbidden'},403);
+      const monitorRead=url.pathname==='/__ops/status'&&request.method==='GET'&&authorized(request,this.env,'CLOUD_MONITOR_TOKEN');
+      if(!authorized(request,this.env)&&!monitorRead)return json({error:'Forbidden'},403);
       try{const operation=this.opsTail.then(()=>this.admin(url.pathname,request));this.opsTail=operation.catch(()=>{});return await operation;}catch{return json({error:'Cloud operation refused; existing data retained'},409);}
     }
-    if(url.pathname==='/healthz')return json({ok:true,version:'0.2.6',model:MODEL_VERSION});
+    if(url.pathname==='/healthz')return json({ok:true,version:APP_VERSION,model:MODEL_VERSION});
     if(!apiPaths.has(url.pathname))return json({error:'找不到此功能。'},404);
     if(!this.ready())return json({error:'帳號籌碼正在維護，請稍後再試。'},503);
     const origin=request.headers.get('origin');if(origin&&origin!==`https://${this.env.DISCORD_CLIENT_ID}.discordsays.com`)return json({error:'不允許的來源。'},403);
@@ -68,7 +71,12 @@ export class CircusProject extends DurableObject {
   }
   async admin(path,request){
     const settings=identity(this.env);
-    if(path==='/__ops/status'&&request.method==='GET')return json({mode:this.state.get('mode')||'unseeded',source:this.state.get('source'),backup:this.state.get('backup-status'),alarm:this.state.get('alarm-status'),quota:this.state.get('quota-identity')?this.quota.status():null});
+    if(path==='/__ops/status'&&request.method==='GET'){
+      const quota=this.state.get('quota-identity')?this.quota.status():null;
+      if(quota)quota.scopes=Object.fromEntries(['maintenance','highlights'].map(scope=>[scope,{used:this.quota.totals(scope),limits:this.quota.identity().limits[scope]}]));
+      const status={version:APP_VERSION,mode:this.state.get('mode')||'unseeded',source:this.state.get('source'),backup:this.state.get('backup-status'),alarm:this.state.get('alarm-status'),quota};
+      return json({...status,operations:operationsHealth(status)});
+    }
     if(request.method!=='POST')return json({error:'POST required'},405);
     if(path==='/__ops/seed'){
       if(this.state.get('source'))throw new Error('Already seeded');const input=await body(request);

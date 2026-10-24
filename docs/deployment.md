@@ -1,6 +1,6 @@
 # 啟動、Discord 與錢包維護
 
-2026-10-24 更新，工作區版本 **0.2.7**。本次更新隱私頁、過期文件及版本，沿用 [已驗收停輪基準](reel-timing-baseline.md)，規則與資料格式不變。
+2026-10-24 更新，工作區版本 **0.2.7**。本次更新隱私頁、過期文件及版本，並補齊唯讀維運摘要、版本核對與獨立監控／通知模組；沿用 [已驗收停輪基準](reel-timing-baseline.md)，規則與資料格式不變。
 
 ## 目前雲端入口與維運
 
@@ -20,6 +20,8 @@ npm run discord:check -- --cloud --discord --public-origin https://jokers-circus
 雲端 active 時，不執行本機 `activity:server`、`firestore:backup`、`firestore:status`、`firestore:operations` 或其他直接存取現行 Firestore 的 CLI，也不解除本機 `FIRESTORE_LIVE_ENABLED=false`。回退必須按 [雲端手冊](cloud-runtime.md)完成 pause、最新備份、export/release、還原驗證與原三組額度回傳；不要直接重啟舊 writer、重新 seed、重設額度或恢復過期資料。
 
 Cloudflare 加密快照已下載還原並逐表比對；首次跨日自動備份、獨立恢復金鑰保管、外部故障通知、真人雙裝置與自然大獎，以及小群容量觀察仍待收尾，詳見 [收尾計畫](roadmap.md)。以下 Node／SQLite 操作保留供隔離開發與完成交接後的回退，不是目前雲端的日常操作方式。
+
+0.2.7 的 `cloud:control health` 可唯讀核對版本及備份／排程／額度摘要；獨立監控的程式與隔離測試已完成，依使用者選擇先保留通知位置未設定、預設停用且未部署。新唯讀 token 及獨立監控設定見 [維運監控](operations-monitor.md)，不取代原 admin token 或遊戲 DO。
 
 ## 本機與隔離 Node 開發
 

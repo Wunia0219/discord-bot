@@ -11,6 +11,7 @@ import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot} from '../serve
 import {setTimeout as delay} from 'node:timers/promises';
 import {roundFromStops} from '../src/game/index.js';
 import {QUOTA_LIMITS} from '../cloud/quota.js';
+import {APP_VERSION} from '../src/version.js';
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8787');
 
 test('real workerd supplies mobile audio byte ranges even when its static asset binding returns full files',async t=>{
@@ -45,10 +46,16 @@ test('real workerd persists quotas/sessions, runs Discord API, backs up new prog
    throw new Error('Unapproved external request in test');
  }};
  config.bindings.FIRESTORE_ENDPOINT='https://firestore.asia-east1.rep.googleapis.com';
+ const monitorToken=randomBytes(32).toString('hex');config.bindings.CLOUD_MONITOR_TOKEN=monitorToken;
  let mf=new Miniflare(convertV4MiniflareOptions(config));t.after(()=>mf.dispose());const call=async(path,{body,token,adminAuth=false,headers={},method}={})=>{const r=await mf.dispatchFetch('http://localhost'+path,{method:method||(body?'POST':'GET'),headers:{...(body?{'Content-Type':'application/json'}:{}),...(token?{Authorization:'Bearer '+token}:{}),...(adminAuth?{Authorization:'Bearer '+admin}:{}),...headers},...(body?{body:JSON.stringify(body)}:{})});const data=await r.json();return {status:r.status,data};};
  assert.equal((await call('/api/wallet')).status,503);assert.equal((await call('/__ops/status')).status,403);
+ assert.equal((await call('/healthz')).data.version,APP_VERSION);
+ const monitorHeaders={Authorization:'Bearer '+monitorToken};
+ const beforeSeed=await call('/__ops/status',{headers:monitorHeaders});assert.equal(beforeSeed.status,200);assert.equal(beforeSeed.data.mode,'unseeded');assert.equal(beforeSeed.data.operations.ok,false);
+ for(const path of ['/__ops/seed','/__ops/pause','/__ops/activate','/__ops/backup','/__ops/archive','/__ops/export','/__ops/verify','/__ops/status'])assert.equal((await call(path,{body:{},headers:monitorHeaders})).status,403,path+' is not authorized by a monitor token');
  const snapshot=snapshotForCloud(source,'test',{upstreamImportFingerprint:plan.fingerprint}),quota={projectId:settings.projectId,exportedAt:Date.now(),scopes:Object.fromEntries(Object.entries(QUOTA_LIMITS).map(([k,v])=>[k,{limits:{...v},growth:300,usage:[{slot:Math.floor(Date.now()/60000)*60000,reads:37,writes:k==='maintenance'?0:13,egressBytes:3}],documents:[]}]))};
  const seeded=await call('/__ops/seed',{adminAuth:true,body:{projectId:settings.projectId,namespace,writersStopped:true,snapshot,quota}});assert.equal(seeded.status,200,JSON.stringify(seeded));assert.equal((await call('/__ops/seed',{adminAuth:true,body:{}})).status,409);
+ const aggregate=await call('/__ops/status',{headers:monitorHeaders});assert.equal(aggregate.data.version,APP_VERSION);assert.deepEqual(Object.keys(aggregate.data.quota.scopes).sort(),['highlights','maintenance']);assert.equal(aggregate.data.quota.used.reads,37,'private status does not consume Firestore quota');
  assert.equal((await call('/__ops/activate',{adminAuth:true,body:{writersStopped:true,freePlanVerified:true}})).status,200);assert.equal((await call('/readyz')).status,200);
  const login=await call('/api/token',{body:{code:'fixture-code',guildId:guild}});assert.equal(login.status,200,JSON.stringify(login));const token=login.data.session.token;assert.equal((await call('/api/wallet',{token,headers:{origin:'https://untrusted.invalid'}})).status,403);assert.equal((await call('/api/wallet')).status,401);
  assert.equal((await call('/api/wallet',{token})).data.state.balance,snapshot.tables.wallets[0].balance);

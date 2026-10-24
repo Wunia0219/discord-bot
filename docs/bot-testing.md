@@ -10,6 +10,8 @@ v2 另外由 `tests/firestore-v2.integration.js` 驗證實際讀寫量、冷登�
 
 `npm run test:cloud` 使用真正 workerd／Miniflare 與官方 Firestore emulator，驗證 REST／SDK 原請求互通、持久 session／額度、alarm、固定 readTime 備份、checkpoint 重啟及新增進度回退；外部 Google／Discord 呼叫以測試替身隔離。`npm run cloud:build` 僅做 Worker dry-run，不發布；本機平台工具需求見 [雲端手冊](cloud-runtime.md)。
 
+0.2.7 新增維運測試：`tests/monitor.test.js` 包含在 `npm test`，覆蓋故障與恢復、去重、429、未設定目的地、不確定 POST、錯誤設定及敏感資料保護。`npm run test:monitor` 在真正 workerd 中透過測試 wrapper 呼叫 scheduled handler，確認持久去重與公開存取保護；`test:cloud` 另驗證新唯讀 token 不能呼叫任何管理 POST，且狀態查詢不增加 Firestore 額度。實際 Cron 與通知目的地仍待另行接通，不冒充已完成雲端通知驗收；見 [維運監控](operations-monitor.md)。
+
 需要 Node.js 24，在專案根目錄執行：
 
 ```sh
