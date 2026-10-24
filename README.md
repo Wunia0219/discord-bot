@@ -7,9 +7,10 @@ Discord Activity 內部試玩遊戲。後端負責算獎、籌碼、每日簽到
 ## 現況與下一步
 
 - 已完成：243 路玩法、Discord 登入與管理指令、SQLite／Firestore 錢包、斷線重送、完整帳本與備份、荷官 idle／win、音效、快停及自動旋轉。
-- 本機 4188 已接入 Firestore Spark；4189 保留隔離 SQLite 測試。4188 已重啟採用公告功能，公開 Discord 測試入口已開啟，使用者確認測試公告呈現正常；[實測與回退](docs/discord-test-entry.md)。
+- 10/24 使用者已驗收目前的正常／快速停輪及量測清理，之後維持 [已驗收停輪基準](docs/reel-timing-baseline.md)。
+- 目前 Discord 試玩入口運行於 Cloudflare Worker／SQLite Durable Object，使用原 Firestore Spark v2 帳本。本機 4188 writer 已停用；4189 保留隔離 SQLite 測試。雲端維運與回退以 [雲端執行紀錄](docs/cloud-runtime.md) 為準；[原本機入口紀錄](docs/discord-test-entry.md) 僅供歷史參考。
 - 本輪已完成 v2：每局 10→6 次寫入、無損近期快取、輕量狀態與增量同步、較舊紀錄載入、空白命名空間遷移及雙向還原測試。10/24 已安全切換現有服務至 v2，採用步驟與量測見 [Firestore v2](docs/firestore-v2.md)。第一輪讀取優化見[用量與驗證](docs/spark-optimization.md)。
-- 已完成 [加密備份與離線還原](docs/portable-backup.md)，最新實測的 5 局已納入完整快照；異地上傳尚未接入。零費用雲端的 Worker、持久額度、加密登入與備份、公告 alarm 及回退已完成隔離實作測試；尚待 Free 帳戶與實際部署，現有入口仍需電腦開機。見 [雲端執行與回退](docs/cloud-runtime.md)。下一步、依賴與驗收條件集中在[實作計畫](docs/roadmap.md)。
+- 已完成 [加密備份與離線還原](docs/portable-backup.md) 及雲端切換驗證，Worker、持久額度、加密登入、備份與公告 alarm 已上線。額外 Google Drive 副本尚未接入；備份進度與回退限制見 [雲端執行與回退](docs/cloud-runtime.md)。下一步、依賴與驗收條件集中在[實作計畫](docs/roadmap.md)。
 
 此階段在本機修改與測試；推送、PR、合併或部署另行安排。分支不保證 Netlify 不建置，推送前須確認 Branch deploys／Deploy Previews 設定。
 
@@ -52,6 +53,7 @@ npm run dev
 | [部署與維運](docs/deployment.md) | 環境設定、帳本、遷移、備份及歷史驗收 |
 | [測試](docs/bot-testing.md) | 自動回歸及人工驗收操作 |
 | [玩家體驗](docs/player-experience.md) | 文案、玩法操作、視聽與鍵盤契約 |
+| [停輪基準](docs/reel-timing-baseline.md) | 已驗收的時間參數、快停回饋與後續維護限制 |
 | [數學](docs/game-math.md) | 輪帶、RTP、獎勵與歷史模型 |
 | [素材](docs/assets.md)／[荷官動畫](docs/dealer-animation.md) | 素材來源、匯出及動畫規格 |
 
