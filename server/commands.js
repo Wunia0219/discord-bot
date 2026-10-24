@@ -1,5 +1,5 @@
 import { createPublicKey, verify } from 'node:crypto';
-import { problem } from './wallet.js';
+import { problem } from './wallet-common.js';
 import { privateReply, commandError } from './bot-replies.js';
 
 export const commandDefinitions = [

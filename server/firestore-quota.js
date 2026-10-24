@@ -1,7 +1,7 @@
 import {DatabaseSync} from 'node:sqlite';
 import {mkdirSync} from 'node:fs';
 import {dirname} from 'node:path';
-import {problem} from './wallet.js';
+import {problem} from './wallet-common.js';
 
 const windowMs=86400000,slotMs=60000;
 const unavailable=()=>problem(503,'服務今天的使用量較高，請稍後再試。','FIRESTORE_BUDGET');

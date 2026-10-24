@@ -22,7 +22,7 @@ function reader(db,sql){
     *iterate(){for(const row of query.iterate())yield normalize(row);}};
 }
 
-function validRound(row,round){
+export function validRound(row,round){
   if(!object(round)||round.id!==row.id||!BETS.includes(round.bet)
     ||!balance(round.before)||round.before<round.bet||!balance(round.after)
     ||!Number.isSafeInteger(round.payout)||round.payout<0

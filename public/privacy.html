@@ -21,7 +21,7 @@
   <main id="content">
     <p class="eyebrow">🎲命運荷官 · Joker’s Circus</p>
     <h1>隱私權政策</h1>
-    <p class="metadata">生效及更新日期：<time datetime="2026-10-20">2026 年 10 月 20 日</time> · 資料處理團隊：Wunia Studio</p>
+    <p class="metadata">生效及更新日期：<time datetime="2026-10-24">2026 年 10 月 24 日</time> · 資料處理團隊：Wunia Studio</p>
     <p>本政策說明 Wunia Studio 在提供 Discord 應用程式「🎲命運荷官」及其中的 Joker’s Circus 遊戲時，如何處理資料，以及使用者如何提出查詢、更正或刪除要求。</p>
 
     <section aria-labelledby="collection">
@@ -49,9 +49,10 @@
         <li><strong>Wunia Studio 授權維運人員：</strong>為提供服務、排除故障及處理資料要求，在必要範圍內處理資料。</li>
         <li><strong>Discord：</strong>提供身分驗證、成員資格、指令及公告傳輸等功能，依 <a href="https://discord.com/privacy">Discord 隱私權政策</a>處理其平台資料。</li>
         <li><strong>Netlify：</strong>提供公開遊戲網頁及本政策的靜態網站託管與傳輸，可能處理 IP 位址、請求時間及連線日誌。一般瀏覽器的試玩籌碼保存在玩家裝置，不會因瀏覽網站就上傳到 Discord 錢包。服務商的資料處理說明見 <a href="https://www.netlify.com/privacy/">Netlify 隱私權政策</a>。</li>
-        <li><strong>Cloudflare：</strong>目前 Discord 測試服務使用 Cloudflare 通道連接 Wunia Studio 管理的後端，可能處理傳輸中的請求、IP 位址及必要的連線診斷資料，詳見 <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare 隱私權政策</a>。</li>
+        <li><strong>Google Firebase／Firestore：</strong>保存 Discord 錢包、遊玩紀錄與原請求結果；相關說明見 <a href="https://policies.google.com/privacy">Google 隱私權政策</a>。</li>
+        <li><strong>Cloudflare：</strong>目前 Discord 測試服務使用 Cloudflare 通道連接 Wunia Studio 管理的後端。後續啟用雲端後端時，也會處理遊戲 API 並保存加密登入狀態與加密備份；目前尚未完成此切換。服務可能處理傳輸中的請求、IP 位址及必要的連線診斷資料，詳見 <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare 隱私權政策</a>。</li>
       </ul>
-      <p>目前 Discord 錢包資料庫及團隊建立的備份保存在 Wunia Studio 管理的後端設備，與 Netlify 的靜態網站分開。Discord、Netlify 及 Cloudflare 的網路服務可能在多個國家或地區處理連線資料；若後端託管、資料保存或分享方式有重要改變，我們會更新本政策並公告。</p>
+      <p>目前 Discord 錢包資料庫保存在 Google Firestore，團隊建立的備份保存在受控本機設備；雲端切換後也會保留受控加密雲端備份。這些資料與 Netlify 的靜態網站分開。Discord、Google、Netlify 及 Cloudflare 的網路服務可能在多個國家或地區處理連線資料；若後端託管、資料保存或分享方式有重要改變，我們會更新本政策並公告。</p>
       <p>如依法必須提供資料，我們會依適用要求，在必要範圍內處理。</p>
     </section>
     <section aria-labelledby="announcements">
@@ -62,8 +63,8 @@
     <section aria-labelledby="storage">
       <h2 id="storage">5. 保存方式與期間</h2>
       <p>伺服器錢包、遊玩及管理紀錄保存於服務使用的資料庫。為維持跨裝置餘額、核對操作及處理問題，目前未設固定天數的自動清除機制；資料不再為服務功能所必要、停止營運，或收到有效的刪除要求時，應依適用規範處理刪除，依法必須保留者除外。</p>
-      <p>登入工作階段最長有效一小時，Discord 存取權杖及工作階段資訊暫存在後端記憶體，不寫入錢包資料庫；後端程序重啟時會清除該記憶體資料。權杖及工作階段失效後，須重新登入。</p>
-      <p>團隊為恢復服務而建立的受控備份可能包含錢包與紀錄。目前沒有固定天數的自動備份清除排程，由維運人員在恢復服務及核對資料所需期間內管理。有效的刪除要求同時涵蓋團隊可控制的備份；還原備份時，也須避免重新恢復已完成刪除的資料。服務商為自身連線維運而保存的日誌，則依其政策與適用規範處理。</p>
+      <p>登入工作階段最長有效一小時，不寫入錢包資料庫。本機後端將 Discord 存取權杖及工作階段資訊暫存於記憶體，程序重啟會清除；雲端後端啟用後，則以加密方式暫存，以維持服務重啟後的登入狀態，過期資料在後續登入或維護時清除。權杖及工作階段失效後，須重新登入。</p>
+      <p>團隊為恢復服務而建立的受控備份可能包含錢包與紀錄。自動備份依保留設定輪替，雲端後端啟用後保留最近三份通過驗證的快照；手動封存副本由維運人員在恢復服務及核對資料所需期間內管理。有效的刪除要求同時涵蓋團隊可控制的備份；還原備份時，也須避免重新恢復已完成刪除的資料。服務商為自身連線維運而保存的日誌，則依其政策與適用規範處理。</p>
     </section>
     <section aria-labelledby="browser">
       <h2 id="browser">6. 瀏覽器儲存</h2>

@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { problem } from './wallet.js';
+import { problem } from './wallet-common.js';
 
 const hash = token=>createHash('sha256').update(token).digest('hex');
 export class WalletService {
-  constructor(store,{fetchImpl=fetch,clock=Date.now}={}) {Object.assign(this,{store,fetchImpl,clock});this.sessions=new Map();}
+  constructor(store,{fetchImpl=globalThis.fetch.bind(globalThis),clock=Date.now,sessions=new Map()}={}) {Object.assign(this,{store,fetchImpl,clock,sessions});}
   async discord(path,token){
     let response;
     try{response=await this.fetchImpl('https://discord.com/api/v10'+path,{headers:{Authorization:`Bearer ${token}`},signal:AbortSignal.timeout(8000),redirect:'error'});}
@@ -22,7 +22,8 @@ export class WalletService {
     const user=await this.discord('/users/@me',token.access_token);
     this.store.validate(guild,user.id);
     const member=await this.member(guild,user.id,token.access_token);
-    for(const [key,session] of this.sessions)if(session.expires<=this.clock())this.sessions.delete(key);
+    if(this.sessions.prune)this.sessions.prune(this.clock());
+    else for(const [key,session] of this.sessions)if(session.expires<=this.clock())this.sessions.delete(key);
     if(this.sessions.size>=10000)throw problem(503,'登入人數已達服務容量，請稍後再試。');
     const sessionToken=randomBytes(32).toString('base64url');
     const expires=this.clock()+Math.min(3600,Math.max(0,Number(token.expires_in)||0))*1000;
@@ -36,11 +37,16 @@ export class WalletService {
     if(!session||session.expires<=this.clock()){if(token)this.sessions.delete(hash(token));throw problem(401,'登入已過期，請重新開啟活動。');}
     this.store.assertGuild(session.guild);
     if(this.clock()-session.window>=60000){session.window=this.clock();session.count=0;}
-    if(++session.count>120)throw problem(429,'操作過於頻繁，請稍後再試。');
+    session.count++;this.sessions.set(hash(token),session);
+    if(session.count>120)throw problem(429,'操作過於頻繁，請稍後再試。');
     if(this.clock()-session.checked>300000){
       try{const member=await this.member(session.guild,session.user,session.accessToken);if(member.nick)session.profile.name=member.nick;session.checked=this.clock();}
       catch(error){if(error.status!==503)this.sessions.delete(hash(token));throw error;}
     }
+    // Another in-flight membership check may have revoked this session.
+    // A late successful response must not recreate it in persistent storage.
+    if(!this.sessions.get(hash(token))||session.expires<=this.clock())throw problem(401,'登入已過期，請重新開啟活動。');
+    this.sessions.set(hash(token),session);
     return session;
   }
 }

@@ -59,3 +59,9 @@
 - 主遊戲荷官動畫已接入；背景音樂的 `MUSIC_SOURCE` 仍是 `null`。
 
 資料保存完整不等於任何故障下都零損失：未備份的新資料與同機故障仍需依恢復策略處理。達到額度時會拒絕新的操作，保留已提交資料與原請求，不提供假成功或離線扣款。
+
+## Worker 執行路徑（尚未部署）
+
+`firestore-wallet-core.js` 與 `firestore-highlights-core.js` 共用結算／公告邏輯；Node wrapper 使用 Google SDK，`cloud/firestore-rest.js` 使用受 namespace 限制的 REST 交易。`app-handler.js` 共用 OAuth／簽章／API，Node HTTP 與 Worker Request/Response 分別接入。
+
+`cloud/worker.js` 每個專案綁定唯一 SQLite Durable Object，持久保存原全域及子額度、加密 session／限流、公告提示與備份 checkpoint。Firestore v2 仍是權威帳本；未 seed／paused／released 一律拒絕玩家寫入。`cloud/backup.js` 固定 readTime 分批取得全歷史增量與可變表，驗帳後加密發布；不確定公告 POST 與原去重資料一起保留。詳細部署門檻及額度回傳見 [cloud-runtime.md](cloud-runtime.md)。

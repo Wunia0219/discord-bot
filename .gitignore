@@ -9,3 +9,6 @@ test-results/
 .tools/
 /data/
 backups/
+.wrangler/
+.dev.vars*
+wrangler.*.local.json*
