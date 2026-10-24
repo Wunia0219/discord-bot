@@ -4,7 +4,7 @@ import {parseEnv} from 'node:util';
 const [command,...args]=process.argv.slice(2),flags=new Map();
 for(let i=0;i<args.length;i+=2){if(!['--env','--from','--to','--writers-stopped','--free-plan-verified'].includes(args[i])||!args[i+1]||flags.has(args[i]))throw new Error('Invalid operator arguments');flags.set(args[i],args[i+1]);}
 const need=key=>{const value=flags.get('--'+key);if(!value)throw new Error('Missing --'+key);return value;};
-if(!['status','seed','activate','pause','backup','archive','export'].includes(command))throw new Error('Expected status, seed, activate, pause, backup, archive or export');
+if(!['status','seed','verify','activate','pause','backup','archive','export'].includes(command))throw new Error('Expected status, seed, verify, activate, pause, backup, archive or export');
 const env=parseEnv(readFileSync(need('env'),'utf8')),origin=new URL(env.CLOUD_ORIGIN);
 if(origin.protocol!=='https:'||!/^[-a-z0-9]+\.[-a-z0-9]+\.workers\.dev$/.test(origin.hostname)||origin.port||origin.pathname!=='/'||origin.search||origin.hash||origin.username||origin.password)throw new Error('Expected the reviewed workers.dev origin');
 if(!/^[a-f0-9]{64}$/i.test(env.CLOUD_ADMIN_TOKEN||''))throw new Error('Private admin token required');
@@ -18,7 +18,7 @@ if(command==='activate'){
 // be exported again with the same receipt; the cloud writer stays released.
 if(['archive','export'].includes(command)&&existsSync(need('to')))throw new Error('Export destination already exists');
 const response=await fetch(new URL('/__ops/'+command,origin),{
-  method:command==='status'?'GET':'POST',redirect:'error',signal:AbortSignal.timeout(30000),
+  method:command==='status'?'GET':'POST',redirect:'error',signal:AbortSignal.timeout(command==='verify'?180000:30000),
   headers:{Authorization:'Bearer '+env.CLOUD_ADMIN_TOKEN,'Content-Type':'application/json'},
   ...(command==='status'?{}:{body:JSON.stringify(input)}),
 });

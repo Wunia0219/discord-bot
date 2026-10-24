@@ -15,7 +15,8 @@ export function publicOrigin(value){
 
 // Read-only diagnostics. OAuth obtains a short-lived application token, then
 // only GETs command definitions. It never registers commands or posts messages.
-export async function checkDiscordReadiness({env,frontend={},built=false,offline=false,discord=false,origin,fetchImpl=fetch}){
+export async function checkDiscordReadiness({env,frontend={},built=false,offline=false,discord=false,origin,cloud=false,fetchImpl=fetch}){
+  if(cloud&&!origin)throw new Error('Cloud checks require a public origin');
   if(offline&&(discord||origin))throw new Error('Offline checks cannot include remote checks');
   if(origin)origin=publicOrigin(origin);
   const checks=[],add=(code,ok,detail)=>checks.push({code,status:ok?'pass':'fail',detail}),note=(code,detail)=>checks.push({code,status:'unverified',detail});
@@ -38,7 +39,7 @@ export async function checkDiscordReadiness({env,frontend={},built=false,offline
   }catch{add('HIGHLIGHTS_CONFIG',false,'公告設定無效；未輸出 Webhook 或憑證');}
   const request=(url,options={})=>fetchImpl(url,{...options,signal:AbortSignal.timeout(10000),redirect:'error'});
   const probe=async(base,label)=>{
-    for(const path of ['/healthz','/readyz','/','/terms.html','/privacy.html','/api/wallet','/api/interactions']){
+    for(const path of ['/healthz','/readyz','/',...(cloud?['/terms','/privacy']:['/terms.html','/privacy.html']),'/api/wallet','/api/interactions']){
       try{
         const interaction=path==='/api/interactions';
         const response=await request(base+path,interaction?{method:'POST',headers:{'Content-Type':'application/json'},body:'{"type":1}'}:{});
@@ -50,7 +51,7 @@ export async function checkDiscordReadiness({env,frontend={},built=false,offline
       }catch{add(label+':'+path,false,'無法連線、回應不符或被轉址');}
     }
   };
-  if(!offline&&hostValid)await probe(`http://127.0.0.1:${port}`,'LOCAL');
+  if(!offline&&!cloud&&hostValid)await probe(`http://127.0.0.1:${port}`,'LOCAL');
   else note('LOCAL_RUNTIME','本次未探測運行中的服務');
   if(origin)await probe(origin,'PUBLIC');else note('PUBLIC_RUNTIME','尚未探測公開 HTTPS 入口與路由');
   if(discord&&configured&&guilds.length&&guilds.every(snowflake)){

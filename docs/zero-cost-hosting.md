@@ -1,5 +1,7 @@
 # 零費用雲端運行規劃
 
+> **2026-10-24 最新狀態：已切換 Cloudflare Workers Free。** 固定入口 https://jokers-circus.nini900219.workers.dev；Discord 根對應及互動端點已儲存。本機 writer 已停用，電腦不需持續開機。最新完整備份與雲端還原逐表比對通過。回退必須先釋放雲端 writer 並回傳原額度，詳見 [雲端手冊](cloud-runtime.md)。下方本機通道與早期規劃為歷史紀錄，以本段及雲端手冊為準。
+
 2026-10-23 使用者決定：不依賴持續開機的個人電腦，先維持零費用，接受必要的架構調整。10/24 已完成 Worker／REST、持久額度、加密 session、公告 alarm、可續跑備份與回退工具的本機實作及隔離測試。尚未開通 Cloudflare、部署或替換現行服務；具體設定與安全切換見 [雲端執行手冊](cloud-runtime.md)。
 
 ## 建議方向

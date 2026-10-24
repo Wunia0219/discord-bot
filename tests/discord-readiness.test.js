@@ -47,3 +47,12 @@ test('public probes require explicit HTTPS origin and cannot be combined with of
   for(const value of ['http://game.example','https://user:secret@game.example','https://game.example/path','https://game.example/?token=x'])assert.throws(()=>publicOrigin(value));
   await assert.rejects(checkDiscordReadiness({...config,offline:true,discord:true}),/Offline/);
 });
+test('cloud readiness probes the public runtime without requiring a local server',async()=>{
+  const calls=[];
+  const result=await checkDiscordReadiness({...config,cloud:true,origin:'https://game.example',fetchImpl:async(url,options)=>{calls.push(url);return fake(url,options);}});
+  assert.equal(result.ok,true);
+  assert.ok(calls.every(url=>url.startsWith('https://game.example/')));
+  assert.ok(calls.includes('https://game.example/privacy'));
+  assert.ok(calls.includes('https://game.example/terms'));
+  await assert.rejects(checkDiscordReadiness({...config,cloud:true}),/public origin/);
+});

@@ -9,7 +9,9 @@ import {createActivityHandler} from '../server/app-handler.js';
 import {CloudState,CloudSessions,CloudLoginLimit,Sealer} from './storage.js';
 import {CloudQuota} from './quota.js';
 import {auditSnapshot,SnapshotVault} from './snapshot.js';
+import {verifyCloudSnapshot} from './verify.js';
 import {CloudBackup} from './backup.js';
+import {MODEL_VERSION} from '../src/game/slot-math.js';
 import {handleFetch} from './http-bridge.js';
 
 // Workers supports manual redirects; every caller rejects non-2xx responses.
@@ -56,7 +58,7 @@ export class CircusProject extends DurableObject {
       if(!authorized(request,this.env))return json({error:'Forbidden'},403);
       try{const operation=this.opsTail.then(()=>this.admin(url.pathname,request));this.opsTail=operation.catch(()=>{});return await operation;}catch{return json({error:'Cloud operation refused; existing data retained'},409);}
     }
-    if(url.pathname==='/healthz')return json({ok:true,version:'0.2.6'});
+    if(url.pathname==='/healthz')return json({ok:true,version:'0.2.6',model:MODEL_VERSION});
     if(!apiPaths.has(url.pathname))return json({error:'找不到此功能。'},404);
     if(!this.ready())return json({error:'帳號籌碼正在維護，請稍後再試。'},503);
     const origin=request.headers.get('origin');if(origin&&origin!==`https://${this.env.DISCORD_CLIENT_ID}.discordsays.com`)return json({error:'不允許的來源。'},403);
@@ -84,6 +86,7 @@ export class CircusProject extends DurableObject {
       for(const w of snapshot.tables.wallets){const actual=await r.store.read(r.store.walletRef(w.guild,w.user));if(!actual||actual.balance!==w.balance||Number(actual.milestone)!==w.milestone||actual.last_spin!==w.last_spin)throw new Error('Wallet mismatch');}
       this.state.set('mode','active');await this.schedule(1000);return json({active:true});
     }
+    if(path==='/__ops/verify'){if(this.state.get('mode')!=='paused'||this.active.size)throw new Error('Paused writer required');const r=await this.runtime(),db=new FirestoreRest({...settings,credentials:JSON.parse(this.env.GOOGLE_SERVICE_ACCOUNT_JSON),fetchImpl:cloudFetch,readOnly:true}),store=new FirestoreWalletCore(settings,{db,quota:this.quota,guildIds:[...r.store.guildIds]});return json(await verifyCloudSnapshot(r.vault.load(this.state.get('backup-latest')),store));}
     if(path==='/__ops/backup'){if(this.state.get('mode')==='released')throw new Error('Ownership released');const r=await this.runtime();return json(await this.backupStep(r));}
     if(path==='/__ops/archive'){const v=new SnapshotVault(this.ctx.storage,this.state,new Sealer(this.env.CLOUD_ENCRYPTION_KEY));return json({source:this.state.get('source'),archive:v.archive(this.state.get('backup-latest')),released:this.state.get('mode')==='released'});}
     if(path==='/__ops/export'){

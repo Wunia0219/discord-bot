@@ -1,6 +1,6 @@
 # 零費用雲端執行與回退
 
-2026-10-24，版本 **0.2.6**。程式與隔離測試已實作，**尚未建立 Cloudflare 資源、上傳玩家資料或切換 Discord**。現有 v2 服務仍需本機開機。正式帳戶的免費方案、實際 CPU／網路、固定網址及真人雙裝置驗收，必須在上線時確認。
+2026-10-24，版本 **0.2.6**。程式與隔離測試已實作，**已確認 Workers Free 並部署未啟用版本；尚未上傳後端秘密、交接玩家資料或切換 Discord**。現有 v2 服務仍需本機開機。正式帳戶的免費方案、實際 CPU／網路、固定網址及真人雙裝置驗收，必須在上線時確認。
 
 ## 執行方式
 
@@ -22,7 +22,7 @@ AES-256-GCM 金鑰放 Cloudflare Secret，另存獨立私密恢復位置；下�
 
 ## 現在需要的使用者操作
 
-登入或建立 Cloudflare 帳戶，確認 Workers 是 **Free**；不開通 Workers Paid、R2 訂閱或新增付款方式。帳戶準備好後再由此工作區設定及驗收。不要把帳戶密碼、API token、Webhook 或加密金鑰貼到對話。
+Cloudflare 已登入且確認 Workers **Free / Active**、沒有付款方式；固定入口與 Discord 設定已完成。未開通付費方案或 R2。不要把帳戶密碼、API token、Webhook 或加密金鑰貼到對話。
 
 後續也需要把加密恢復金鑰保存到使用者可取回的獨立私密位置。原有 `data/backup-keys` 金鑰與新雲端金鑰分開；不隨備份一起上傳。
 
@@ -106,3 +106,27 @@ npm run cloud:build
 測試記錄：`test-results/cloud-all-unit.log`、`cloud-integration.log`、`cloud-runtime-report.json`、`cloud-firestore-regression.log`、`cloud-frontend-build.log`。測試通過不能代替實際雲端 CPU／免費帳戶確認，也不能證明手機音效或真人自然大獎流程。
 
 本輪結果：323 項單元測試（含既有 763 局快照逐表加密還原）、52 項 Firestore 模擬器回歸、2 項 REST／workerd 整合測試全部通過；前端 build 與 Worker dry-run 成功。另確認現有本機 writer 會使 handoff 拒絕且不產生交接檔，原 4188 healthz 為 200。版本保持 0.2.6；未推送、未部署、未重啟或切換原後端，未發送真實 Discord 測試訊息。
+
+## 10/24 實際部署進度
+
+Wrangler OAuth 已確認帳戶 `0cc2ddf634f75c1e30853778399ab3fe`。Cloudflare Billing → Subscriptions 顯示 Workers Free／Active、No payment method on file；OAuth 無帳單讀取權限，方案依後台可見資訊確認，不以 workers/standard 回應冒充方案。初始帳戶沒有 Worker 或 Durable Object。
+
+已部署 `https://jokers-circus.nini900219.workers.dev` 的未啟用版本，6 項公開唯讀檢查通過（頁面／health 200、玩家 API 503、未授權管理 403）。Worker 程式啟動回報 9 ms，尚不是實際結算 CPU 驗收。新增 paused-only、禁止任何寫入的私有 verify 功能，已通過真實 workerd 隔離測試。
+
+使用者明確授權後，5 項 Secrets 已成功存入此 Worker。已正常停止本機 writer，取得 2026-10-24T09:03:09.652Z 最新完整快照，包含 2 個錢包、779 筆帳本、777 筆原請求、763 局及完整公告表。來源 SHA-256 為 84d7877c9bdfd0345e1bac1e5c0f4e20255a4b929d733d56d97e9536ad353666。本機加密還原、雲端 baseline 與實際增量備份下載還原的 7 張表完整逐筆一致（忽略列順序）。
+
+雲端唯讀驗收通過餘額、簽到、摘要、每人最新 50 筆帳本及 5 局、全部 14 筆非 spin 原結果、8 次原請求重送，writes 未增加；完整歷史由上述七表比對及先前模擬器全請求回歸覆蓋，不宣稱逐筆重讀全部遠端歷史。首次 verify 用戶端 30 秒超時，調整為 180 秒後成功；用量均持續累計，沒有重設。
+
+已切換 Discord 根對應、互動端點與政策網址；21 項公開／Discord 診斷通過。新增 cloud 檢查模式，略過已停止的本機服務並檢查靜態政策 canonical 路徑。健康回應保留 model 欄位。5 項診斷測試及 2 項 REST/workerd 整合測試重跑通過。部署版本 653861c9-396c-4906-96c7-43463707aa88，產品版本維持 0.2.6。
+
+證據：test-results/cloud-live-verification.json、cloud-discord-readiness.json、cloud-final-integration.log、cloud-active-status.json；私密交接與還原證據位於 backups/cloud-handoff/20261024。金鑰單獨放在 data/backup-keys，未放入加密備份。原全專案與 maintenance/highlights 額度已移交同一 DO，原三檔保留。Cloudflare 保存的加密副本已下載還原驗證，額外 Google Drive 副本尚未接入。
+
+### 此次切換後的回退注意
+
+本機 .env.server.local、.env.firestore.local 的 FIRESTORE_LIVE_ENABLED 已設為 false，防止誤啟動本機 writer 或額度消費者。不要直接改回 true。先按上方 pause → backup 完成 → export/release → restore 完成；return-quota 使用 --handoff backups/cloud-handoff/20261024/handoff.json 與 --env backups/cloud-handoff/20261024/.env.server.local（原設定備份，唯讀取得額度路徑）。三組額度回傳成功且全資料驗證後，才恢復本機 live 開關、取得最新備份與更新 baseline，再啟動唯一 Node writer 及重新配置 Discord 公開入口。舊臨時通道不能視為永久可用回退網址。
+
+雲端已啟用的狀態下，不執行本機 firestore:backup/status 或其他 Firestore CLI；讀取雲端 cloud:control status 不重設額度。新的診斷命令：npm run discord:check -- --cloud --discord --public-origin https://jokers-circus.nini900219.workers.dev。實際手機／雙裝置、音效及自然大獎仍需真人確認。
+
+Discord 網頁實際驗收：以既有帳號啟動雲端 Activity，登入成功，餘額 10,035 與最終備份一致；遊玩紀錄顯示 10/23 14:13–14:14 使用者新增的 5 局及可載入更早紀錄。未按 spin、簽到或發送公告。本機 Node 與舊 tunnel 均已退出；雲端保持 active。手機／雙裝置、新局及自然大獎仍待使用者實測。
+
+10/24 追加運行確認：服務 active、最近 alarm 成功；不中斷服務觸發同一備份流程成功，下載 cloud-monitor-1712.json 並還原 cloud-monitor-1712.sqlite，7 表與交接資料完整一致（revision 779）。額度保護及回退隔離測試記錄見 test-results/cloud-monitor-protection-tests.log。24 小時自動備份尚未到期，不能把本次手動觸發當作跨日自動驗收；目前備份與 alarm 狀態正常。額度原值不變，沒有暫停、釋放雲端或啟動本機 writer。

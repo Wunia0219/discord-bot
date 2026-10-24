@@ -1,5 +1,7 @@
 # Discord 實測入口與回退
 
+> **2026-10-24 最新狀態：已切換 Cloudflare Workers Free。** 固定入口 https://jokers-circus.nini900219.workers.dev；Discord 根對應及互動端點已儲存。本機 writer 已停用，電腦不需持續開機。最新完整備份與雲端還原逐表比對通過。回退必須先釋放雲端 writer 並回傳原額度，詳見 [雲端手冊](cloud-runtime.md)。下方本機通道與早期規劃為歷史紀錄，以本段及雲端手冊為準。
+
 2026-10-24，0.2.6。已啟用本機 4188 服務、臨時 HTTPS 通道及「記事小本本 → #bot測試」專用精彩得獎 Webhook。現行資料為 `slot-game-203db / jokers-circus-v2-20261024-test`，已完成安全遷移及自動驗收，見 [遷移結果](firestore-v2-migration-status.md)。
 
 本次原通道已退出，重新建立的網址為 `https://gifts-clusters-vbulletin-big.trycloudflare.com`。Portal 根對應與互動端點已更新儲存並通過端點驗證；28 項唯讀診斷、6 項真實資料 API 驗收與切換後完整備份通過。請關閉舊 Activity 再重新啟動；雙裝置及自然大獎仍需真人實測。
