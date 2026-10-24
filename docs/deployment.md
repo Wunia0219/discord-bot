@@ -1,24 +1,45 @@
 # 啟動、Discord 與錢包維護
 
-## 本機
+2026-10-24 更新，工作區版本 **0.2.7**。本次更新隱私頁、過期文件及版本，沿用 [已驗收停輪基準](reel-timing-baseline.md)，規則與資料格式不變。
+
+## 目前雲端入口與維運
+
+目前 Discord Activity、遊戲 API、互動端點及政策頁由 `https://jokers-circus.nini900219.workers.dev` 提供。Workers Free／SQLite Durable Object 已完成 Secrets、原持久額度與唯一 writer 交接，權威帳本仍為原 Firestore Spark v2。固定入口及雲端排程不依賴個人電腦開機；本機 4188 writer 與舊通道已停用，4189 僅供隔離 SQLite QA。
+
+```powershell
+# 私有狀態：備份、alarm 與原額度，不重設預算。
+npm run cloud:control -- status --env .env.cloud.local
+
+# 下載最後有效加密備份到新檔案，不停止服務、不釋放 writer。
+npm run cloud:control -- archive --env .env.cloud.local --to backups/cloud-handoff/new-archive.json
+
+# 現行雲端入口與 Discord 唯讀診斷，不發送訊息。
+npm run discord:check -- --cloud --discord --public-origin https://jokers-circus.nini900219.workers.dev
+```
+
+雲端 active 時，不執行本機 `activity:server`、`firestore:backup`、`firestore:status`、`firestore:operations` 或其他直接存取現行 Firestore 的 CLI，也不解除本機 `FIRESTORE_LIVE_ENABLED=false`。回退必須按 [雲端手冊](cloud-runtime.md)完成 pause、最新備份、export/release、還原驗證與原三組額度回傳；不要直接重啟舊 writer、重新 seed、重設額度或恢復過期資料。
+
+Cloudflare 加密快照已下載還原並逐表比對；首次跨日自動備份、獨立恢復金鑰保管、外部故障通知、真人雙裝置與自然大獎，以及小群容量觀察仍待收尾，詳見 [收尾計畫](roadmap.md)。以下 Node／SQLite 操作保留供隔離開發與完成交接後的回退，不是目前雲端的日常操作方式。
+
+## 本機與隔離 Node 開發
 
 Node.js 24。執行 `npm ci` 後，`npm run dev` 在 127.0.0.1:4187 提供瀏覽器試玩；此模式只使用 localStorage，不更動 Discord 帳號錢包。
 
-Discord 測試使用 `npm run activity:serve`：建置後，由 4188 的 Node 服務一起供應前端與 API。後端環境檔為 `.env.server.local`；前端公開設定為 `.env.local`，範本見根目錄 `.env.example` 及 `deploy/server.env.example`。Client Secret 只放後端，不能使用 `VITE_` 前綴。
+隔離 Node Discord 測試可使用 `npm run activity:serve`：建置後，由 4188 的 Node 服務一起供應前端與 API。不可使用現行雲端帳本；目前 `.env.server.local` 保留的 live 關閉保護不為測試解除。前端公開設定為 `.env.local`，範本見根目錄 `.env.example` 及 `deploy/server.env.example`。Client Secret 只放後端，不能使用 `VITE_` 前綴。
 
 前端啟用 `VITE_DISCORD_AUTH_ENABLED=true`、`VITE_DISCORD_WALLET_ENABLED=true`。後端需設定 Application ID、Client Secret、Public Key、`WALLET_ENABLED=true`、明確的 `ALLOWED_GUILD_IDS`、`APP_ENV=test` 與測試資料庫路徑。日誌與憑證不要提交版本庫。
 
 Discord 錢包啟動時必須明確填入 `APP_ENV=test` 或 `production`，不再預設為測試環境。Application ID、Client Secret 及 64 位十六進位 Public Key 會在建立資料夾、開啟資料庫與監聽 HTTP 前檢查；缺漏或格式錯誤即拒絕啟動。這是本機設定檢查，不表示已向 Discord 驗證憑證的有效性。明確啟用的 loopback 假帳號模式保留原本的獨立限制，不需要 Discord 憑證。
 
-`/api/token` 每個服務程序最多同時交換 8 筆登入；滾動 60 秒視窗最多 120 次嘗試，10 次失敗後暫停新交換，直到有失敗離開視窗。成功登入不計入失敗，也不清除既有失敗。限流回傳 429 及 `Retry-After` 秒數；Discord 回傳 429 時也會暂停交換，依其有效的 1 小時以內重試秒數等待，缺漏或異常值則等待 60 秒。預算由所有登入共用，避免將 Discord／通道的共用代理誤認為個別玩家，不信任 `X-Forwarded-For` 或 `CF-Connecting-IP` 來分配額度。計數只留在記憶體，服務重啟會重置；可能讓其他新登入一併等待，不影響已建立的錢包 session。
+`/api/token` 每個服務程序最多同時交換 8 筆登入；滾動 60 秒視窗最多 120 次嘗試，10 次失敗後暫停新交換，直到有失敗離開視窗。成功登入不計入失敗，也不清除既有失敗。限流回傳 429 及 `Retry-After` 秒數；Discord 回傳 429 時也會暂停交換，依其有效的 1 小時以內重試秒數等待，缺漏或異常值則等待 60 秒。預算由所有登入共用，避免將 Discord／通道的共用代理誤認為個別玩家，不信任 `X-Forwarded-For` 或 `CF-Connecting-IP` 來分配額度。Node 計數只留在記憶體，程序重啟會重置；現行 Worker 的限流狀態則持久保存在同一 DO。可能讓其他新登入一併等待，不影響已建立的錢包 session。
 
-## Discord 與測試通道
+## Node Discord 測試通道（隔離開發／歷史回退）
 
-使用者已選擇零費用、不依賴個人電腦常駐的方向；目前本機通道仍需電腦開機，雲端相容性與移植計畫見 [零費用雲端運行](zero-cost-hosting.md)。加密完整備份與離線還原操作見 [可攜式備份](portable-backup.md)。
+目前固定雲端入口已取代本機通道；[零費用雲端運行](zero-cost-hosting.md)保留方案決策。以下僅說明另外安排的隔離 Node 測試或完成回退交接後的通道設定，不能拿舊臨時網址當作可用的回退入口。加密本機快照操作見 [可攜式備份](portable-backup.md)，雲端 archive 的恢復格式與操作另見 [雲端手冊](cloud-runtime.md)。
 
-開發期間先保留本機後端與臨時通道，固定網址及 Netlify 部署等正式上架前再安排。每次測試先確認既有通道可用，可用時沿用；若通道失效，再重建並更新 Discord 後台的 Activity Mapping 與 Interactions Endpoint。
+目前真人驗收直接使用既有雲端 Activity，不重建通道或更動 Mapping。若另外安排隔離應用測試，先核對應用程式、資料及入口範圍，避免覆蓋目前服務的 Discord 設定。
 
-目前的公開測試、專用 Webhook、完整備份及可執行的回退方式集中於 [Discord 測試入口](discord-test-entry.md)。
+目前真人同步驗收步驟見 [測試說明](bot-testing.md)；[Discord 測試入口](discord-test-entry.md)保留舊本機通道、Webhook 卡片及備份的歷史證據，不作現行回退指令。
 
 - 已有本機通道時，網址與程序資料位於被忽略的 `.tools/activity-tunnel.json`、`.tools/activity-server.json`，不要沿用舊文件中的臨時網址。
 - 新建本機通道：`.\.tools\cloudflared.exe tunnel --url http://127.0.0.1:4188 --http-host-header localhost:4188`。執行檔需來自 Cloudflare 官方來源。
@@ -26,13 +47,13 @@ Discord 錢包啟動時必須明確填入 `APP_ENV=test` 或 `production`，不�
 - OAuth Redirect 使用 `https://127.0.0.1`；授權 scope 為 `identify`、`guilds.members.read`。Application 必須對應相同的前後端 ID。
 - Interactions Endpoint 使用目前 HTTPS 網址加 `/api/interactions`，與 Activity Mapping 是不同欄位。
 - `npm run commands:register` 只更新本應用程式的具名群指令，不覆蓋其他入口；只在調整指令定義或安裝新群時執行。
-- 修改前端或重啟後端後，關閉並重新開啟 Activity。Session 最長一小時，重啟後需重新登入；SQLite 餘額及紀錄保留。
+- 修改前端後，關閉並重新開啟 Activity。Session 最長一小時；Node 記憶體 session 在重啟後需重新登入，現行 Worker 使用加密持久 session。後端已提交的餘額及紀錄保留。
 
 健康檢查為 `/healthz`。本機及公開通道應回報相同模型 `circus-243-v2`。載入失敗先檢查 4188 程序與通道，再檢查 Mapping；登入失敗檢查 Application ID、後端設定及群成員資格。不同瀏覽器來源的 localStorage 不會匯入伺服器錢包。
 
 ## 錢包後端本機開發
 
-目前沿用 `backend` 分支，遊戲版本為 0.2.6。這一階段使用本機服務與獨立資料檔，先完成驗收再選擇正式主機。不要因開發分支存在就假設 Netlify 不會建置；後續如需推送或建立 PR，應先確認 Netlify 的 Branch deploys 與 Deploy Previews 設定。本機編輯、建置和自動測試本身不會觸發 Netlify 部署。
+工作區遊戲版本為 0.2.7，本機開發使用獨立服務與資料檔，與現行雲端 writer 分開。不要因開發分支存在就假設 Netlify 不會建置；後續如需推送或建立 PR，應先確認 Netlify 的 Branch deploys 與 Deploy Previews 設定。本機編輯、建置和自動測試本身不會觸發 Netlify 部署，版本升號也不代表已發布。
 
 1. 以 `deploy/backend.env.example` 建立被 Git 忽略的 `.env.backend.local`。填入同一 Discord 應用程式的後端憑證及明確的 `ALLOWED_GUILD_IDS`，不能把 Client Secret 放到任何 `VITE_` 設定。
 2. 開發環境固定使用 `APP_ENV=test`、`DATABASE_PATH=data/backend.sqlite`、`BACKUP_DIRECTORY=backups/backend`、`HOST=127.0.0.1`、`PORT=4189`，與既有 `.env.server.local`／4188 服務分開。得獎公告 Webhook 預設留空；只有要測試公告時才設定專用頻道。
@@ -66,7 +87,7 @@ npm run backend:restore -- --from backups/backend/test-某次備份.sqlite --to 
 
 這些管理工具都要求明確的 `APP_ENV=test` 或 `production`。在正式主機可以直接使用環境變數配合 `node scripts/admin/init-db.js`、`check-db.js`、`backup-db.js`、`restore-db.js`，不需要複製本機憑證檔。
 
-### 自動備份與監控
+### Node／SQLite 自動備份與監控
 
 SQLite 模式下，`WALLET_ENABLED=true` 時，服務預設啟用 `OPERATIONS_ENABLED=true`。啟動立即檢查，之後每 5 分鐘在獨立 worker 唯讀驗帳、檢查資料庫及備份磁碟剩餘空間、驗證最近備份的 SHA-256；沒有有效備份或距上次成功已滿 6 小時時，建立包含 WAL 的一致快照並重新驗帳。排程不依賴玩家流量，同一程序不重疊執行，重啟會沿用未到期且校驗正確的備份。需要單一實例及持久磁碟；SQLite 維護不支援多程序同時操作同一個來源。Firestore 的排程及額度另見下方專節。
 
@@ -86,17 +107,17 @@ SQLite 模式下，`WALLET_ENABLED=true` 時，服務預設啟用 `OPERATIONS_EN
 
 4188 使用 `npm run db:status`，4189 使用 `npm run backend:status`；主機可直接執行 `node scripts/admin/operations-status.js`。指令同時檢查狀態檔是否過期及本機 `/readyz` 是否可連線，異常以非零狀態結束，不把程序停止前留下的綠色檔案當作健康。啟動後首次背景驗帳完成前、資料庫異常、磁碟不足或監控過期時，`/readyz` 回傳 503，公開內容仍僅為 `{ok:false}`；備份失敗會讓管理狀態報警，但不單獨阻止正常錢包結算。`/healthz` 仍只表示 HTTP 程序存活。
 
-目前只提供本機狀態與日誌，沒有向 Email／Discord 發送通知。程式停止、電腦關機或磁碟整個損壞時，程序內排程無法繼續工作；這些同機副本也不能代替異地備份。正式部署後須另外安排外部可用性監控及異地還原驗收，尚未建立任何外部監控或排程。
+上述 Node 模式只提供本機狀態與日誌，沒有向 Email／Discord 發送通知；程序停止時本機排程不工作，同機副本不能代替異地備份。現行 Worker 的雲端 alarm 與加密備份已另外啟用，不依賴此 Node 程序；外部可用性監控與故障通知仍未接入。
 
-目前 Firebase 為 Spark 免費方案，使用本機 Node＋Firestore；部署平台尚未定案。UptimeRobot 為可選的公開可用性監控，本輪不接入。Spark 的免費讀寫配額不包含 Firestore 原生備份／PITR，也不能將本機容量上限視為雲端費用保障。[Firestore 配額](https://firebase.google.com/docs/firestore/quotas)、[Firebase 方案](https://firebase.google.com/docs/projects/billing/firebase-pricing-plans)
+目前權威帳本仍為 Firestore Spark，執行入口已採 Cloudflare Workers Free；Node 流程保留供隔離開發及回退。UptimeRobot 為可選外部監控，尚未接入。Spark 的免費讀寫配額不包含 Firestore 原生備份／PITR，也不能將本機容量上限視為雲端費用保障。[Firestore 配額](https://firebase.google.com/docs/firestore/quotas)、[Firebase 方案](https://firebase.google.com/docs/projects/billing/firebase-pricing-plans)
 
-### Firestore Spark 接入
+### Node Firestore Spark 接入（隔離／回退工具）
 
-資料格式預設為 `FIRESTORE_SCHEMA_VERSION=1`，保留既有命名空間相容。v2 已完成每局六次寫入、無損近期快取與輕量 API；需透過完整快照移入**新的空白命名空間**後才能採用。不要原地改 metadata 或清空配額檔。規劃、dry-run、切換、備份設定與保留新進度的回退方式集中於 [Firestore v2](firestore-v2.md)。
+Node 範本預設 `FIRESTORE_SCHEMA_VERSION=1` 以保留相容；現行服務已完成 v2 遷移並由 Worker 使用。新遷移仍須完整快照移入**新的空白命名空間**，不要原地改 metadata 或清空配額檔。原遷移與格式契約見 [Firestore v2](firestore-v2.md)，目前 writer 所有權及額度回傳優先依 [雲端手冊](cloud-runtime.md)。
 
-目前遊戲版本為 0.2.6。伺服器可明確選擇 `WALLET_BACKEND=sqlite`（預設）或 `firestore`。Firestore 模式目前限 `HOST=127.0.0.1`；只使用 Firestore Standard 的 `(default)` 資料庫，不需要新增 Firebase 網頁應用程式、Authentication、Cloud Storage 或 UptimeRobot。Discord 身分與伺服器權限仍由原本的 Node 後端驗證，瀏覽器不持有 Google 伺服器憑證，也不能直接修改錢包。
+Node 伺服器可明確選擇 `WALLET_BACKEND=sqlite`（預設）或 `firestore`。Node Firestore 模式限 `HOST=127.0.0.1`，只使用 Firestore Standard 的 `(default)` 資料庫。瀏覽器不持有 Google 伺服器憑證，也不能直接修改錢包；目前雲端的 Discord 驗證與原子結算透過共用核心與 REST adapter 執行，不依賴本機 Node 常駐。
 
-設定流程：
+以下為 Node 首次接入流程；現行雲端已交接完成，不得用它重新開啟 live、消費原資料或重設預算：
 
 1. 沿用 Spark 專案 `slot-game-203db`。Firestore 資料庫已建立為 Standard、`(default)`，實際區域為美國多區域 `nam5`。區域建立後不能直接修改；如需台灣區域，須另外規劃資料庫及遷移，不能直接更改現有資料庫。
 2. 專案設定 → 服務帳戶 → Firebase Admin SDK → Node.js，產生私密金鑰；JSON 放在版本庫外的私密位置。應使用具 Firestore 所需 IAM 權限的服務身分，不將金鑰貼到聊天、前端、日誌或 Git。
@@ -194,7 +215,7 @@ Firestore 原生排程備份及還原需要 Blaze。本機 Node 在 Spark 使用
 
 ## 錢包與指令
 
-錢包主鍵為伺服器 ID＋經 Discord 驗證的帳號 ID。同群跨裝置同步，不同群分開。停點與派彩由後端產生；扣注、派彩、紀錄及操作去重在同一 SQLite 交易中完成。
+錢包主鍵為伺服器 ID＋經 Discord 驗證的帳號 ID。同群跨裝置同步，不同群分開。停點與派彩由後端產生；扣注、派彩、紀錄及操作去重在同一原子交易完成，SQLite 開發使用 SQLite 交易，現行雲端使用 Firestore v2 交易。
 
 測試新錢包首次 10,000；正式新錢包從 0 起。環境資料庫不能混用。每日簽到 500，Asia/Taipei 00:00 換日，同日只能入帳一次。單錢包開轉間隔至少 2 秒；同局重送沿用原請求及結算，不重複扣款。
 
@@ -228,25 +249,25 @@ Firestore 原生排程備份及還原需要 Blaze。本機 Node 在 Spark 使用
 
 Discord 應用程式顯示名稱為「🎲命運荷官」，營運團隊為 Wunia Studio，公開客服與個人資料要求信箱為 `nini900219@gmail.com`。Joker’s Circus 是目前的遊戲名稱。應用程式名稱在「一般資訊」設定；群內機器人帳號名稱另在「機器人 → 使用者名稱」設定，兩者需分別確認並儲存。若伺服器另設機器人暱稱，也需核對該群的顯示設定。
 
-`public/terms.html` 與 `public/privacy.html` 為 Wunia Studio 的服務條款、隱私權政策，共用 `public/legal.css`，生效及更新日期為 2026-10-20。Vite 建置會複製到 `dist/`，現有 Node 靜態服務及 Docker 建置可一起供應 `/terms.html`、`/privacy.html`，不需要 Discord 登入即可閱讀。遊戲「遊戲規則」底部提供連結，政策頁亦可返回遊戲。
+`public/terms.html` 與 `public/privacy.html` 為 Wunia Studio 的服務條款、隱私權政策，共用 `public/legal.css`；條款日期為 2026-10-20，隱私頁於 2026-10-24 更新目前 Cloudflare 託管、加密登入與備份事實。Vite 建置會複製到 `dist/`；Worker 靜態資產供應政策頁，canonical 路徑為 `/terms`、`/privacy`，不需 Discord 登入。Node／Docker 仍可供應 `.html` 路徑；遊戲規則底部及政策頁互相提供連結。
 
-公開網站為 `https://jokers-circus.netlify.app/`，連接 GitHub `Wunia0219/discord-bot` 的 `main` 分支。發布政策使用現有網站，不另建專案。網站靜態檔由 Netlify 提供，Discord 測試後端仍是 Wunia Studio 管理的設備，經 Cloudflare 通道提供服務；不可僅因前端上 Netlify 就將 `/api/interactions` 改指向靜態網站。後端、供應商或保存方式變更時，要同步更新政策。
+目前 Discord 遊戲、API 與政策入口均在既有 Worker 固定網址；一般瀏覽器靜態試玩另有 `https://jokers-circus.netlify.app/`，連接 GitHub `Wunia0219/discord-bot` 的 `main` 分支。不要把只提供靜態檔的 Netlify 網站當作 `/api/interactions` 後端。發布政策時使用既有入口，不另建專案；若同步更新 Netlify 副本，先確認其建置來源與自動部署範圍。後端、供應商或保存方式變更時，同步更新政策。
 
 目前錢包資料及手動備份未設固定天數的自動清除排程。公開政策如實描述保存目的、停止營運及有效刪除要求的處理條件，不宣稱已有自動刪除工具。維運人員須檢視保存必要性，不再必要的資料應清除。
 
-發布後將 `https://jokers-circus.netlify.app/terms.html`、`https://jokers-circus.netlify.app/privacy.html` 分別填入 Developer Portal → 一般資訊的服務條款與隱私權政策欄位並儲存，再回到應用程式驗證查看資格及進行驗證。應用程式是否通過以 Discord 後台狀態為準。請用未登入 Discord 的瀏覽器確認兩頁 HTTP 200 且能直接閱讀；本機網址及臨時測試通道不適合作為正式政策網址。
+10/24 已將 Developer Portal 的政策網址切換為固定 Worker 的 `/terms`、`/privacy`；沿用既有設定，文件更新不需重設 Portal。發布後用未登入 Discord 的瀏覽器確認兩頁可直接閱讀且內容正確；`.html` 連結可能重新導向 canonical 路徑。應用程式驗證是否通過仍以 Discord 後台狀態為準，本機網址與臨時通道不作正式政策入口。
 
 ### 人工處理資料要求
 
 1. 由公開信箱受理查詢、更正及刪除要求，核對要求人確實控制對應 Discord 帳號；不能只根據 Email 內聲稱的帳號 ID 就刪除。確認伺服器、要求範圍及相關公告訊息連結，不索取密碼或權杖。
-2. 查詢目前資料庫與團隊控制的備份。刪除需安排後端停機維護，停止新請求並清除記憶體中的登入工作階段；僅能處理身分與範圍已核對的要求。
+2. 查詢目前資料庫與團隊控制的備份。刪除需先規劃受控維護，停止相關新請求並使登入工作階段失效；現行雲端包含加密持久 session，不能只清除本機記憶體。任何資料維護都須與唯一 writer、完整性與原額度保護協調；僅處理身分與範圍已核對的要求，不提供未實作的一鍵刪除承諾。
 3. 普通 API 的帳本禁止修改與刪除。由具資料庫維護權限的人員，在受控離線維護中處理該帳號的錢包、回合、帳本、操作去重資料及得獎公告佇列；若其帳號作為其他成員紀錄的操作者出現，移除可識別該操作者的內容，同時保留其他成員所需的餘額與結算完整性。維護完成後必須保留正常帳本的禁止竄改保護，並檢查關聯、資料庫完整性及其他成員餘額。
 4. 同時處理可控備份及本服務發布的相關 Discord 公告。不要把含待刪除資料的舊資料庫或維護副本無限期保留下來；備份還原前亦須重新套用已確認的刪除要求。若依法必須保留部分資料，記錄範圍與理由。
 5. 恢復服務並回覆要求人處理範圍及結果。上述流程由維運人員人工執行，不應宣稱有自助刪除或一鍵清除功能，也不要在一般執行中的服務直接解除帳本保護。
 
-## 部署與備份
+## Node／Docker 部署與備份（保留工具）
 
-後續部署可使用現有的 Netlify 與 Firebase 帳號；實際部署時再依後端執行環境及資料持久化需求選擇配置。
+目前執行環境已採 Cloudflare Workers Free＋Firestore Spark，日常更新及回退依 [雲端手冊](cloud-runtime.md)。以下 Node／Docker 方案保留供獨立環境與完成交接後的回退，不是現行服務待執行的部署步驟。
 
 Dockerfile 提供 Node 24 建置與執行環境，執行期保留目前及歷史驗證所需的完整模組。建置只傳公開 Application ID；密鑰由執行環境注入。
 

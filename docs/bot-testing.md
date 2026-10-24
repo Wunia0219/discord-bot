@@ -1,10 +1,14 @@
 # Bot 功能測試
 
+2026-10-24 更新，工作區版本 **0.2.7**。目前真人驗收使用既有 Cloudflare 固定入口與 Firestore v2；本機 4188 writer 已停用，4189 SQLite QA 保持隔離。停輪手感沿用 [已驗收基準](reel-timing-baseline.md)，剩餘項目見 [收尾計畫](roadmap.md)。
+
 ## 自動測試
 
 v2 另外由 `tests/firestore-v2.integration.js` 驗證實際讀寫量、冷登入一讀、原始資料遷移、跨裝置、完整歷史、備份及回退至 v1；`tests/firestore-schema.test.js`、`firestore-import-plan.test.js`、`wallet-sync.test.js` 驗證無損快取、dry-run 與前端同步。指標與環境界線見 [Firestore v2](firestore-v2.md)。
 
-`tests/firestore-highlights.integration.js` 驗證公告與結算原子提交、普通局六次寫入、並行去重、派送鎖、長時間 429、逾時／重啟、跨群隔離、持久子額度及公告備份回退；只使用官方本機模擬器與假 Discord 回應。`tests/discord-readiness.test.js` 驗證啟動診斷不修改遠端或洩漏密鑰。手動使用 `npm run discord:check -- --discord` 時才會以現有應用程式權杖唯讀查詢 Discord，詳細界線見 [Discord 啟動驗收](discord-readiness.md)。
+`tests/firestore-highlights.integration.js` 驗證公告與結算原子提交、普通局六次寫入、並行去重、派送鎖、長時間 429、逾時／重啟、跨群隔離、持久子額度及公告備份回退；只使用官方本機模擬器與假 Discord 回應。`tests/discord-readiness.test.js` 驗證啟動診斷不修改遠端或洩漏密鑰。手動使用 `npm run discord:check -- --cloud --discord --public-origin https://jokers-circus.nini900219.workers.dev` 時才會以現有應用程式權杖唯讀查詢 Discord，詳細界線見 [Discord 啟動驗收](discord-readiness.md)。
+
+`npm run test:cloud` 使用真正 workerd／Miniflare 與官方 Firestore emulator，驗證 REST／SDK 原請求互通、持久 session／額度、alarm、固定 readTime 備份、checkpoint 重啟及新增進度回退；外部 Google／Discord 呼叫以測試替身隔離。`npm run cloud:build` 僅做 Worker dry-run，不發布；本機平台工具需求見 [雲端手冊](cloud-runtime.md)。
 
 需要 Node.js 24，在專案根目錄執行：
 
@@ -42,13 +46,13 @@ npm run test:bot
 
 `tests/firestore-quota.test.js` 包含持久額度、跨程序共用檔案、滾動 24 小時、傳輸／儲存門檻、文件覆寫成長及錯誤設定；列入 `npm test`。`npm run test:firestore` 另外啟動官方本機模擬器，執行 `tests/firestore.integration.js`：不同裝置同時簽到／開轉、重啟與遺失回應、管理發放／更正、完整摘要與 100 局快取、額度不足的交易回滾、非同步 HTTP／Discord、匿名存取拒絕，以及 SQLite 匯入、完整比對、中斷接續及不覆蓋既有資料。模擬器驗收不能取代 Spark 真實專案的 IAM、配額與跨裝置驗收。
 
-`tests/pending-reels.test.js` 驗證轉輪等待網路時的首幀移動、長時間固定緩衝、符號邊界連續性，以及收到權威停點後無跳動銜接、速度連續與快停不延長。SPIN 先啟動動畫再等待錢包；尚未確認結果時快停或切到背景都不能自行落下，連線失敗會取消動畫並回復已確認盤面，同一請求重試沿用原有去重機制。減少動態偏好保留靜態等待與短動畫。0.2.5 此修正的完整回歸為 273 項通過；另在瀏覽器實際場景驗證 7 項狀態切換及 6 秒慢回應，報告位於本機 `test-results/spin-immediate-0.2.5-summary.json`。
+`tests/pending-reels.test.js` 驗證轉輪等待網路時的首幀移動、長時間固定緩衝、符號邊界連續性，以及收到權威停點後無跳動銜接、速度連續與快停不延長。SPIN 優先送出錢包結算請求，同步啟動動畫；尚未確認結果時快停或切到背景都不能自行落下，連線失敗會取消動畫並回復已確認盤面，同一請求重試沿用原有去重機制。減少動態偏好保留靜態等待與短動畫。0.2.5 此修正的完整回歸為 273 項通過；另在瀏覽器實際場景驗證 7 項狀態切換及 6 秒慢回應，報告位於本機 `test-results/spin-immediate-0.2.5-summary.json`。目前的停輪參數與後續量測清理以 [停輪基準](reel-timing-baseline.md)為準。
 
 ## Discord 電腦與手機同步驗收
 
-本輪 Spark 讀取優化另由 `tests/firestore-history.test.js` 驗證情境成本、空集合、亂序日期、跨頁不漏／不重複與查詢失敗；`tests/firestore.integration.js` 驗證實際索引查詢、台灣日期範圍、冷卻讀取及就緒合併，既有備份／還原驗收繼續執行。結果與限制見 [Spark 優化](spark-optimization.md)。採用本輪程式後，以下真人驗收仍需重新執行。
+Spark 讀取優化另由 `tests/firestore-history.test.js` 驗證情境成本、空集合、亂序日期、跨頁不漏／不重複與查詢失敗；`tests/firestore.integration.js` 驗證實際索引查詢、台灣日期範圍、冷卻讀取及就緒合併，既有備份／還原驗收繼續執行。第一輪歷史結果見 [Spark 優化](spark-optimization.md)，現行 v2 及雲端進度見 [雲端手冊](cloud-runtime.md)。以下真人同步與故障恢復驗收尚未完整記錄，不重做已接受的停輪調整。
 
-使用 `.env.server.local` 啟動 `npm run activity:server`，設定 `APP_ENV=test`、`WALLET_ENABLED=true`、明確的測試伺服器 allowlist 與資料庫；不可啟用 `LOCAL_WALLET_TEST`。僅把此服務的 4188 連接埠接到臨時通道，更新 Discord 活動根 URL 對應及互動端點。4189 的假帳號驗收服務維持本機使用。
+直接使用目前 Discord 固定入口 `https://jokers-circus.nini900219.workers.dev`，保留已設定的群 allowlist、Mapping 與互動端點。先用雲端模式執行唯讀診斷；不要啟動 4188、重建臨時通道、改開本機 live 或將假帳號服務接到公開入口。4189 的假帳號驗收服務維持本機使用。
 
 兩台裝置都從 Discord 的同一個測試伺服器開啟活動，使用同一個帳號，並關閉自動旋轉。核對玩家 ID、初始餘額及最近紀錄；一般瀏覽器預覽和本機玩家 A 不屬於這個錢包。
 

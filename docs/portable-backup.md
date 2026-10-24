@@ -1,6 +1,8 @@
 # 加密備份與離線還原
 
-`npm run backup:portable` 使用已驗帳的 SQLite 完整快照，產生可攜式 `.jcbak` 加密檔。Firestore 的一致快照先由既有 `firestore:backup` 取得；這個工具本身不連 Firestore、不開遊戲服務，也不改任何雲端資料。
+`npm run backup:portable` 使用已驗帳的 SQLite 完整快照，產生可攜式 `.jcbak` 加密檔；這個工具本身不連 Firestore、不開遊戲服務，也不改任何雲端資料。
+
+2026-10-24 現況：Discord 服務已移至 Cloudflare，雲端加密備份已下載還原並逐表比對。現行備份先以 `cloud:control archive` 下載，再依 [雲端手冊](cloud-runtime.md)使用對應恢復工具；雲端 JSON archive 與本頁 `.jcbak` 是不同格式。雲端 active 時不得用本機 `firestore:backup` 直接存取現行資料，Node 來源流程僅供隔離開發或完成 writer／額度交接後使用。
 
 ## 操作
 
@@ -32,7 +34,7 @@ npm run backup:portable -- restore --from backups/encrypted/snapshot.jcbak --to 
 - 用同磁碟硬連結完成不覆蓋的發布；不支援硬連結的檔案系統會拒絕。先在本機 NTFS／相容檔案系統產生驗證完成的加密檔，再傳送至雲端。不得因失敗改成覆寫原資料。
 - 一般失敗會清除本次擁有的暫存檔；程序或主機突然中斷可能留下 `.partial` 或私密暫存目錄。未完成檔不當成備份，不自動清理來源或其他檔案。
 
-這是可攜式備份工具，不是已啟用的異地排程。雲端上傳必須另指定保存位置與權限，只有完成上傳、下載、驗證及隔離還原後，才算異地恢復驗收。
+本工具負責本機快照的可攜式加密，不建立雲端排程。現行 Cloudflare 排程及下載還原已另行實作並驗證；首次跨日自動備份含新增進度的驗收、恢復金鑰獨立保管及額外 Google Drive 副本狀態，統一見 [收尾計畫](roadmap.md)。
 
 ## 2026-10-23 實測資料演練
 

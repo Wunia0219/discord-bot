@@ -2,15 +2,16 @@
 
 Discord Activity 內部試玩遊戲。後端負責算獎、籌碼、每日簽到與請求去重；每個伺服器的玩家錢包獨立。
 
-版本 **0.2.6**，`package.json` 為唯一版本來源。只有使用者明確指定時才更新版本；規則識別碼 `circus-243-v2` 獨立維護，歷史回合保留原規則及結果。
+版本 **0.2.7**，`package.json` 為唯一版本來源。本次依使用者要求更新隱私頁與過期文件，沿用 0.2.6 已驗收的停輪設定；只有使用者明確指定時才更新版本。規則識別碼 `circus-243-v2` 獨立維護，歷史回合保留原規則及結果。
 
 ## 現況與下一步
 
-- 已完成：243 路玩法、Discord 登入與管理指令、SQLite／Firestore 錢包、斷線重送、完整帳本與備份、荷官 idle／win、音效、快停及自動旋轉。
+- 已完成：243 路玩法、Discord 登入與管理指令、SQLite／Firestore 錢包、斷線重送、完整帳本與備份、荷官 idle／win、音效、背景音樂、快停及自動旋轉。
 - 10/24 使用者已驗收目前的正常／快速停輪及量測清理，之後維持 [已驗收停輪基準](docs/reel-timing-baseline.md)。
 - 目前 Discord 試玩入口運行於 Cloudflare Worker／SQLite Durable Object，使用原 Firestore Spark v2 帳本。本機 4188 writer 已停用；4189 保留隔離 SQLite 測試。雲端維運與回退以 [雲端執行紀錄](docs/cloud-runtime.md) 為準；[原本機入口紀錄](docs/discord-test-entry.md) 僅供歷史參考。
 - 本輪已完成 v2：每局 10→6 次寫入、無損近期快取、輕量狀態與增量同步、較舊紀錄載入、空白命名空間遷移及雙向還原測試。10/24 已安全切換現有服務至 v2，採用步驟與量測見 [Firestore v2](docs/firestore-v2.md)。第一輪讀取優化見[用量與驗證](docs/spark-optimization.md)。
 - 已完成 [加密備份與離線還原](docs/portable-backup.md) 及雲端切換驗證，Worker、持久額度、加密登入、備份與公告 alarm 已上線。額外 Google Drive 副本尚未接入；備份進度與回退限制見 [雲端執行與回退](docs/cloud-runtime.md)。下一步、依賴與驗收條件集中在[實作計畫](docs/roadmap.md)。
+- 剩餘收尾：首次跨日自動備份含新增進度的還原驗收、獨立恢復金鑰保管、外部故障通知、真人手機／雙裝置與自然大獎驗收，以及小群持續試玩的載入、記憶體與免費額度觀察。已完成的雲端切換、備份下載還原及背景音樂不再列為待開發。
 
 此階段在本機修改與測試；推送、PR、合併或部署另行安排。分支不保證 Netlify 不建置，推送前須確認 Branch deploys／Deploy Previews 設定。
 
@@ -33,14 +34,18 @@ npm run dev
 | `npm run build` | 建置 `dist/` |
 | `npm run backend:init`／`backend:dev` | 初始化／啟動 4189 SQLite 開發服務 |
 | `npm run backend:check` | 唯讀驗帳 |
-| `npm run activity:serve` | 建置並依 `.env.server.local` 啟動 4188 |
-| `npm run db:backup`／`db:status` | 目前後端的手動備份／維運狀態 |
-| `npm run firestore:backup`／`firestore:operations` | 4188 Firestore 邏輯備份／維運狀態 |
+| `npm run cloud:control -- status --env .env.cloud.local` | 目前雲端服務的私有狀態，不重設額度 |
+| `npm run cloud:control -- archive --env .env.cloud.local --to <新檔案.json>` | 下載最後有效加密備份，不停止服務或釋放 writer |
+| `npm run discord:check -- --cloud --discord --public-origin https://jokers-circus.nini900219.workers.dev` | 目前雲端入口與 Discord 唯讀診斷 |
+| `npm run activity:serve` | Node 本機／完成交接後的回退工具；雲端 active 時不可直連現行 Firestore |
+| `npm run db:backup`／`db:status`、`firestore:backup`／`firestore:operations` | Node 備份／維運工具；雲端 active 時不對現行 Firestore 執行 |
 | `npm run backup:portable -- ...` | 完整快照加密匯出、驗證及還原到新檔 |
 | `npm run verify:math`／`verify:sessions` | 完整數學枚舉／固定 seed 回合驗算 |
 | `npm run export:model`／`audio:preview` | 匯出模型／音效試聽 |
 
 模擬器需 Java 21，首次執行 `npm run firestore:emulator:setup`。本機錢包 QA 使用獨立 `.env.backend.local` 與 `data/backend.sqlite`，設定 `LOCAL_WALLET_TEST=true`、`APP_ENV=test`、`HOST=127.0.0.1` 後，開啟 `http://127.0.0.1:4189/wallet-test`。完整設定、備份還原及隔離限制見[部署說明](docs/deployment.md)；驗收步驟見[測試說明](docs/bot-testing.md)。
+
+雲端目前為唯一現行 writer；不要為本機測試重開 4188、重建臨時通道或解除本機 `FIRESTORE_LIVE_ENABLED=false`。回退須完成雲端 pause、最新備份、export/release、還原驗證及原額度回傳，依 [雲端手冊](docs/cloud-runtime.md)執行。
 
 ## 文件導航
 

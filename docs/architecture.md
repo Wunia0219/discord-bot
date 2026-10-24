@@ -1,6 +1,6 @@
 # 現行架構
 
-以 2026-10-23 工作區程式為準；功能排序見 [實作計畫](roadmap.md)，環境參數只在 [部署說明](deployment.md) 維護。
+2026-10-24 更新，工作區版本 **0.2.7**。目前 Discord 服務使用 Cloudflare Workers Free／SQLite Durable Object 與原 Firestore Spark v2；版本更新僅涉及隱私頁與文件，停輪依 [已驗收基準](reel-timing-baseline.md)維持。收尾條件見 [實作計畫](roadmap.md)，現行雲端操作見 [雲端手冊](cloud-runtime.md)，Node／SQLite 設定見 [部署說明](deployment.md)。
 
 ## 模組與邊界
 
@@ -18,6 +18,8 @@
 | 額度／維運 | `firestore-quota.js`、`operations.js`、`maintenance-worker.js` | 持久預算、worker 排程、就緒及私有告警 |
 | 備份／移入 | `firestore-backup.js`、`firestore-import.js` | 一致快照、完整驗證、空白命名空間還原 |
 | 可攜式備份 | `portable-backup.js` | 已驗帳快照加密、驗證及離線還原到新檔，不存取雲端 |
+| 雲端入口／傳輸 | `cloud/worker.js`、`cloud/firestore-rest.js`、`server/app-handler.js` | Worker HTTP、共用授權與結算核心、受 namespace 限制的 REST 原子交易 |
+| 雲端狀態／備份 | `cloud/storage.js`、`quota.js`、`backup.js`、`snapshot.js` | 單一 DO 持久額度、加密 session、alarm、可接續一致快照及還原驗證 |
 
 ## 一次旋轉如何保存
 
@@ -31,7 +33,7 @@
 
 ## Firestore 資料契約
 
-根路徑為 `circus_wallet_v1/<namespace>`。文件主體以 `json` 保存，查詢欄位另外存放。預設結構版本為 1；版本 2 需移入新的空白命名空間，完整操作見 [Firestore v2](firestore-v2.md)。
+根路徑為 `circus_wallet_v1/<namespace>`。文件主體以 `json` 保存，查詢欄位另外存放。目前服務已採用結構版本 2；Node 範本預設仍為 1 以保留相容性，不能直接套到現行服務。新遷移仍須完整快照與空白命名空間驗證，見 [Firestore v2](firestore-v2.md)。
 
 | 資料 | 用途與保留範圍 |
 |---|---|
@@ -51,16 +53,16 @@
 
 ## 運作與恢復界線
 
-- 4188：依 `.env.server.local` 啟動，既有切換記錄是本機 Node＋Firestore Spark。4189：獨立 SQLite QA。實際運行狀態以維運工具為準，文件不代表服務此刻在線。
-- 同專案的所有本機程序共用持久額度檔。多主機部署不能各自複製配額檔後當作共用預算。
-- Firestore 自動備份每 24 小時、輕量檢查每 10 分鐘；補讀增量後產生可獨立還原的完整 SQLite 快照。來源未改動、SHA-256、帳本及回合驗證通過才發布。
-- 快照目前與服務同機；已完成 [加密匯出／離線還原](portable-backup.md)，但異地上傳與外部故障通知未接入。電腦離線時沒有排程，同磁碟損毀仍有風險。後續依 [零費用雲端計畫](zero-cost-hosting.md)移植。
+- 目前唯一現行 writer 在固定 Worker 入口；4188 Node writer 與舊通道已停用，4189 僅供獨立 SQLite QA。實際運行狀態以雲端私有 status 為準，文件不代表服務此刻在線。
+- 原全專案、維護及公告三組持久額度已交接同一 DO；本機保留原檔與 `FIRESTORE_LIVE_ENABLED=false`。雲端 active 時不能另開 Node 或管理 CLI 直連同一 Firestore；多主機不能複製預算後各自消費。
+- 雲端 alarm 一般每 10 分鐘檢查，每 24 小時嘗試一致備份。固定 Firestore readTime，分批取得增量與可變資料，驗帳後發布可獨立還原的加密完整快照，保留最近三份有效副本；超過 48 小時未成功會暫停玩家 API。
+- Cloudflare 保存與 Google Firestore 分開的加密備份，已完成下載、隔離還原與七表逐列比對。首次跨日自動備份含新增進度的驗收、恢復金鑰獨立保管及外部故障通知仍待收尾；額外 Google Drive 副本尚未接入。雲端排程不依賴個人電腦開機。
 - SQLite／Firestore 公告佇列均已實作；Firestore 空佇列不持續輪詢雲端，公告狀態納入完整備份與 v1／v2 還原。現有服務已啟用專用 Webhook，使用者確認明確標示的測試公告正常；細節見 [Discord 啟動驗收](discord-readiness.md)。
-- 主遊戲荷官動畫已接入；背景音樂的 `MUSIC_SOURCE` 仍是 `null`。
+- 主遊戲荷官 idle／win 與背景音樂均已接入並發布；`MUSIC_SOURCE` 指向精簡 MP3，音樂預設關閉、手動開啟才載入，與音效獨立控制。手機固定 PORTRAIT。
 
-資料保存完整不等於任何故障下都零損失：未備份的新資料與同機故障仍需依恢復策略處理。達到額度時會拒絕新的操作，保留已提交資料與原請求，不提供假成功或離線扣款。
+資料保存完整不等於任何故障下都零損失：尚未備份的新進度仍有恢復落差，金鑰也須獨立保管。達到額度時會拒絕新的操作，保留已提交資料與原請求，不提供假成功或離線扣款。
 
-## Worker 執行路徑（尚未部署）
+## Worker 執行路徑（已上線）
 
 `firestore-wallet-core.js` 與 `firestore-highlights-core.js` 共用結算／公告邏輯；Node wrapper 使用 Google SDK，`cloud/firestore-rest.js` 使用受 namespace 限制的 REST 交易。`app-handler.js` 共用 OAuth／簽章／API，Node HTTP 與 Worker Request/Response 分別接入。
 

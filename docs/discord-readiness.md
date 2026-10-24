@@ -1,6 +1,6 @@
 # Discord 功能與啟動驗收
 
-2026-10-23，版本仍為 0.2.6。Firestore 公告與啟動前診斷已完成，後續已依使用者授權啟用專用 Webhook 與公開測試通道、更新 Discord 設定並重啟 4188 服務。資料仍在原 v1 命名空間，遷移依 [目前進度](firestore-v2-migration-status.md)接續。實測及回退操作見 [Discord 測試入口](discord-test-entry.md)。
+2026-10-24 更新，工作區版本 **0.2.7**。目前 Discord 入口已切換 Cloudflare Workers Free，沿用原 Firestore v2 帳本與專用得獎 Webhook；本機 writer 與舊通道已停用。雲端／Discord 21 項診斷、加密備份下載還原及背景音樂發布已完成；停輪維持 [已驗收基準](reel-timing-baseline.md)。現行操作與回退見 [雲端手冊](cloud-runtime.md)，v2 遷移記錄見 [遷移進度](firestore-v2-migration-status.md)。
 
 ## 已完成的公告流程
 
@@ -47,26 +47,23 @@ SQLite 與 Firestore 共用 Webhook 設定驗證及原生 Discord 卡片格式�
 # 只讀設定與建置檔，不連 Discord、不開資料庫、不消耗 Firestore 額度。
 npm run discord:check -- --offline
 
-# 本機健康、就緒、頁面及未授權 API 存取檢查。
-npm run discord:check
+# 現行雲端入口、政策頁及 API 存取保護，另唯讀比對 Discord 入口與群指令。
+npm run discord:check -- --cloud --discord --public-origin https://jokers-circus.nini900219.workers.dev
 
-# 另以現有應用程式授權，唯讀比對 Activity 入口與群指令。
-npm run discord:check -- --discord
-
-# 使用當下有效的公開 HTTPS 主機；不要照抄舊通道網址。
-npm run discord:check -- --discord --public-origin https://your-current-host.example
+# Node 本機診斷僅供隔離開發或完成回退交接後使用，不能用來重啟現行 Firestore writer。
+# npm run discord:check
 ```
 
-工具使用 `.env.server.local`，前端設定檢查 `.env.local`；建置檔存在不代表已用最新設定建置。會檢查 Application ID 一致、前端未放密鑰、群與角色格式、非假帳號模式、健康／就緒、遊戲與政策頁、未登入錢包及未簽章互動被拒絕。`--discord` 取得短期應用程式權杖後，只讀取遠端指令及可選的 Webhook 歸屬，不註冊指令、不 PATCH 設定、不發送訊息；報告不輸出原始權杖、Webhooks 或供應商錯誤內容。
+工具使用 `.env.server.local`，前端設定檢查 `.env.local`；`--cloud` 略過已停止的本機服務並核對雲端政策 canonical 路徑。此命令不啟動 Node writer，也不解除本機 live 關閉設定。建置檔存在不代表已用最新設定建置；會檢查 Application ID 一致、前端未放密鑰、群與角色格式、非假帳號模式、健康／就緒、遊戲與政策頁、未登入錢包及未簽章互動被拒絕。`--discord` 取得短期應用程式權杖後，只讀取遠端指令及可選的 Webhook 歸屬，不註冊指令、不 PATCH 設定、不發送訊息；報告不輸出原始權杖、Webhooks 或供應商錯誤內容。
 
 `/readyz` 可能觸發既有的低頻 metadata 檢查；需要完全避免雲端讀取時用 `--offline`。缺少公開網址、未開啟遠端檢查或公告未設定會明確標記 `unverified`，不冒充已驗收。自動檢查失敗時命令以非零狀態結束。
 
 ## 實際進度與剩餘條件
 
-本輪已唯讀驗證現有 Discord 應用授權有效、APP_HANDLER 啟動入口，以及簽到／籌碼／管理指令定義一致；本機遊戲、政策頁、健康及 API 存取保護通過，共 19 個自動檢查項目。原服務未重啟，測試沒有發公告或改玩家資料。
+10/24 已完成 Workers Free 帳戶確認、Secrets、原持久額度及唯一 writer 交接、固定公開入口、Portal Mapping、互動端點與政策網址切換。最近 0.2.6 發布的 21 項雲端／Discord 檢查通過，公開 health／ready 均為 200；記錄見 [雲端手冊](cloud-runtime.md)。0.2.7 的工作區升號與文件更新不等於已發布。
 
-後續啟用已完成公開通道、Portal Mapping、互動端點、OAuth／支援平台核對，以及「記事小本本 → #bot測試」專用 Webhook。啟動後 28 項自動診斷通過，使用者已遊玩新增 5 局並確認測試公告呈現正常；尚待本輪雙裝置、背景恢復與自然大獎端到端驗收。背景音樂仍缺曲目，異地備份已完成加密／還原工具但未接入雲端，後續採零費用雲端移植方向；依 [實作計畫](roadmap.md)接續。
+「記事小本本 → #bot測試」專用 Webhook 與測試卡片已由使用者確認；背景音樂、手機直向及目前正常／快停體驗已發布，停輪與量測清理已驗收。剩餘真人雙裝置、背景恢復／斷線與自然大獎端到端驗收，以及首次跨日自動備份、外部故障通知和小群容量觀察，統一依 [收尾計畫](roadmap.md)接續，未完成項目不因自動診斷通過就標為完成。
 
-測試：`npm test`、`npm run test:firestore`、`npm run build`。輸出為 `test-results/discord-completion-unit.log`、`discord-completion-firestore.log`、`discord-completion-build.log`、`discord-readiness-live.log`。Firestore 測試使用官方本機模擬器與假 Discord 回應，另以已封存真實快照驗證原始去重資料的 v2 遷移及 v1 回退。
+本機回歸依範圍使用 `npm test`、`npm run test:firestore`、`npm run test:cloud`、`npm run build` 及 `npm run cloud:build`。Firestore／workerd 使用官方本機模擬器與假 Discord 回應，不冒充真人驗收；文件與版本更新不重跑完整數學枚舉或真實資料遷移。
 
-本輪結果：307 項一般回歸、52 項 Firestore 模擬器測試全數通過，無跳過；正式建置通過，既有大於 500 kB 的 bundle 提示仍存在。另驗證早期 SQLite 的公告訊息 ID 與帶小數的等待時間原值保留，缺少必要欄位或不安全的訊息 ID 拒絕匯入。現有服務設定與封存來源的 v2 遷移指紋均未改變，明日自動接續已納入公告派送器的停止、備份及回退規則。
+10/23 歷史證據保留於 `test-results/discord-completion-unit.log`、`discord-completion-firestore.log`、`discord-completion-build.log` 與 `discord-readiness-live.log`：當時 307 項一般回歸及 52 項模擬器測試通過，本機通道後續曾有 28 項診斷通過。這些數字描述當時環境；原每日 v2 遷移接續排程已於遷移完成後刪除，不作為目前服務的操作指引。

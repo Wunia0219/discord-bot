@@ -1,6 +1,10 @@
 # 零費用雲端執行與回退
 
-2026-10-24，版本 **0.2.6**。程式與隔離測試已實作，**已確認 Workers Free 並部署未啟用版本；尚未上傳後端秘密、交接玩家資料或切換 Discord**。現有 v2 服務仍需本機開機。正式帳戶的免費方案、實際 CPU／網路、固定網址及真人雙裝置驗收，必須在上線時確認。
+2026-10-24 更新，工作區版本 **0.2.7**。**Cloudflare Workers Free 已確認，Secrets、原額度與同一 v2 帳本交接、Discord 固定入口切換及雲端備份下載還原均已完成。** 現行入口為 `https://jokers-circus.nini900219.workers.dev`，本機 writer 與舊通道已停止，服務與雲端排程不依賴個人電腦開機。
+
+0.2.7 依使用者要求更新隱私頁、文件及版本，沿用 [已驗收停輪基準](reel-timing-baseline.md)，未改動畫、音效或結算核心。最近已驗證發布為 0.2.6／`c7ae9254-91eb-47bd-ac4d-bd3d95389d08`；工作區升號不代表 0.2.7 已發布。下方 10/24 發布歷史的版本、筆數與量測保留當時原值。
+
+仍待收尾：首次跨日自動備份含新增進度的還原驗收、恢復金鑰獨立保管、外部故障通知、真人手機／雙裝置及自然大獎驗收，以及小群持續試玩的 CPU／用量觀察；見 [收尾計畫](roadmap.md)。
 
 ## 執行方式
 
@@ -12,21 +16,23 @@ Durable Object alarm 取代常駐 interval：一般 10 分鐘檢查一次；大�
 
 ## 免費限制與保護
 
-必須選用帳戶實際的 **Workers Free**；`CLOUD_PLAN=free` 只是程式門檻，不能證明帳單方案。免費額度耗盡時停止對應服務，不購買超額。Workers Free 每日 100,000 請求；Durable Objects Free 支援 SQLite，額度用盡後對應操作失敗。實際免費帳戶的用量與 CPU 上限仍需部署驗證。[Workers 限制](https://developers.cloudflare.com/workers/platform/limits/)、[Durable Objects 計費與免費限制](https://developers.cloudflare.com/durable-objects/platform/pricing/)
+目前帳戶已確認 **Workers Free / Active**、沒有付款方式；`CLOUD_PLAN=free` 仍只是程式門檻，不能代替帳單方案核對。免費額度耗盡時停止對應服務，不購買超額。Workers Free 每日 100,000 請求；Durable Objects Free 支援 SQLite，額度用盡後對應操作失敗。實際連線與既有發布檢查已通過，小群持續流量下的 CPU／用量仍須觀察；平台限制以 [Workers 文件](https://developers.cloudflare.com/workers/platform/limits/)及 [Durable Objects 計費與免費限制](https://developers.cloudflare.com/durable-objects/platform/pricing/)為準。
 
 Firestore 的全專案及維護／公告上限沿用原檔，匯入時拒絕提高上限。沒有可用額度時拒絕結算，不能用新主機、新 namespace 或舊額度副本繞過。免費方案不提供無限容量或全天候可用性保證；此方案先保留完整資料，額度不足時維護暫停。
 
 備份每 24 小時啟動，固定同一 Firestore `readTime`，每步最多處理 20 筆新增帳本及其原結果，再分頁讀錢包與公告。每步有加密 checkpoint；重啟可接續。50 分鐘未完成的候選會捨棄，再從最後有效快照重試。候選必須完整驗帳才發布，保留最近 3 份；未完成候選不取代有效備份。JSON 上限 8 MiB，超限拒絕而不截短歷史；備份超過 48 小時未成功則暫停玩家 API。容量接近限制時需另行安排分片／更頻繁增量，不能刪歷史換空間。
 
-AES-256-GCM 金鑰放 Cloudflare Secret，另存獨立私密恢復位置；下載檔不含金鑰。部署後 Cloudflare 保存的備份與 Google Firestore 分開，但還沒實際上傳／下載驗證前不能稱異地備份完成。Google Drive 等額外獨立副本與外部維運告警尚未接入；不沿用得獎頻道發告警。RPO 目標約 24 小時加備份完成時間，故障時會更久；RTO 尚未在真實雲端量測。
+AES-256-GCM 金鑰放 Cloudflare Secret，另有受控本機恢復金鑰；下載檔不含金鑰，使用者可取回的獨立私密恢復位置仍待確認。Cloudflare 保存的備份與 Google Firestore 分開，實際下載、解密還原及七表逐列比對已完成。首次跨日自動備份含新增進度仍待驗收，不能把手動觸發算成跨日成功。Google Drive 等額外獨立副本與外部維運告警尚未接入；不沿用得獎頻道發告警。RPO 目標約 24 小時加備份完成時間，故障時會更久；RTO 尚待實際演練記錄。
 
-## 現在需要的使用者操作
+## 現行操作與待保管項目
 
 Cloudflare 已登入且確認 Workers **Free / Active**、沒有付款方式；固定入口與 Discord 設定已完成。未開通付費方案或 R2。不要把帳戶密碼、API token、Webhook 或加密金鑰貼到對話。
 
 後續也需要把加密恢復金鑰保存到使用者可取回的獨立私密位置。原有 `data/backup-keys` 金鑰與新雲端金鑰分開；不隨備份一起上傳。
 
-## 設定清單
+平時使用 `npm run cloud:control -- status --env .env.cloud.local` 查詢私有狀態；下載有效加密備份使用下方 `archive`，不使用 `export`。公開／Discord 診斷使用 `npm run discord:check -- --cloud --discord --public-origin https://jokers-circus.nini900219.workers.dev`。不要為驗收重建本機通道或重新 seed／activate；原三個額度檔及本機 live 關閉設定保持不變。
+
+## 既有部署設定清單
 
 建立被 Git 忽略的 `wrangler.cloud.local.jsonc`，從根設定複製，保留 `CircusProject` 類別、SQLite migration 與同一 Worker／DO identity，填入已確認的 account ID。變數使用**切換當時**現行設定，不複製早期封存設定：
 
@@ -41,7 +47,9 @@ Cloudflare 已登入且確認 Workers **Free / Active**、沒有付款方式；�
 
 操作工具的 `.env.cloud.local` 範本在 `deploy/cloud.env.example`，只需要固定 `CLOUD_ORIGIN` 與私密 admin token。命令不接受 token 參數，避免寫入 shell 歷史。所有匯出／seed 檔放在被 Git 忽略的私密 `backups/cloud-handoff/` 下。
 
-## 上線順序
+## 首次上線順序（10/24 已完成，保留供追溯）
+
+以下為首次交接流程，不是現行服務的日常更新方式；不要對已啟用的同一 DO 重做 seed。一般程式／靜態頁更新保留同一 Worker、DO、全部既有變數與 Secrets，不搬動帳本或重設額度；發布前完成建置及檢查，發布後核對公開版本、資產、政策頁及健康狀態。
 
 1. 驗證 Cloudflare Free、現有 Worker／DO 資源及帳戶範圍，保留程式、目前環境設定與回退記錄。先完成 `npm run build`、`npm run cloud:build`；後者只有 dry-run，不發布。
 2. 在 Free 帳戶發布初始 **unseeded** Worker 與 secrets，取得固定 `workers.dev` URL。未匯入時 API 一律維護拒絕，不建立空遊戲 namespace。部署實際 CPU／資產與服務相容性驗證前，不切 Discord 入口。
@@ -89,7 +97,13 @@ npm run cloud:handoff -- return-quota --from backups/cloud-handoff/released.json
 
 若雲端完全無法匯出／釋放，不能假定它已停止或用舊額度開啟 Node；先恢復雲端控制／隔離寫入，再取回資料。此限制避免雙 writer 與額度重置。未來再次移至雲端需要新的完整交接設計，不能刪除已釋放 DO 來重開。
 
-## 本機驗證
+## 0.2.7 工作區更新（尚未發布）
+
+10/24 依使用者要求同步隱私頁、README、架構、部署、測試及收尾文件，產品版本更新至 0.2.7，`package.json` 與 lockfile 一致。原始 0.2.6 發布與驗收數字保留。一般回歸 339 項通過、1 項既有條件測試跳過；前端 build、Worker dry-run 及 91 個本機 Markdown 連結檢查通過，建置內的版本與隱私頁內容已核對。
+
+動畫、音效與結算核心六份來源檔的 SHA-256 均與已驗收基準相同，`src/`、`server/`、`cloud/` 無程式修改。驗證記錄：`test-results/version-0.2.7-preserved.json`、`version-0.2.7-validation.json`、`version-0.2.7-tests.log`、`version-0.2.7-build.log`、`version-0.2.7-worker-build.log`。此次只完成工作區更新與建置，尚未推送或部署；現行雲端仍使用上方最後已驗證的 0.2.6 發布。
+
+## 本機驗證方式與初次移植歷史
 
 ```powershell
 npm test
@@ -107,7 +121,7 @@ npm run cloud:build
 
 本輪結果：323 項單元測試（含既有 763 局快照逐表加密還原）、52 項 Firestore 模擬器回歸、2 項 REST／workerd 整合測試全部通過；前端 build 與 Worker dry-run 成功。另確認現有本機 writer 會使 handoff 拒絕且不產生交接檔，原 4188 healthz 為 200。版本保持 0.2.6；未推送、未部署、未重啟或切換原後端，未發送真實 Discord 測試訊息。
 
-## 10/24 實際部署進度
+## 10/24 實際部署與驗收歷史
 
 Wrangler OAuth 已確認帳戶 `0cc2ddf634f75c1e30853778399ab3fe`。Cloudflare Billing → Subscriptions 顯示 Workers Free／Active、No payment method on file；OAuth 無帳單讀取權限，方案依後台可見資訊確認，不以 workers/standard 回應冒充方案。初始帳戶沒有 Worker 或 Durable Object。
 
