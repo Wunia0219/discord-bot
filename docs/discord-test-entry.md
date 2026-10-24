@@ -1,6 +1,8 @@
 # Discord 實測入口與回退
 
-2026-10-23，0.2.6。已啟用本機 4188 服務、臨時 HTTPS 通道及「記事小本本 → #bot測試」專用精彩得獎 Webhook。資料仍使用 `slot-game-203db / jokers-circus-test` 的 Firestore v1；尚未切換 v2。
+2026-10-24，0.2.6。已啟用本機 4188 服務、臨時 HTTPS 通道及「記事小本本 → #bot測試」專用精彩得獎 Webhook。現行資料為 `slot-game-203db / jokers-circus-v2-20261024-test`，已完成安全遷移及自動驗收，見 [遷移結果](firestore-v2-migration-status.md)。
+
+本次原通道已退出，重新建立的網址為 `https://gifts-clusters-vbulletin-big.trycloudflare.com`。Portal 根對應與互動端點已更新儲存並通過端點驗證；28 項唯讀診斷、6 項真實資料 API 驗收與切換後完整備份通過。請關閉舊 Activity 再重新啟動；雙裝置及自然大獎仍需真人實測。
 
 ## 開始測試
 
@@ -27,7 +29,7 @@
 
 瀏覽器已確認卡片完整顯示，截圖為 `test-results/discord-marked-webhook-test.png`。
 
-## 備份
+## 10/23 備份歷史
 
 本輪啟用前完整備份與驗帳通過：2 個錢包、774 筆帳本、772 筆原請求結果、758 局、0 筆公告。封存在 `backups/discord-test-20261023/source.sqlite`，SHA-256：`54c3b7c361df9fc6f7ff4d6e073bd22a56b1b9e87091bc6cbe6c4dc32bd18e78`。這份備份是 14:01 的一致快照，後續測試進度必須另取最新備份，不能覆寫回此舊快照。
 
@@ -49,8 +51,8 @@
 
 恢復公告時，從此次停用所產生的私密設定備份取回 Webhook 欄位，核對群與頻道後重啟；不要整份覆蓋可能已完成 v2 遷移的新設定。恢復公開測試時，先確認舊通道是否仍在運作；若已停止，執行 `.tools/start-discord-public-test.ps1`，取得新網址後更新 Portal 的根對應與互動端點並重新檢查。舊網址已關閉，單純貼回 `portal-before.json` 的舊網址不能恢復服務。
 
-## v2 接續
+## v2 接續（已於 10/24 完成）
 
-10/24 12:10 的自動檢查仍保留。原專案與維護額度檔不變，新增公告派送子額度 `.highlights.sqlite` 也須保留。測試會繼續消耗剩餘保護額度；目前可測試，但尚不足以完整遷移。到達上限時，服務會拒絕新操作並提示稍後重試，不能提高上限或清零繞過。
+已從最新完整快照完成 v2 切換，保護資料位於 `backups/migrations/v2-20261024/`。原專案、維護與公告派送子額度 `.highlights.sqlite` 都保持原檔及上限。測試會繼續消耗保護額度；到達上限時，服務會拒絕新操作並提示稍後重試，不能提高上限或清零繞過。
 
-真正切換前，先停止遊戲寫入及公告派送器、取得最新含公告的完整快照。封存的 v2 prepared 設定早於本輪 Webhook 啟用，必須從最新設定重新準備，保留 Webhook、共用額度、維護及公開入口設定。v2 產生新進度後要回退，依 [遷移流程](firestore-v2.md)將最新快照匯入新的 v1 namespace，不能回到此處封存的舊資料。
+本次 prepared 設定從最新現行設定產生，已保留 Webhook、共用額度與維護設定；不要使用 10/23 舊 prepared。v2 產生新進度後要回退，依 [遷移流程](firestore-v2.md)將最新快照匯入新的 v1 namespace，不能回到此處封存的舊資料。
