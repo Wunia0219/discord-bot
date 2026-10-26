@@ -74,7 +74,7 @@ test('cooldowns, insufficient funds and invalid requests cannot partially commit
   // same four-document read budget as accepted rounds and still write nothing.
   assert.equal(s.quota.status().used.reads-reads,24);assert.equal(s.quota.status().used.writes,writes);
   assert.deepEqual(await s.history(guild,user),before);assert.throws(()=>s.spin(guild,user,21,randomUUID()),/無效/);
-  await s.ensureFixture(guild,admin,0,'zero');await assert.rejects(s.spin(guild,admin,20,randomUUID()),/籌碼不足/);
+  await s.ensureFixture(guild,admin,0,'zero');await assert.rejects(s.spin(guild,admin,20,randomUUID()),/戲籌不足/);
   assert.equal((await s.state(guild,admin)).balance,0);
 });
 

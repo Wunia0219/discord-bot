@@ -28,8 +28,8 @@
       <h2 id="collection">1. 我們處理哪些資料</h2>
       <ul>
         <li><strong>Discord 身分與成員資料：</strong>帳號 ID、使用者名稱、顯示名稱、頭貼資訊、所在伺服器 ID、群內暱稱，以及驗證成員資格或管理操作所需的角色與權限資訊。</li>
-        <li><strong>籌碼與遊玩資料：</strong>各伺服器的籌碼餘額、遊玩時間、下注、結果、獎勵、籌碼變化、簽到紀錄，以及核對同一筆操作所需的請求與紀錄編號。</li>
-        <li><strong>管理操作資料：</strong>發放或更正籌碼的對象、操作者、原因、數量、時間及關聯紀錄。</li>
+        <li><strong>戲籌與遊玩資料：</strong>各伺服器的戲籌餘額、遊玩時間、下注、結果、獎勵、戲籌變化、簽到紀錄，以及核對同一筆操作所需的請求與紀錄編號。</li>
+        <li><strong>管理操作資料：</strong>發放或更正戲籌的對象、操作者、原因、數量、時間及關聯紀錄。</li>
         <li><strong>得獎公告資料：</strong>僅在伺服器啟用公告功能時，處理玩家名稱、得獎級別、倍率、時間、回合與公告訊息編號，以發送、合併及避免重複公告。</li>
         <li><strong>登入及技術資料：</strong>完成登入所需的暫時授權碼、Discord 存取權杖及遊戲工作階段資訊。提供主機或網路傳輸的服務商也可能處理請求時間、IP 位址及必要的連線診斷資訊。</li>
         <li><strong>客服資料：</strong>你主動聯絡團隊時提供的帳號辨識資訊、問題說明及附件；請只提供處理問題所需的內容。</li>
@@ -44,11 +44,11 @@
     <section aria-labelledby="visibility">
       <h2 id="visibility">3. 哪些人或服務可能取得資料</h2>
       <ul>
-        <li><strong>你本人：</strong>可查看自己的籌碼及遊玩紀錄。</li>
-        <li><strong>所在伺服器的授權管理員：</strong>依管理權限，可查詢本群成員的籌碼發放、更正、簽到及遊戲摘要等管理紀錄。</li>
+        <li><strong>你本人：</strong>可查看自己的戲籌及遊玩紀錄。</li>
+        <li><strong>所在伺服器的授權管理員：</strong>依管理權限，可查詢本群成員的戲籌發放、更正、簽到及遊戲摘要等管理紀錄。</li>
         <li><strong>Wunia Studio 授權維運人員：</strong>為提供服務、排除故障及處理資料要求，在必要範圍內處理資料。</li>
         <li><strong>Discord：</strong>提供身分驗證、成員資格、指令及公告傳輸等功能，依 <a href="https://discord.com/privacy">Discord 隱私權政策</a>處理其平台資料。</li>
-        <li><strong>Netlify：</strong>提供另行開放的一般瀏覽器試玩網站及政策頁的靜態託管與傳輸，可能處理 IP 位址、請求時間及連線日誌。一般瀏覽器的試玩籌碼保存在玩家裝置，不會因瀏覽網站就上傳到 Discord 錢包。服務商的資料處理說明見 <a href="https://www.netlify.com/privacy/">Netlify 隱私權政策</a>。</li>
+        <li><strong>Netlify：</strong>提供另行開放的一般瀏覽器試玩網站及政策頁的靜態託管與傳輸，可能處理 IP 位址、請求時間及連線日誌。一般瀏覽器的試玩戲籌保存在玩家裝置，不會因瀏覽網站就上傳到 Discord 錢包。服務商的資料處理說明見 <a href="https://www.netlify.com/privacy/">Netlify 隱私權政策</a>。</li>
         <li><strong>Google Firebase／Firestore：</strong>保存 Discord 錢包、遊玩紀錄與原請求結果；相關說明見 <a href="https://policies.google.com/privacy">Google 隱私權政策</a>。</li>
         <li><strong>Cloudflare：</strong>提供目前 Discord 遊戲網頁與後端 API 的雲端託管及傳輸，處理登入、遊戲請求與排程，並保存加密登入狀態、服務額度與排程狀態，以及加密備份。服務可能處理傳輸中的請求、IP 位址及必要的連線診斷資料，詳見 <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare 隱私權政策</a>。</li>
       </ul>
@@ -68,13 +68,13 @@
     </section>
     <section aria-labelledby="browser">
       <h2 id="browser">6. 瀏覽器儲存</h2>
-      <p>一般瀏覽器試玩使用本機儲存保存該瀏覽器的試玩籌碼與紀錄，不會自動匯入 Discord 伺服器錢包。Discord 遊玩時，瀏覽器的工作階段儲存可能暫存尚待確認的下注與請求編號，避免重送時重複扣款。</p>
+      <p>一般瀏覽器試玩使用本機儲存保存該瀏覽器的試玩戲籌與紀錄，不會自動匯入 Discord 伺服器錢包。Discord 遊玩時，瀏覽器的工作階段儲存可能暫存尚待確認的下注與請求編號，避免重送時重複扣款。</p>
       <p>你可以透過瀏覽器或裝置設定清除本機網站資料；這會影響本機試玩與暫存，但不會刪除後端保存的 Discord 錢包與紀錄。</p>
     </section>
     <section aria-labelledby="requests">
       <h2 id="requests">7. 查詢、更正、刪除與撤回授權</h2>
       <p>遊戲目前未提供自助刪除入口。若要查詢、更正或要求刪除與你有關的資料，請使用下方聯絡方式，提供對應的 Discord 帳號 ID、伺服器及要求範圍。團隊可能先以必要方式核對身分，以避免他人取得或刪除你的資料。</p>
-      <p>團隊核對身分後，會依要求範圍盡速人工處理服務資料庫、受控備份及本服務發布的相關公告，並回覆處理情況；若有依法必須保留的資料，會說明保留範圍與理由。刪除錢包資料也會影響原有籌碼與歷史紀錄。請勿僅以他人的帳號 ID 提出代為刪除要求。</p>
+      <p>團隊核對身分後，會依要求範圍盡速人工處理服務資料庫、受控備份及本服務發布的相關公告，並回覆處理情況；若有依法必須保留的資料，會說明保留範圍與理由。刪除錢包資料也會影響原有戲籌與歷史紀錄。請勿僅以他人的帳號 ID 提出代為刪除要求。</p>
       <p>你也可以到 Discord「使用者設定 → 已授權的應用程式」撤銷授權。撤銷授權會限制後續存取，但不等同於刪除先前已保存的錢包與遊玩紀錄；需要刪除時，仍請向團隊提出要求。</p>
     </section>
     <section aria-labelledby="updates">

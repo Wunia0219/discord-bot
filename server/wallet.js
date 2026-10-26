@@ -28,7 +28,7 @@ export class WalletStore {
   ensure(guild,user){
     this.validate(guild,user);
     const created=this.db.prepare('INSERT OR IGNORE INTO wallets(guild,user,balance) VALUES(?,?,0)').run(guild,user).changes;
-    if(created&&this.environment==='test')this.credit(guild,user,10000,'test_seed',null,'測試環境首次籌碼');
+    if(created&&this.environment==='test')this.credit(guild,user,10000,'test_seed',null,'測試環境首次戲籌');
   }
   credit(guild,user,delta,kind,actor,reason,reference=null,now=this.clock()){
     const before=this.db.prepare('SELECT balance FROM wallets WHERE guild=? AND user=?').get(guild,user).balance;
@@ -63,7 +63,7 @@ export class WalletStore {
         const wallet=this.db.prepare('SELECT * FROM wallets WHERE guild=? AND user=?').get(guild,user);
         const retryAfterMs=wallet.last_spin+this.spinDelay-settledAt;
         if(retryAfterMs>0)throw Object.assign(problem(429,'轉輪尚未就緒，請稍後再試。'),{code:'SPIN_COOLDOWN',retryAfterMs});
-        if(wallet.balance<bet)throw problem(409,'籌碼不足，請降低下注、簽到或聯絡管理員。');
+        if(wallet.balance<bet)throw problem(409,'戲籌不足，請降低下注、簽到或聯絡管理員。');
         const stops=REEL_STRIPS.map(strip=>randomInt(strip.length));
         const outcome=roundFromStops(bet,stops);
         const entry=this.credit(guild,user,outcome.payout-bet,'spin',user,`下注 ${bet}／派彩 ${outcome.payout}`,requestId,settledAt);
@@ -84,7 +84,7 @@ export class WalletStore {
   });}
   grant(guild,actor,user,amount,reason,requestId){
     this.validate(guild,actor);this.validate(guild,user);
-    if(!Number.isSafeInteger(amount)||amount<=0||amount>this.grantMax)throw problem(400,`單次發放限 1～${this.grantMax} 籌碼。`,'GRANT_AMOUNT');
+    if(!Number.isSafeInteger(amount)||amount<=0||amount>this.grantMax)throw problem(400,`單次發放限 1～${this.grantMax} 戲籌。`,'GRANT_AMOUNT');
     this.reason(reason);this.requestId(requestId);
     return this.tx(()=>this.once(guild,`admin:${requestId}`,JSON.stringify([actor,user,amount,reason]),()=>{
       const used=this.db.prepare("SELECT COALESCE(SUM(delta),0) total FROM ledger WHERE guild=? AND actor=? AND day=? AND kind='grant'").get(guild,actor,taipeiDay(this.clock())).total;

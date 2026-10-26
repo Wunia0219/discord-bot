@@ -55,7 +55,7 @@ test('cards show names and multipliers without amounts, mentions, IDs, or expand
   assert.match(embed.fields[0].value, /125.5×/);
   assert.match(embed.footer.text, /11 次大獎/);
   const raw = JSON.stringify(payload);
-  assert.doesNotMatch(raw, /62750|籌碼|餘額|<@|@everyone|\u202e|payout|bet|12750/);
+  assert.doesNotMatch(raw, /62750|戲籌|餘額|<@|@everyone|\u202e|payout|bet|12750/);
   assert.ok(embed.fields.every(field => field.name.length <= 256 && field.value.length <= 1024));
   assert.match(embed.fields[0].name, /^\\\*\\\*/);
   assert.equal(highlightCard([{ name: '玩家', tier: 'super', multiplier: 30 }]).embeds[0].color, 0xd6b775);

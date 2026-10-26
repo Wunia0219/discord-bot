@@ -21,10 +21,10 @@ function command(name, overrides = {}) {
 }
 
 function management(name, args = {}, overrides = {}) {
-  return command('籌碼管理', {
+  return command('戲籌管理', {
     member: { user: { id: member, bot: false }, permissions: '8', roles: [] },
     data: {
-      name: '籌碼管理',
+      name: '戲籌管理',
       resolved: { members: { [recipient]: {} }, users: { [recipient]: { bot: false } } },
       options: [{ name, options: Object.entries(args).map(([name, value]) => ({ name, value })) }],
     },
@@ -88,7 +88,7 @@ async function fixture(t, { walletEnabled = true, environment = 'test', ...store
 test('Discord PING verifies its signature and works before the wallet is enabled', async t => {
   const { invoke, store } = await fixture(t, { walletEnabled: false });
   assert.deepEqual(await invoke({ type: 1 }), { type: 1 });
-  const response = await invoke(command('籌碼'));
+  const response = await invoke(command('戲籌'));
   assert.equal(response.data.flags, 64);
   assert.match(card(response,'warning').description, /找管理員/);
   assert.equal(store.history(guild, member).length, 0);
@@ -132,9 +132,9 @@ test('interaction HTTP authentication rejects forged, expired and malformed requ
 test('balance and daily commands seed once, deduplicate concurrent checkins, and reset at Taipei midnight', async t => {
   const { invoke, store, advance } = await fixture(t);
   for (let i = 0; i < 2; i++) {
-    const balance = card(await invoke(command('籌碼')));
+    const balance = card(await invoke(command('戲籌')));
     assert.match(balance.description, /10,000/);
-    assert.match(balance.footer.text, /試玩籌碼/);
+    assert.match(balance.footer.text, /試玩戲籌/);
   }
   // Use different interaction IDs, as repeated clicks do, rather than replaying one request.
   const responses = await Promise.all(Array.from({ length: 8 }, () => invoke(command('簽到'))));
@@ -154,19 +154,19 @@ test('balance and daily commands seed once, deduplicate concurrent checkins, and
 test('bot balances and daily claims stay separate for each member and guild', async t => {
   const { invoke } = await fixture(t);
   await invoke(command('簽到'));
-  const secondMember = command('籌碼', { member: { user: { id: recipient }, permissions: '0' } });
+  const secondMember = command('戲籌', { member: { user: { id: recipient }, permissions: '0' } });
   assert.match(card(await invoke(secondMember)).description, /10,000/);
-  assert.match(card(await invoke(command('籌碼', { guild_id: otherGuild }))).description, /10,000/);
+  assert.match(card(await invoke(command('戲籌', { guild_id: otherGuild }))).description, /10,000/);
   assert.match(card(await invoke(command('簽到', { guild_id: otherGuild })), 'success').description, /10,500/);
-  assert.match(card(await invoke(command('籌碼'))).description, /10,500/);
+  assert.match(card(await invoke(command('戲籌'))).description, /10,500/);
 });
 
 test('production bot wallets start at zero and never display a test-environment label', async t => {
   const { invoke, store } = await fixture(t, { environment: 'production' });
-  const balance = card(await invoke(command('籌碼')));
-  assert.match(balance.description, /\*\*0 籌碼\*\*/);
-  assert.doesNotMatch(JSON.stringify(balance), /測試環境|試玩籌碼/);
-  assert.match(card(await invoke(command('簽到')), 'success').description, /現在有 \*\*500 籌碼/);
+  const balance = card(await invoke(command('戲籌')));
+  assert.match(balance.description, /\*\*0 戲籌\*\*/);
+  assert.doesNotMatch(JSON.stringify(balance), /測試環境|試玩戲籌/);
+  assert.match(card(await invoke(command('簽到')), 'success').description, /現在有 \*\*500 戲籌/);
   assert.deepEqual(store.history(guild, member).map(entry => entry.kind), ['checkin']);
 });
 
@@ -178,7 +178,7 @@ test('bot rejects DMs, disabled guilds, bot callers and unsupported commands wit
     ['bot caller', command('簽到', { member: { user: { id: member, bot: true } } }), /群組頻道/],
     ['missing member identity', command('簽到', { member: {} }), /群組頻道/],
     ['unsupported interaction', command('簽到', { type: 3 }), /群組頻道/],
-    ['unknown command', command('不存在的指令'), /\/籌碼.*\/簽到/],
+    ['unknown command', command('不存在的指令'), /\/戲籌.*\/簽到/],
   ];
   for (const [name, interaction, message] of cases) {
     await t.test(name, async () => {
@@ -200,10 +200,10 @@ test('all management operations reject regular members; a configured role can gr
   }
   assert.equal(store.history(guild, recipient).length, 0);
   const manager = { ...regular, roles: [adminRole] };
-  assert.match(card(await invoke(management('發放', { 成員: recipient, 數量: 500, 原因: '功能測試' }, { member: manager })), 'success').description, /500 籌碼/);
+  assert.match(card(await invoke(management('發放', { 成員: recipient, 數量: 500, 原因: '功能測試' }, { member: manager })), 'success').description, /500 戲籌/);
   const history = card(await invoke(management('紀錄', { 成員: recipient }, { member: manager })));
   assert.equal(history.fields.length, 1);
-  assert.match(history.fields[0].name, /收到籌碼/);
+  assert.match(history.fields[0].name, /收到戲籌/);
   assert.equal(store.state(guild, recipient).balance, 500);
 });
 
@@ -220,7 +220,7 @@ test('admin grants settle once under concurrent delivery, reject changed retries
   changed.data.options[0].options.find(option => option.name === '數量').value = 500;
   assert.match(card(await invoke(changed), 'error').description, /剛剛那筆不會被改動/);
   const overLimit = management('發放', { 成員: recipient, 數量: 600, 原因: '超過當日額度' });
-  assert.match(card(await invoke(overLimit), 'error').description, /1,500 籌碼/);
+  assert.match(card(await invoke(overLimit), 'error').description, /1,500 戲籌/);
   assert.equal(store.state(guild, recipient).balance, 1000);
   assert.equal(store.history(guild, recipient).length, 1);
 });
@@ -229,7 +229,7 @@ test('invalid grant amounts, reasons and recipients return private errors withou
   const { invoke, store } = await fixture(t, { environment: 'production' });
   const valid = { 成員: recipient, 數量: 500, 原因: '功能測試' };
   const cases = [
-    ...[0, -1, 100001, 1.5].map(amount => [`amount ${amount}`, management('發放', { ...valid, 數量: amount }), /1～100,000 籌碼.*整數/]),
+    ...[0, -1, 100001, 1.5].map(amount => [`amount ${amount}`, management('發放', { ...valid, 數量: amount }), /1～100,000 戲籌.*整數/]),
     ['empty reason', management('發放', { ...valid, 原因: ' ' }), /請填 1～200 字/],
     ['long reason', management('發放', { ...valid, 原因: '測'.repeat(201) }), /請填 1～200 字/],
     ['invalid request ID', management('發放', valid, { id: 'bad' }), /重新輸入指令/],
@@ -256,7 +256,7 @@ test('correction commands link the original grant, deduplicate retries and rejec
   const crossGuild = { ...correction, guild_id: otherGuild };
   assert.match(card(await invoke(crossGuild), 'error').description, /當初發放的群/);
   assert.equal(store.state(guild, recipient).balance, 500);
-  assert.match(card(await invoke(correction), 'warning').description, /收回 \*\*500 籌碼/);
+  assert.match(card(await invoke(correction), 'warning').description, /收回 \*\*500 戲籌/);
   assert.match(card(await invoke(correction), 'warning').description, /沒有再扣一次/);
   assert.match(card(await invoke({ ...correction, id: String(++interactionId) }), 'error').description, /已經更正過/);
   const history = card(await invoke(management('紀錄', { 成員: recipient })));
@@ -285,7 +285,7 @@ test('audit commands paginate rewards without duplicates and expose daily and em
 
   await invoke(command('簽到', { member: { user: { id: recipient }, permissions: '0' } }));
   const daily = card(await invoke(management('紀錄', { 成員: recipient, 分類: 'checkin', 期間: 1 })));
-  assert.match(daily.description, /簽到 1 天.*500 籌碼/);
+  assert.match(daily.description, /簽到 1 天.*500 戲籌/);
   assert.equal(daily.fields.length, 1);
   const summary = card(await invoke(management('紀錄', { 成員: recipient, 分類: 'summary', 期間: 1 })));
   assert.deepEqual(summary.fields.map(field => field.value), ['0', '0', '0', '+0']);

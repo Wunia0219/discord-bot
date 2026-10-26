@@ -14,7 +14,7 @@ export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.se
     let data;try{data=await response.json();}catch{throw new Error('服務回應中斷，請稍後重試。');}
     if(!response.ok){
       const error=new Error(data.error||'服務暫時無法使用。');error.status=response.status;
-      if(response.status===429&&data.code==='SPIN_COOLDOWN'&&validDelay(data.retryAfterMs))Object.assign(error,{code:data.code,retryAfterMs:data.retryAfterMs});
+      if(response.status===429&&['SPIN_COOLDOWN','SETTLEMENT_BUSY'].includes(data.code)&&validDelay(data.retryAfterMs))Object.assign(error,{code:data.code,retryAfterMs:data.retryAfterMs});
       throw error;
     }
     // Relative server time avoids depending on the player's device clock.
@@ -49,7 +49,7 @@ export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.se
           throw error;
         }
       }
-    }catch(error){if([400,403,409,429].includes(error.status)){pending=null;persist();}throw error;}
+    }catch(error){if(error.code!=='SETTLEMENT_BUSY'&&[400,403,409,429].includes(error.status)){pending=null;persist();}throw error;}
   }
   return {
     state(){

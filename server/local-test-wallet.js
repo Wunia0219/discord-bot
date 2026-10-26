@@ -11,7 +11,7 @@ export const LOCAL_TEST_PROFILES=[
   {key:'qa-a',user:'100000000000000011',name:'測試玩家 A',balance:10000,purpose:'簽到、下注、重新整理與快停'},
   {key:'qa-b',user:'100000000000000012',name:'測試玩家 B',balance:10000,purpose:'確認不同帳號的餘額與紀錄分開'},
   {key:'qa-low',user:'100000000000000013',name:'低餘額玩家',balance:50,purpose:'餘額不足時拒絕下注'},
-  {key:'qa-zero',user:'100000000000000014',name:'零餘額玩家',balance:0,purpose:'無籌碼時的提示與簽到恢復'},
+  {key:'qa-zero',user:'100000000000000014',name:'零餘額玩家',balance:0,purpose:'無戲籌時的提示與簽到恢復'},
 ];
 const defaultProfile={key:'default',user,name:'本機錢包測試',balance:10000};
 

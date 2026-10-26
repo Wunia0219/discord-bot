@@ -95,7 +95,7 @@ export function createActivityHandler({ clientId, clientSecret, publicKey, walle
         let interaction;try{interaction=JSON.parse(raw.toString('utf8'));}catch{return json(res,400,{error:'無效的請求。'});}
         if(interaction.type===1)return json(res,200,{type:1});
         if(interaction.application_id!==clientId)return json(res,403,{error:'應用程式不符。'});
-        if(!wallet)return json(res,200,privateReply(null,'過一會兒再試試。如果一直連不上，請找管理員幫忙看看。','籌碼暫時連不上','warning'));
+        if(!wallet)return json(res,200,privateReply(null,'過一會兒再試試。如果一直連不上，請找管理員幫忙看看。','戲籌暫時連不上','warning'));
         if(wallet.store.backend==='firestore'&&interaction.type===2&&interaction.data?.type!==4){
           if(!validInteractionToken(interaction.token))return json(res,400,{error:'無效的互動憑證。'});
           json(res,200,{type:5,data:{flags:64}});
@@ -145,7 +145,7 @@ export function createActivityHandler({ clientId, clientSecret, publicKey, walle
         } finally { if(!succeeded)loginRate.failed();activeExchanges--; }
       }
       if(['/api/wallet','/api/spin','/api/checkin','/api/ledger','/api/rounds'].includes(path)){
-        if(!wallet)return json(res,503,{error:'帳號籌碼尚未開啟。'});
+        if(!wallet)return json(res,503,{error:'帳號戲籌尚未開啟。'});
         if(!wallet.localTest&&req.headers.origin&&!allowedOrigins.has(req.headers.origin))return json(res,403,{error:'不允許的來源。'});
         const write=path==='/api/spin'||path==='/api/checkin';
         if(req.method!==(write?'POST':'GET'))return json(res,405,{error:'不支援此操作。'});
@@ -201,7 +201,7 @@ export function createActivityHandler({ clientId, clientSecret, publicKey, walle
       errorCode=['SQLITE_ERROR','SQLITE_BUSY','SQLITE_FULL','SQLITE_CORRUPT','EIO','EACCES','ENOSPC','ENOENT','ENOTDIR'].includes(error.code)?error.code:'UNEXPECTED_ERROR';
       // Do not echo provider responses, authorization codes, filesystem paths or secrets.
       const status = error.status || (['ENOENT','ENOTDIR'].includes(error.code) ? 404 : 502);
-      const cooldown=status===429&&error.code==='SPIN_COOLDOWN';
+      const cooldown=status===429&&['SPIN_COOLDOWN','SETTLEMENT_BUSY'].includes(error.code);
       if(cooldown&&!res.headersSent)res.setHeader('Retry-After',String(Math.ceil(error.retryAfterMs/1000)));
       if (!res.headersSent) json(res, status, { error:error.status ? error.message : status === 404 ? '找不到檔案。' : '暫時無法完成請求，請稍後重試。',...(cooldown?{code:error.code,retryAfterMs:error.retryAfterMs}:{}) });
       else res.end();

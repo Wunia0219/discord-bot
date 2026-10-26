@@ -13,7 +13,7 @@ const unpack=doc=>doc.exists?JSON.parse(doc.get('json')):null;
 const packed=data=>({json:JSON.stringify(data)});
 
 export class FirestoreWalletCore {
-  constructor(settings,{guildIds=[],daily=500,grantMax=100000,grantDaily=1000000,clock=Date.now,spinDelay=2000,db,quota}={}){
+  constructor(settings,{guildIds=[],daily=500,grantMax=100000,grantDaily=1000000,clock=Date.now,spinDelay=2000,db,quota,settlementQueue}={}){
     if(!guildIds.length||guildIds.some(id=>!/^\d{17,20}$/.test(id)))throw new Error('Explicit guild allowlist required');
     for(const value of [daily,grantMax,grantDaily])if(!Number.isSafeInteger(value)||value<=0||value>maxBalance)throw new Error('Invalid wallet limits');
     Object.assign(this,{settings,environment:settings.environment,guildIds:new Set(guildIds),daily,grantMax,grantDaily,clock,spinDelay});
@@ -22,7 +22,7 @@ export class FirestoreWalletCore {
     if(![1,2].includes(this.schemaVersion))throw new Error('Invalid Firestore schema version');
     this.histories=new Map();
     if(!db||!quota)throw new Error('Firestore transport and persistent quota are required');
-    this.db=db;this.quota=quota;
+    this.db=db;this.quota=quota;this.settlementQueue=settlementQueue;
     this.root=this.db.collection('circus_wallet_v1').doc(settings.namespace);
     this.meta=this.root.collection('meta').doc('state');this.cache=new Map();this.pending=new Map();this.closed=false;this.ready=false;this.readyAt=0;
   }
@@ -62,7 +62,7 @@ export class FirestoreWalletCore {
       this.ready=true;this.readyAt=this.clock();return this;
     }catch(error){this.ready=false;throw this.safe(error);}
   }
-  checkMeta(meta){if(!meta||meta.version!==this.schemaVersion||meta.environment!==this.environment||meta.status!=='ready'||!Number.isSafeInteger(meta.nextId))throw problem(503,'帳號籌碼正在維護，請稍後再試。','FIRESTORE_SCHEMA');}
+  checkMeta(meta){if(!meta||meta.version!==this.schemaVersion||meta.environment!==this.environment||meta.status!=='ready'||!Number.isSafeInteger(meta.nextId))throw problem(503,'帳號戲籌正在維護，請稍後再試。','FIRESTORE_SCHEMA');}
   async isReady(){
     if(this.closed||this.quota.status().blocked)return false;
     if(this.ready&&this.clock()-this.readyAt<60000)return true;
@@ -75,7 +75,7 @@ export class FirestoreWalletCore {
   safe(error){
     if(error.walletProblem)return error;
     this.ready=false;
-    return problem(503,'帳號籌碼暫時連不上，請稍後重試；未確認的操作請沿用原請求。','FIRESTORE_UNAVAILABLE');
+    return problem(503,'帳號戲籌暫時連不上，請稍後重試；未確認的操作請沿用原請求。','FIRESTORE_UNAVAILABLE');
   }
   snapshot(wallet,now=this.clock()){
     return {version:3,balance:wallet.balance,...(this.schemaVersion===2?{historyRevision:wallet.historyRevision}:{history:wallet.history}),milestones:wallet.milestone?[12000]:[],environment:this.environment,
@@ -122,7 +122,12 @@ export class FirestoreWalletCore {
       this.write(tx,ref.collection(name).doc(id),entry,{create:true,index:{id:entry.id}});
     }
   }
-  async transact(guild,user,operation,{compact=false,profileName}={}){
+  transact(guild,user,operation,options){
+    this.validate(guild,user);
+    const task=()=>this.settle(guild,user,operation,options);
+    return this.settlementQueue?this.settlementQueue.run(task):task();
+  }
+  async settle(guild,user,operation,{compact=false,profileName}={}){
     this.validate(guild,user);if(this.closed)throw this.safe({});
     const ref=this.walletRef(guild,user);
     try{
@@ -154,7 +159,7 @@ export class FirestoreWalletCore {
         if(kind==='spin'){
           const retryAfterMs=wallet.last_spin+this.spinDelay-now;
           if(retryAfterMs>0)throw Object.assign(problem(429,'轉輪尚未就緒，請稍後再試。','SPIN_COOLDOWN'),{retryAfterMs});
-          if(wallet.balance+(fresh&&this.environment==='test'?10000:0)<operation.bet)throw problem(409,'籌碼不足，請降低下注、簽到或聯絡管理員。');
+          if(wallet.balance+(fresh&&this.environment==='test'?10000:0)<operation.bet)throw problem(409,'戲籌不足，請降低下注、簽到或聯絡管理員。');
         }
         if(adminDay&&adminDay.used+operation.amount>this.grantDaily)throw problem(409,'已超過這位管理員今日的發放額度。','GRANT_DAILY');
         const daySummary=needsDay?(savedDay||zeroSummary()):null;
@@ -162,11 +167,11 @@ export class FirestoreWalletCore {
         const credit=(delta,entryKind,actor,reason,reference=null)=>{
           const before=wallet.balance,after=before+delta;
           if(!Number.isSafeInteger(after)||after<0||after>maxBalance)throw problem(409,'餘額不足或超出可記帳範圍。','BALANCE_LIMIT');
-          if(!Number.isSafeInteger(++meta.nextId))throw problem(503,'帳號籌碼正在維護，請稍後再試。','FIRESTORE_SCHEMA');
+          if(!Number.isSafeInteger(++meta.nextId))throw problem(503,'帳號戲籌正在維護，請稍後再試。','FIRESTORE_SCHEMA');
           const entry={id:meta.nextId,guild,user,kind:entryKind,delta,before,after,actor,reason,time:new Date(now).toISOString(),day,reference};
           wallet.balance=after;wallet.revision=entry.id;entries.push(entry);return entry;
         };
-        if(fresh&&this.environment==='test')credit(10000,'test_seed',null,'測試環境首次籌碼');
+        if(fresh&&this.environment==='test')credit(10000,'test_seed',null,'測試環境首次戲籌');
         let answer={},round;
         if(kind==='spin'){
           const outcome=operation.outcome,entry=credit(outcome.payout-operation.bet,'spin',user,`下注 ${operation.bet}／派彩 ${outcome.payout}`,operation.requestId);
@@ -223,7 +228,7 @@ export class FirestoreWalletCore {
   checkin(guild,user,options){return this.transact(guild,user,{kind:'checkin',fingerprint:'daily'},options);}
   grant(guild,actor,user,amount,reason,requestId){
     this.validate(guild,actor);this.validate(guild,user);this.reason(reason);this.requestId(requestId);
-    if(!Number.isSafeInteger(amount)||amount<=0||amount>this.grantMax)throw problem(400,`單次發放限 1～${this.grantMax} 籌碼。`,'GRANT_AMOUNT');
+    if(!Number.isSafeInteger(amount)||amount<=0||amount>this.grantMax)throw problem(400,`單次發放限 1～${this.grantMax} 戲籌。`,'GRANT_AMOUNT');
     return this.transact(guild,user,{kind:'grant',amount,actor,reason,requestId,fingerprint:JSON.stringify([actor,user,amount,reason])});
   }
   async reverse(guild,actor,entryId,reason,requestId){

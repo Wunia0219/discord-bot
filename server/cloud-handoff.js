@@ -3,7 +3,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {openSync,closeSync,existsSync,linkSync,unlinkSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {inspectWalletDatabase,openWalletDatabase,WALLET_TABLES} from './database.js';
-import {auditSnapshot,digest} from '../cloud/snapshot.js';
+import {auditSnapshot,digest,TABLES,checkManifest,openSegment} from '../cloud/snapshot.js';
 import {Sealer} from '../cloud/storage.js';
 import {QUOTA_LIMITS} from '../cloud/quota.js';
 
@@ -11,7 +11,7 @@ export function snapshotForCloud(filename,environment,{upstreamImportFingerprint
   const audit=inspectWalletDatabase(filename,environment);if(!audit.ok)throw new Error('Snapshot audit failed');
   const db=new DatabaseSync(filename,{readOnly:true});let tables;
   try{db.exec('BEGIN');tables=Object.fromEntries(WALLET_TABLES.map(t=>[t,db.prepare('SELECT * FROM '+t).all().map(row=>({...row}))]));}finally{db.close();}
-  const snapshot={format:1,environment,createdAt:Date.now(),upstreamImportFingerprint,revision:Math.max(0,...tables.ledger.map(e=>e.id)),tables};auditSnapshot(snapshot,environment);return snapshot;
+  const snapshot={format:1,environment,createdAt:Date.now(),upstreamImportFingerprint,revision:tables.ledger.reduce((max,e)=>Math.max(max,e.id),0),tables};auditSnapshot(snapshot,environment);return snapshot;
 }
 export function quotaForCloud(settings){
   const scopes={};for(const [scope,suffix] of [['global',''],['maintenance','.maintenance.sqlite'],['highlights','.highlights.sqlite']]){
@@ -24,6 +24,11 @@ export function quotaForCloud(settings){
 }
 export function decodeCloudArchive(archive,key,environment){
   const {manifest,chunks}=archive||{},sealer=new Sealer(key);
+  if(manifest?.format===2){
+    checkManifest(manifest,sealer);if(manifest.environment!==environment||!Array.isArray(chunks)||chunks.length!==manifest.parts)throw new Error('Invalid cloud archive');
+    const tables=Object.fromEntries(TABLES.map(t=>[t,[]]));for(let i=0;i<chunks.length;i++)for(const row of openSegment(manifest,i,chunks[i],sealer))tables[manifest.segments[i].table].push(row);
+    const snapshot={...manifest.header,tables};auditSnapshot(snapshot,environment);return snapshot;
+  }
   if(manifest?.format!==1||manifest.environment!==environment||!Array.isArray(chunks)||chunks.length!==manifest.parts||chunks.length>200)throw new Error('Invalid cloud archive');
   const text=chunks.map((c,i)=>sealer.open(c,`backup:${manifest.generation}:${i}`)).join('');if(Buffer.byteLength(text)>8*1024**2||digest(text)!==manifest.sha256)throw new Error('Cloud archive checksum');
   const snapshot=JSON.parse(text);auditSnapshot(snapshot,environment);if(snapshot.revision!==manifest.revision)throw new Error('Archive revision');return snapshot;

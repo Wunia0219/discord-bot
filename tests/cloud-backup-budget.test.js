@@ -22,10 +22,10 @@ test('backup query keeps full page allowance on failure and retries at the ident
  const job={generation:'candidate',readTime,target:0,cursor:0,phase:'collections',startedAt:Date.now(),collection:0,cursorId:null,highlights:false};
  const values=new Map([['backup-job',job]]),state={get:k=>values.get(k),set:(k,v)=>values.set(k,v)};
  const snapshot={format:1,environment:'test',revision:0,tables:{settings:[{key:'environment',value:'test'}],wallets:[],ledger:[],operations:[],rounds:[],highlight_events:[],highlight_boards:[]}};
- let published=false;const vault={load:()=>structuredClone(snapshot),save:()=>{},publish:()=>{published=true;}};
+ let published=false;const vault={manifest:()=>({format:2}),append:()=>{},audit:()=>({revision:0}),storage:{transactionSync:fn=>fn()},publish:()=>{published=true;}};
  const backup=new CloudBackup({db,quota:budget,root:db.collection('circus_wallet_v1').doc(settings.namespace),environment:'test'},state,vault);
  await assert.rejects(backup.step());assert.equal(published,false);assert.equal(job.collection,0);assert.equal(budget.used,20);
- fail=false;assert.equal((await backup.step()).complete,true);assert.equal(budget.used,40);assert.equal(published,true);
+ fail=false;assert.equal((await backup.step()).complete,false);assert.equal(published,false);assert.equal((await backup.step()).complete,true);assert.equal(budget.used,40);assert.equal(published,true);
 });
 
 test('unrecognized backup adapters keep the existing six-attempt allowance',async()=>{

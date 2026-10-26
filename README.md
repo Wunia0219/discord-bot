@@ -1,20 +1,20 @@
 # Joker’s Circus — 5×3／243 路
 
-Discord Activity 內部試玩遊戲。後端負責算獎、籌碼、每日簽到與請求去重；每個伺服器的玩家錢包獨立。
+Discord Activity 內部試玩遊戲。後端負責算獎、戲籌、每日簽到與請求去重；每個伺服器的玩家錢包獨立。
 
-版本 **0.2.7**，`package.json` 為唯一版本來源。本次依使用者要求更新隱私頁與過期文件，補齊維運狀態、版本核對與獨立監控／通知模組，沿用 0.2.6 已驗收的停輪設定；只有使用者明確指定時才更新版本。規則識別碼 `circus-243-v2` 獨立維護，歷史回合保留原規則及結果。
+版本 **0.2.8**，`package.json` 為唯一版本來源。本次依使用者要求更新隱私頁與過期文件，補齊維運狀態、版本核對與獨立監控／通知模組，沿用 0.2.6 已驗收的停輪設定；只有使用者明確指定時才更新版本。規則識別碼 `circus-243-v2` 獨立維護，歷史回合保留原規則及結果。
 
 ## 現況與下一步
 
 - 已完成：243 路玩法、Discord 登入與管理指令、SQLite／Firestore 錢包、斷線重送、完整帳本與備份、荷官 idle／win、音效、背景音樂、快停及自動旋轉。
 - 10/24 使用者已驗收目前的正常／快速停輪及量測清理，之後維持 [已驗收停輪基準](docs/reel-timing-baseline.md)。
-- 目前 Discord 試玩入口運行於 Cloudflare Worker／SQLite Durable Object，使用原 Firestore Spark v2 帳本。本機 4188 writer 已停用；4189 保留隔離 SQLite 測試。雲端維運與回退以 [雲端執行紀錄](docs/cloud-runtime.md) 為準；[原本機入口紀錄](docs/discord-test-entry.md) 僅供歷史參考。
+- 目前 Discord 試玩入口運行於 Cloudflare Worker／SQLite Durable Object，使用原 Firestore Blaze v2（保留原免費用量保護） 帳本。本機 4188 writer 已停用；4189 保留隔離 SQLite 測試。雲端維運與回退以 [雲端執行紀錄](docs/cloud-runtime.md) 為準；[原本機入口紀錄](docs/discord-test-entry.md) 僅供歷史參考。
 - 本輪已完成 v2：每局 10→6 次寫入、無損近期快取、輕量狀態與增量同步、較舊紀錄載入、空白命名空間遷移及雙向還原測試。10/24 已安全切換現有服務至 v2，採用步驟與量測見 [Firestore v2](docs/firestore-v2.md)。第一輪讀取優化見[用量與驗證](docs/spark-optimization.md)。
 - 已完成 [加密備份與離線還原](docs/portable-backup.md) 及雲端切換驗證，Worker、持久額度、加密登入、備份與公告 alarm 已上線。額外 Google Drive 副本尚未接入；備份進度與回退限制見 [雲端執行與回退](docs/cloud-runtime.md)。下一步、依賴與驗收條件集中在[實作計畫](docs/roadmap.md)。
-- 剩餘收尾：首次跨日自動備份含新增進度的還原驗收、獨立恢復金鑰保管、外部故障通知、真人手機／雙裝置與自然大獎驗收，以及小群持續試玩的載入、記憶體與免費額度觀察。已完成的雲端切換、備份下載還原及背景音樂不再列為待開發。
-- 維運小功能已補齊：私有狀態提供備份／排程／額度告警與百分比，`health` 指令核對遠端版本；獨立 Worker 的通知、恢復、去重與唯讀 token 已完成隔離測試。依使用者選擇，通知位置待設定，監控預設停用且尚未部署；操作見 [維運監控](docs/operations-monitor.md)。
+- 10/26 已發布完整 0.2.8：戲籌文案、多玩家結算佇列、分塊加密備份與額度成本優化；最新五錢包／1,281 局備份已完整還原。測試、版本與相容回退方式見 [上線驗收](docs/launch-readiness.md)。
+- 跨日備份與原請求還原、使用者金鑰保管確認、私人 #bot維護 的雲端監控均已完成。剩餘真人手機／雙裝置、背景恢復、自然大獎與小群持續運行觀察；不以模擬器代替真人驗收。
 
-此階段在本機修改與測試；推送、PR、合併或部署另行安排。分支不保證 Netlify 不建置，推送前須確認 Branch deploys／Deploy Previews 設定。
+目前在 `validation` 分支，沒有提交或推送 main。雲端部署已依使用者授權完成，Git 推送／PR／合併仍另行安排。
 
 ## 啟動與驗證
 

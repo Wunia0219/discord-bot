@@ -1,4 +1,4 @@
-import {createCipheriv,createDecipheriv,randomBytes} from 'node:crypto';
+import {createCipheriv,createDecipheriv,randomBytes,createHmac} from 'node:crypto';
 import {LoginRateLimit} from '../server/login-rate-limit.js';
 
 export class CloudState {
@@ -8,6 +8,7 @@ export class CloudState {
 }
 export class Sealer {
   constructor(key){if(typeof key!=='string'||!/^[a-f0-9]{64}$/i.test(key))throw new Error('A separate 32-byte cloud encryption key is required');this.key=Buffer.from(key,'hex');}
+  authenticate(value,aad){const key=createHmac('sha256',this.key).update('circus-backup-manifest-key-v2').digest();return createHmac('sha256',key).update(aad+'\0'+JSON.stringify(value)).digest('hex');}
   seal(value,aad){const nonce=randomBytes(12),c=createCipheriv('aes-256-gcm',this.key,nonce);c.setAAD(Buffer.from(aad));const body=Buffer.concat([c.update(JSON.stringify(value),'utf8'),c.final()]);return Buffer.concat([nonce,c.getAuthTag(),body]).toString('base64');}
   open(value,aad){const b=Buffer.from(value,'base64'),d=createDecipheriv('aes-256-gcm',this.key,b.subarray(0,12));d.setAAD(Buffer.from(aad));d.setAuthTag(b.subarray(12,28));return JSON.parse(Buffer.concat([d.update(b.subarray(28)),d.final()]).toString('utf8'));}
 }

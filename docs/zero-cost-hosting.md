@@ -6,7 +6,7 @@
 
 ## 已採用方案與額外備份
 
-已採用 **Cloudflare Workers Free＋SQLite-backed Durable Objects**，保留 Firestore Spark／v2 的玩家資料契約。帳戶已確認 Free／Active、沒有付款方式；免費額度不足時停止對應服務，不自動升級付費。實際用量及 CPU 容量仍需小群持續試玩觀察，限制以 [Workers 文件](https://developers.cloudflare.com/workers/platform/limits/)及 [Durable Objects 免費額度與行為](https://developers.cloudflare.com/durable-objects/platform/pricing/)為準。
+已採用 **Cloudflare Workers Free＋SQLite-backed Durable Objects**，保留 Firestore v2 的玩家資料契約（使用者已啟用 Blaze，仍保留原免費用量保護）。帳戶已確認 Free／Active、沒有付款方式；免費額度不足時停止對應服務，不自動升級付費。實際用量及 CPU 容量仍需小群持續試玩觀察，限制以 [Workers 文件](https://developers.cloudflare.com/workers/platform/limits/)及 [Durable Objects 免費額度與行為](https://developers.cloudflare.com/durable-objects/platform/pricing/)為準。
 
 Cloudflare 已保存與 Google Firestore 分開的加密備份，實際下載與隔離還原逐表比對通過。**Google Drive 的既有免費空間**可作額外獨立副本，尚未指定帳戶／資料夾或上傳資料；僅傳加密快照，金鑰另存，並受帳戶可用空間限制。[Google 儲存空間規則](https://support.google.com/drive/answer/6374270?hl=zh-Hant)
 

@@ -107,7 +107,7 @@ export class FirestoreRest {
       const write=(ref,data,create)=>{if(readOnly||this.readOnly)throw new Error('Read-only transport');this.doc(ref.path);wrote=true;writes.push({update:{name:this.prefix+'/'+ref.path,fields:Object.fromEntries(Object.entries(data).map(([k,v])=>[k,encodeValue(v)]))},...(create?{currentDocument:{exists:false}}:{})});};
       const tx={get:ref=>{if(wrote)throw new Error('Read after write');return ref instanceof Query?begin().then(()=>this.query(ref,{transaction})):read([ref]).then(r=>r[0]);},getAll:(...refs)=>read(refs),set:(r,d)=>write(r,d,false),create:(r,d)=>write(r,d,true)};
       try{const result=await callback(tx);if(writes.length){await begin();await this.call(this.prefix+':commit',{transaction,writes});}else if(transaction)await this.call(this.prefix+':rollback',{transaction});return result;}
-      catch(error){if(transaction)try{await this.call(this.prefix+':rollback',{transaction});}catch{}if(error.restStatus==='ABORTED'&&!readOnly&&attempt+1<maxAttempts)continue;throw error;}
+      catch(error){if(transaction)try{await this.call(this.prefix+':rollback',{transaction});}catch{}if(error.restStatus==='ABORTED'&&!readOnly&&attempt+1<maxAttempts){await new Promise(resolve=>setTimeout(resolve,50*2**attempt+Math.floor(Math.random()*100)));continue;}throw error;}
     }
   }
   async terminate(){}

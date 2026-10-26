@@ -13,7 +13,7 @@ test('quiet launch patches only the global Activity handler and verifies the res
       assert.deepEqual(JSON.parse(opts.body), { handler: 1 }); handler = 1;
       return Response.json({ id: entryId, type: 4, handler });
     }
-    return Response.json([{ id: '100000000000000003', type: 1, name: '籌碼' }, { id: entryId, type: 4, handler, name: '啟動' }]);
+    return Response.json([{ id: '100000000000000003', type: 1, name: '戲籌' }, { id: entryId, type: 4, handler, name: '啟動' }]);
   } });
   assert.deepEqual(result, { id: entryId, name: '啟動', handler: 1, changed: true });
   assert.equal(calls.filter(call => call.method === 'PATCH').length, 1);

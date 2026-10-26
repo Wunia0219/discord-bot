@@ -12,7 +12,7 @@ test('Discord signatures reject tampering, wrong keys and expired timestamps',()
  assert.equal(validSignature(pub,headers,raw),true);assert.equal(validSignature(pub,headers,Buffer.from('{}')),false);assert.equal(validSignature(pub,headers,raw,Date.now()+400000),false);
 });
 
-function historyCommand(options=[]){return {type:2,id:randomUUID(),guild_id:guild,member:{user:{id:user},permissions:'8'},data:{name:'籌碼管理',resolved:{members:{[target]:{}},users:{[target]:{bot:false}}},options:[{name:'紀錄',options:[{name:'成員',value:target},...options]}]}};}
+function historyCommand(options=[]){return {type:2,id:randomUUID(),guild_id:guild,member:{user:{id:user},permissions:'8'},data:{name:'戲籌管理',resolved:{members:{[target]:{}},users:{[target]:{bot:false}}},options:[{name:'紀錄',options:[{name:'成員',value:target},...options]}]}};}
 test('reward audit survives more than 50 spins, paginates and links corrections',async t=>{
  const s=new WalletStore({guildIds:[guild],environment:'production',spinDelay:0});t.after(()=>s.close());
  const grant=s.grant(guild,user,target,100000,'活動獎勵',randomUUID());
@@ -61,15 +61,15 @@ test('cards preserve privacy, colors, empty states and Discord text limits',asyn
 });
 test('admin command permissions are enforced on the server, including configured roles and guild isolation',async t=>{
  const s=new WalletStore({guildIds:[guild],environment:'production'});t.after(()=>s.close());
- const i={type:2,id:'1561284960986599700',guild_id:guild,member:{user:{id:user},roles:[],permissions:'0'},data:{name:'籌碼管理',resolved:{members:{[target]:{}},users:{[target]:{bot:false}}},options:[{name:'發放',options:[{name:'成員',value:target},{name:'數量',value:500},{name:'原因',value:'測試'}]}]}};
+ const i={type:2,id:'1561284960986599700',guild_id:guild,member:{user:{id:user},roles:[],permissions:'0'},data:{name:'戲籌管理',resolved:{members:{[target]:{}},users:{[target]:{bot:false}}},options:[{name:'發放',options:[{name:'成員',value:target},{name:'數量',value:500},{name:'原因',value:'測試'}]}]}};
  assert.match((await handleCommand(i,s)).data.embeds[0].description,/需要管理員/);assert.equal(s.state(guild,target).balance,0);
- i.member.roles=['role'];assert.match((await handleCommand(i,s,['role'])).data.embeds[0].description,/500.*籌碼/);assert.equal(s.state(guild,target).balance,500);
+ i.member.roles=['role'];assert.match((await handleCommand(i,s,['role'])).data.embeds[0].description,/500.*戲籌/);assert.equal(s.state(guild,target).balance,500);
  assert.match((await handleCommand(i,s,['role'])).data.embeds[0].description,/沒有再加一次/);
  i.guild_id='123456789012345678';assert.match((await handleCommand(i,s,['role'])).data.embeds[0].description,/有開放遊戲的群/);
 });
 
 test('unknown and provider failures never reach players as raw diagnostic text',async()=>{
- const command={type:2,guild_id:guild,member:{user:{id:user}},data:{name:'籌碼'}};
+ const command={type:2,guild_id:guild,member:{user:{id:user}},data:{name:'戲籌'}};
  for(const status of [undefined,400,503]){
    const store={environment:'test',validate:()=>{},state:()=>{throw Object.assign(new Error('sqlite-secret-path / provider-token / internal-request-id'),{status});}};
    const response=await handleCommand(command,store);
@@ -85,7 +85,7 @@ test('duplicate management replies label the original change and never present i
  const store=new WalletStore({guildIds:[guild],environment:'production',spinDelay:0});t.after(()=>store.close());
  const grant={...historyCommand(),id:randomUUID(),data:{...historyCommand().data,options:[{name:'發放',options:[{name:'成員',value:target},{name:'數量',value:1000},{name:'原因',value:'@everyone **獎勵**'}]}]}};
  const first=(await handleCommand(grant,store)).data.embeds[0];
- assert.equal(first.title,'籌碼送到了');
+ assert.equal(first.title,'戲籌送到了');
  store.spin(guild,target,20,randomUUID());
  const balance=store.state(guild,target).balance;
  const duplicate=(await handleCommand(grant,store)).data.embeds[0];

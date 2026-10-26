@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {isDeepStrictEqual} from 'node:util';
-import {auditSnapshot,digest} from './snapshot.js';
+import {digest} from './snapshot.js';
 import {highlightBoardRecord} from '../server/firestore-highlight-data.js';
 import {FirestoreRest} from './firestore-rest.js';
 const unpack=d=>{if(!d.exists)throw new Error('Backup document missing');return JSON.parse(d.get('json'));};
@@ -15,16 +15,22 @@ export class CloudBackup {
   async read(refs,readTime){this.store.quota.reserve({reads:this.readAttempts*refs.length});const docs=await this.store.db.batchGet(refs,readTime?{readTime}:{});this.store.quota.observe(Buffer.byteLength(JSON.stringify(docs.map(d=>d.data()))));return docs;}
   async start(){
     const latest=this.state.get('backup-latest');if(!latest)throw new Error('Verified backup baseline required');
-    const doc=(await this.read([this.store.meta]))[0],meta=unpack(doc);this.store.checkMeta(meta);const snapshot=this.vault.load(latest);
+    const doc=(await this.read([this.store.meta]))[0],meta=unpack(doc);this.store.checkMeta(meta);const baseline=this.vault.manifest(latest);const snapshot=baseline.format===2?baseline.header:this.vault.load(latest);
     if(meta.nextId<snapshot.revision||snapshot.upstreamImportFingerprint!==(meta.importFingerprint??null))throw new Error('Backup source changed');
     const generation=randomUUID(),job={generation,readTime:doc.readTime,target:meta.nextId,cursor:snapshot.revision,phase:'ledger',startedAt:Date.now(),collection:0,cursorId:null,highlights:meta.highlights===1};
     if(!job.readTime)throw new Error('Missing consistent read time');
-    snapshot.tables.wallets=[];snapshot.tables.highlight_events=[];snapshot.tables.highlight_boards=[];
-    this.vault.storage.transactionSync(()=>{this.vault.save(generation,snapshot);this.state.set('backup-job',job);});return job;
+    this.vault.storage.transactionSync(()=>{this.vault.fork(generation,latest);this.state.set('backup-job',job);});return job;
   }
   async step(){
     const job=this.state.get('backup-job')||await this.start();if(Date.now()-job.startedAt>50*60000){this.vault.storage.transactionSync(()=>{this.vault.discard(job.generation);this.state.set('backup-job',null);});throw new Error('Backup snapshot expired; retry from last verified generation');}
-    const snapshot=this.vault.load(job.generation),s=this.store,t=snapshot.tables;
+    const s=this.store,t={};
+    // Convert an interrupted legacy checkpoint once, without changing its cursor.
+    if(this.vault.manifest(job.generation).format===1)this.vault.save(job.generation,this.vault.load(job.generation));
+    if(job.phase==='audit'){
+      const result=this.vault.audit(job.generation);
+      this.vault.storage.transactionSync(()=>{this.vault.publish(job.generation);this.state.set('backup-job',null);this.state.set('backup-status',{ok:true,at:Date.now(),revision:result.revision,readTime:job.readTime});});return {complete:true};
+    }
+    for(const name of ['ledger','operations','rounds','wallets','highlight_events','highlight_boards'])t[name]=[];
     if(job.phase==='ledger'&&job.cursor<job.target){
       const ids=Array.from({length:Math.min(20,job.target-job.cursor)},(_,i)=>job.cursor+i+1),docs=await this.read(ids.map(id=>s.root.collection('ledger').doc(String(id))),job.readTime),links=[];
       docs.forEach((doc,i)=>{const e=unpack(doc);if(e.id!==ids[i])throw new Error('Ledger gap');t.ledger.push(e);if(e.kind==='test_seed')return;const key=doc.get('operationKey');if(typeof key!=='string')throw new Error('Missing original retry key');links.push({guild:e.guild,user:e.user,key});});
@@ -39,9 +45,9 @@ export class CloudBackup {
       s.quota.reserve({reads:this.readAttempts*20});const page=await s.db.query(query,{readTime:job.readTime});s.quota.observe(Buffer.byteLength(JSON.stringify(page.docs.map(d=>d.data()))));
       for(const doc of page.docs){const row=unpack(doc);if(name==='wallets')t.wallets.push({guild:row.guild,user:row.user,balance:row.balance,milestone:Number(row.milestone),last_spin:row.last_spin});else if(name==='highlightEvents')t.highlight_events.push(row);else t.highlight_boards.push(highlightBoardRecord(row));}
       if(page.size===20)job.cursorId=page.docs.at(-1).id;else{job.collection++;job.cursorId=null;}
-      if(job.collection===collections.length){snapshot.revision=job.target;snapshot.createdAt=Date.now();auditSnapshot(snapshot,s.environment);this.vault.save(job.generation,snapshot);this.vault.publish(job.generation);this.state.set('backup-job',null);this.state.set('backup-status',{ok:true,at:Date.now(),revision:snapshot.revision});return {complete:true};}
+      if(job.collection===collections.length)job.phase='audit';
     }
     // Atomic checkpoint prevents a repeated alarm from duplicating immutable rows.
-    this.vault.storage.transactionSync(()=>{this.vault.save(job.generation,snapshot);this.state.set('backup-job',job);});return {complete:false};
+    this.vault.storage.transactionSync(()=>{this.vault.append(job.generation,t,job.phase==='audit'?{revision:job.target,createdAt:Date.now(),readTime:job.readTime}:{});this.state.set('backup-job',job);});return {complete:false};
   }
 }

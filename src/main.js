@@ -34,12 +34,12 @@ $('#app').innerHTML = `
         <div id="celebration" aria-hidden="true"><span id="celebration-kicker">JOKER’S CIRCUS</span><strong id="celebration-title">馬戲團大獎</strong><b id="celebration-amount">+2,000</b><span id="celebration-note">聚光燈下，精彩即將揭曉。</span></div>
       </div>
       <div class="control-deck">
-      <output id="payout-result" class="payout-result" aria-live="polite" aria-label="本局獲得籌碼"></output>
+      <output id="payout-result" class="payout-result" aria-live="polite" aria-label="本局獲得戲籌"></output>
         <div class="bet-group"><label>BET <span>本局下注</span></label><div class="bets">${BETS.map(b=>'<button data-bet="'+b+'" aria-pressed="'+(b===100)+'">'+fmt(b)+'</button>').join('')}</div></div>
         <button id="auto-spin" class="gold-button" aria-label="自動旋轉" aria-pressed="false"><span>AUTO SPIN</span><small>自動旋轉</small></button>
         <button id="spin" class="spin" aria-label="旋轉一次" aria-keyshortcuts="Space" title="旋轉一次（空白鍵）" disabled>${mainArt('spin-button.png','spin-art')}</button>
         <button id="max-bet" class="gold-button"><span>MAX BET</span><small>最大下注</small></button>
-        <div class="wallet"><span>COINS <small>籌碼餘額</small></span><strong id="balance">10,000</strong></div>
+        <div class="wallet"><span>COINS <small>戲籌餘額</small></span><strong id="balance">10,000</strong></div>
       </div>
       <div id="game-status" class="sr-only" role="status" aria-live="polite"></div>
       </div>
@@ -112,7 +112,7 @@ function showPayout(payout, animate=false) {
   payoutAnimation=0;
   const output=$('#payout-result');
   output.setAttribute('aria-busy','false');
-  output.setAttribute('aria-label',`本局獲得籌碼 ${fmt(payout)}`);
+  output.setAttribute('aria-label',`本局獲得戲籌 ${fmt(payout)}`);
   if(payout<=0){setBitmapNumber(output,'');return;}
   if(!animate||scene.reduced){setBitmapNumber(output,signed(payout));return;}
   output.setAttribute('aria-busy','true');
@@ -180,7 +180,7 @@ async function spin() {
       if(update.synchronized){const synced=await update.synchronized;save(synced.state);}
       scene.cancelSpin(restoredStops(state));
       controls.stopAuto();renderState();showPayout(r.payout);
-      result('上一局的結果已找回',`獲得 ${fmt(r.payout)} 籌碼，沒有再次扣除下注。可在遊玩紀錄查看。`);
+      result('上一局的結果已找回',`獲得 ${fmt(r.payout)} 戲籌，沒有再次扣除下注。可在遊玩紀錄查看。`);
       return;
     }
     scene.prepareDealer(r);
@@ -193,7 +193,7 @@ async function spin() {
     presenting=true;setBusy(true);
     renderState();animateBalance(r.before-r.bet,state.balance);presentWins(r);showPayout(r.payout,true);
     const symbols=r.wins.length?r.wins.map(w=>`${SYMBOL_NAMES[w.symbol]} ${w.count} 連・${w.ways} 組`).join('、'):'這局沒有連出中獎組合';
-    result(r.payout?`這局獲得 ${fmt(r.payout)} 籌碼`:'這局沒有得獎',`${symbols}｜籌碼變化 ${signed(r.net)}`);
+    result(r.payout?`這局獲得 ${fmt(r.payout)} 戲籌`:'這局沒有得獎',`${symbols}｜戲籌變化 ${signed(r.net)}`);
     const tier=presentRoundWin(r,{sound,celebrate,celebrateSmall:()=>scene.celebrate()});
     scene.reactToRound(r);
     // Let the authored gesture return to its neutral pose before AUTO SPIN.
@@ -260,7 +260,7 @@ async function claimDaily(){
   controls.stopAuto();claiming=true;setBusy(busy);
   try{
     const update=await walletClient.checkin();save(update.state);renderState();
-    notifyPlayer(update.duplicate?'今天的簽到已經領過囉，明天再來吧。':`簽到成功，${fmt(update.entry.delta)} 籌碼已入帳。`);
+    notifyPlayer(update.duplicate?'今天的簽到已經領過囉，明天再來吧。':`簽到成功，${fmt(update.entry.delta)} 戲籌已入帳。`);
   }catch(error){showPlayerError(error,'checkin');}
   finally{claiming=false;setBusy(busy);}
 }
@@ -331,4 +331,7 @@ async function startGame() {
   }
 }
 startGame();
-setInterval(()=>{if(!document.hidden)refreshWallet();},15000);
+setTimeout(function pollWallet(){
+  if(!document.hidden)refreshWallet();
+  setTimeout(pollWallet,15000+Math.floor(Math.random()*5000));
+},15000+Math.floor(Math.random()*5000));

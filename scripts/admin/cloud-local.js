@@ -9,5 +9,5 @@ const run=async args=>{const p=spawn(node,args,{stdio:'inherit',windowsHide:true
 const command=process.argv[2];if(!['build','test','monitor-build','monitor-test'].includes(command))throw new Error('Expected build, test, monitor-build or monitor-test; deployment is not automatic');
 const monitor=command.startsWith('monitor-');
 await run(['node_modules/wrangler/bin/wrangler.js','deploy','--dry-run',...(monitor?['--config','wrangler.monitor.jsonc']:[]),'--outdir',monitor?'test-results/monitor-bundle':'test-results/cloud-bundle']);
-if(command==='test')await run(['scripts/admin/test-firestore.js','tests/cloud-rest.integration.js','tests/cloud-runtime.integration.js','tests/cloud-backup-scale.integration.js']);
+if(command==='test')await run(['scripts/admin/test-firestore.js','tests/cloud-rest.integration.js','tests/cloud-runtime.integration.js','tests/cloud-backup-scale.integration.js','tests/segmented-runtime.integration.js']);
 if(command==='monitor-test')await run(['--test','tests/monitor-runtime.integration.js']);

@@ -3,12 +3,13 @@ import {timingSafeEqual,randomUUID} from 'node:crypto';
 import {FirestoreRest} from './firestore-rest.js';
 import {FirestoreWalletCore} from '../server/firestore-wallet-core.js';
 import {FirestoreHighlights} from '../server/firestore-highlights-core.js';
+import {SettlementQueue} from '../server/settlement-queue.js';
 import {WalletService} from '../server/wallet-service.js';
 import {highlightSettings} from '../server/highlights.js';
 import {createActivityHandler} from '../server/app-handler.js';
 import {CloudState,CloudSessions,CloudLoginLimit,Sealer} from './storage.js';
 import {CloudQuota} from './quota.js';
-import {auditSnapshot,SnapshotVault} from './snapshot.js';
+import {auditSnapshot,SnapshotVault,BACKUP_MAX_PARTS} from './snapshot.js';
 import {verifyCloudSnapshot} from './verify.js';
 import {CloudBackup} from './backup.js';
 import {MODEL_VERSION} from '../src/game/slot-math.js';
@@ -42,7 +43,7 @@ export class CircusProject extends DurableObject {
     const credentials=JSON.parse(this.env.GOOGLE_SERVICE_ACCOUNT_JSON||'null');if(credentials?.type!=='service_account'||credentials.project_id!==settings.projectId||!credentials.private_key||!credentials.client_email)throw new Error('Credentials mismatch');
     const sealer=new Sealer(this.env.CLOUD_ENCRYPTION_KEY),vault=new SnapshotVault(this.ctx.storage,this.state,sealer),guildIds=(this.env.ALLOWED_GUILD_IDS||'').split(',').map(x=>x.trim());
     const transport=()=>new FirestoreRest({...settings,credentials,fetchImpl:cloudFetch,endpoint:this.env.FIRESTORE_ENDPOINT}),options={guildIds,daily:Number(this.env.DAILY_CHIPS||500),grantMax:Number(this.env.ADMIN_GRANT_MAX||100000),grantDaily:Number(this.env.ADMIN_DAILY_MAX||1000000)};
-    const store=new FirestoreWalletCore(settings,{...options,db:transport(),quota:this.quota});
+    const store=new FirestoreWalletCore(settings,{...options,db:transport(),quota:this.quota,settlementQueue:new SettlementQueue()});
     // Never initialize an empty remote namespace from a public request.
     store.checkMeta(await store.read(store.meta));store.ready=true;store.readyAt=Date.now();
     const service=new WalletService(store,{fetchImpl:cloudFetch,sessions:new CloudSessions(this.ctx.storage,sealer)}),hs=highlightSettings(this.env,store);
@@ -64,7 +65,7 @@ export class CircusProject extends DurableObject {
     }
     if(url.pathname==='/healthz')return json({ok:true,version:APP_VERSION,model:MODEL_VERSION});
     if(!apiPaths.has(url.pathname))return json({error:'找不到此功能。'},404);
-    if(!this.ready())return json({error:'帳號籌碼正在維護，請稍後再試。'},503);
+    if(!this.ready())return json({error:'帳號戲籌正在維護，請稍後再試。'},503);
     const origin=request.headers.get('origin');if(origin&&origin!==`https://${this.env.DISCORD_CLIENT_ID}.discordsays.com`)return json({error:'不允許的來源。'},403);
     const run=async()=>{try{const rt=await this.runtime();if(!this.ready())return json({error:'服務正在維護。'},503);return await handleFetch(rt.handler,request);}catch{return json({error:'暫時無法完成請求，請沿用原請求重試。'},503);}};
     return this.track(run());
@@ -75,7 +76,7 @@ export class CircusProject extends DurableObject {
       const quota=this.state.get('quota-identity')?this.quota.status():null;
       if(quota)quota.scopes=Object.fromEntries(['maintenance','highlights'].map(scope=>[scope,{used:this.quota.totals(scope),limits:this.quota.identity().limits[scope]}]));
       const backup=this.state.get('backup-status'),manifest=this.state.get('backup:'+this.state.get('backup-latest'));
-      const status={version:APP_VERSION,mode:this.state.get('mode')||'unseeded',source:this.state.get('source'),backup:backup?{...backup,...(Number.isSafeInteger(manifest?.bytes)?{bytes:manifest.bytes,limitBytes:manifest.limitBytes}: {})}:null,alarm:this.state.get('alarm-status'),quota};
+      const status={version:APP_VERSION,mode:this.state.get('mode')||'unseeded',source:this.state.get('source'),backup:backup?{...backup,...(Number.isSafeInteger(manifest?.bytes)?{bytes:manifest.bytes,limitBytes:manifest.limitBytes,parts:manifest.parts,limitParts:manifest.format===2?BACKUP_MAX_PARTS:200}: {})}:null,alarm:this.state.get('alarm-status'),quota};
       return json({...status,operations:operationsHealth(status)});
     }
     if(request.method!=='POST')return json({error:'POST required'},405);
@@ -98,11 +99,22 @@ export class CircusProject extends DurableObject {
     }
     if(path==='/__ops/verify'){if(this.state.get('mode')!=='paused'||this.active.size)throw new Error('Paused writer required');const r=await this.runtime(),db=new FirestoreRest({...settings,credentials:JSON.parse(this.env.GOOGLE_SERVICE_ACCOUNT_JSON),fetchImpl:cloudFetch,readOnly:true}),store=new FirestoreWalletCore(settings,{db,quota:this.quota,guildIds:[...r.store.guildIds]});return json(await verifyCloudSnapshot(r.vault.load(this.state.get('backup-latest')),store));}
     if(path==='/__ops/backup'){if(this.state.get('mode')==='released')throw new Error('Ownership released');const r=await this.runtime();return json(await this.backupStep(r));}
+    if(path==='/__ops/archive-manifest'){
+      const v=new SnapshotVault(this.ctx.storage,this.state,new Sealer(this.env.CLOUD_ENCRYPTION_KEY));
+      return json({source:this.state.get('source'),archive:{manifest:v.manifest(this.state.get('backup-latest'))},released:this.state.get('mode')==='released'});
+    }
+    if(path==='/__ops/archive-page'){
+      const input=await body(request,2048),v=new SnapshotVault(this.ctx.storage,this.state,new Sealer(this.env.CLOUD_ENCRYPTION_KEY));
+      if(!(this.state.get('backup-retained')||[]).includes(input.generation)||!Number.isSafeInteger(input.start)||input.start<0||!Number.isSafeInteger(input.limit)||input.limit<1||input.limit>16)throw new Error('Invalid archive page');
+      const m=v.manifest(input.generation);if(input.start>=m.parts)throw new Error('Archive page range');
+      return json({generation:m.generation,start:input.start,sha256:m.sha256,chunks:Array.from({length:Math.min(input.limit,m.parts-input.start)},(_,i)=>v.part(m.generation,input.start+i,m))});
+    }
     if(path==='/__ops/archive'){const v=new SnapshotVault(this.ctx.storage,this.state,new Sealer(this.env.CLOUD_ENCRYPTION_KEY));return json({source:this.state.get('source'),archive:v.archive(this.state.get('backup-latest')),released:this.state.get('mode')==='released'});}
     if(path==='/__ops/export'){
-      const released=this.state.get('released-export');if(released){const v=new SnapshotVault(this.ctx.storage,this.state,new Sealer(this.env.CLOUD_ENCRYPTION_KEY));return json({...released,archive:v.archive(released.generation)});}
+      const options=await body(request,2048);
+      const released=this.state.get('released-export');if(released){const v=new SnapshotVault(this.ctx.storage,this.state,new Sealer(this.env.CLOUD_ENCRYPTION_KEY));return json({...released,archive:options.paged?{manifest:v.manifest(released.generation)}:v.archive(released.generation)});}
       if(this.state.get('mode')!=='paused'||this.active.size||this.state.get('backup-job'))throw new Error('Pause and finish backup first');
-      const r=await this.runtime(),archive=r.vault.archive(this.state.get('backup-latest')),meta=await r.store.read(r.store.meta);
+      const r=await this.runtime(),generation=this.state.get('backup-latest'),archive=options.paged?{manifest:r.vault.manifest(generation)}:r.vault.archive(generation),meta=await r.store.read(r.store.meta);
       if(meta.nextId!==archive.manifest.revision)throw new Error('Finish latest backup');
       const exported={exportId:randomUUID(),released:true,generation:archive.manifest.generation,source:this.state.get('source'),quota:this.quota.export()};
       this.ctx.storage.transactionSync(()=>{this.state.set('mode','released');this.state.set('released-export',exported);});return json({...exported,archive});

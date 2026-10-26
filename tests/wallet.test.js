@@ -78,7 +78,7 @@ test('server spins are replayable forever with original stops and cannot alter a
  const entries=s.history(guild,user);assert.equal(entries.reduce((n,e)=>n+e.delta,0),s.state(guild,user).balance);
 });
 test('insufficient balance, illegal bets and failed grants roll back without changing ledger',t=>{
- const s=store(t,{environment:'production'});assert.throws(()=>s.spin(guild,user,20,randomUUID()),/籌碼不足/);
+ const s=store(t,{environment:'production'});assert.throws(()=>s.spin(guild,user,20,randomUUID()),/戲籌不足/);
  assert.throws(()=>s.spin(guild,user,7,randomUUID()),/無效/);assert.equal(s.state(guild,user).balance,0);
  assert.throws(()=>s.grant(guild,admin,user,-1,'bad',randomUUID()),/發放限/);assert.equal(s.history(guild,user).length,0);
 });

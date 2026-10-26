@@ -27,7 +27,7 @@ test('unrelated throttling, invalid cooldown metadata and authentication errors 
  for(const [status,body] of [
   [429,{error:'操作過於頻繁'}],
   ...[-1,0,60001,'2000'].map(retryAfterMs=>[429,{error:'尚未就緒',code:'SPIN_COOLDOWN',retryAfterMs}]),
-  [401,{error:'登入已過期'}],[409,{error:'籌碼不足'}],[503,{error:'服務不可用'}],
+  [401,{error:'登入已過期'}],[409,{error:'戲籌不足'}],[503,{error:'服務不可用'}],
  ]){
   let calls=0;
   const client=createWalletClient(session,async()=>{calls++;return Response.json(body,{status});},null,{wait:()=>assert.fail('must not retry this error')});

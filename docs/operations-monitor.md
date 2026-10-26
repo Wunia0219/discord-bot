@@ -80,3 +80,7 @@ npm run build
 只需撤回監控時，先將獨立監控 Worker 的 `MONITOR_ENABLED` 改為 `false`，保留其他設定與 Secrets。若要回退本次遊戲程式，先停用監控避免舊版拒絕 token 造成誤報，再將同一遊戲 Worker 回退至 `c7ae9254-91eb-47bd-ac4d-bd3d95389d08`。只回退程式，保留現行 DO、額度與最新 Firestore；不可接回過期 v1 或舊帳本。回退後核對 readiness、source、backup/alarm、額度與原前端雜湊。跨主機／資料回退仍遵循 [雲端交接手冊](cloud-runtime.md)的停 writer、最新快照及 ownership 流程。
 
 台灣時間 **2026-10-26 16:30:33.495** 已觀察到首次真正雲端 Cron 檢查（`checkedAt=1793003433495`），未使用手動觸發。它正確讀到維護子額度提醒；第一次尚未達連續兩次門檻，`confirmed=false`、`delivery=idle`，符合去抖規則。Cron 設定 API 確認每 10 分鐘，健康檢查 200、私有狀態拒絕未授權、公開 `/check` 不存在；監控雲端 Secrets 僅有唯讀 token 與專用 Webhook。證據：`backups/monitor-activation-20261026/cron-verification.json`、`cron-schedule.json`。模擬通知傳輸與實際 Cron 探測分開記錄，不把測試訊息冒充真實故障通知。
+
+## 10/26 完整發布後的現行回退
+
+監控已更新為 `1ca963f1-53ac-47d9-9935-0260555fabff`，補齊備份 bytes／parts 容量告警，原 Cron、Secrets 與通知狀態均保留。遊戲已使用分塊 archive format 2；上節舊回退版本僅是歷史紀錄，現在必須使用相容版 `0c2885d3-9e3b-4912-902f-529fd65f393b`，不能直接回到只支援舊備份格式的版本。詳見 [發布驗收](launch-readiness.md)。

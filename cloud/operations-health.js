@@ -12,11 +12,9 @@ export function operationsHealth(status,{now=Date.now()}={}){
   else if(status.backup.ok!==true)add('BACKUP_FAILED');
   else if(backupAge>=48*HOUR)add('BACKUP_STALE');
   else if(backupAge>=26*HOUR)add('BACKUP_DELAYED','warning');
-  const size=status?.backup?.bytes,limit=status?.backup?.limitBytes;
-  if(Number.isSafeInteger(size)&&size>=0&&Number.isSafeInteger(limit)&&limit>0){
-    if(size>=limit)add('BACKUP_CAPACITY_EXHAUSTED');
-    else if(size>=limit*.8)add('BACKUP_CAPACITY_HIGH','warning');
-  }
+  const capacity=[['bytes','limitBytes'],['parts','limitParts']].map(([used,cap])=>[status?.backup?.[used],status?.backup?.[cap]]).filter(([used,cap])=>Number.isSafeInteger(used)&&used>=0&&Number.isSafeInteger(cap)&&cap>0).map(([used,cap])=>used/cap);
+  if(capacity.some(value=>value>=1))add('BACKUP_CAPACITY_EXHAUSTED');
+  else if(capacity.some(value=>value>=.8))add('BACKUP_CAPACITY_HIGH','warning');
   if(alarmAge===null)add('ALARM_MISSING');
   else if(status.alarm.ok!==true)add('ALARM_FAILED');
   else if(alarmAge>=30*60000)add('ALARM_STALE');

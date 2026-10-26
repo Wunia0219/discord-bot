@@ -17,16 +17,16 @@ export function emptyRecords(message, detail) {
 }
 
 export function roundRecords(history) {
-  if (!history.length) return emptyRecords('第一場表演，等你開場', '按下 SPIN，這裡就會留下每一局的獎勵與籌碼變化。');
+  if (!history.length) return emptyRecords('第一場表演，等你開場', '按下 SPIN，這裡就會留下每一局的獎勵與戲籌變化。');
   const body = node('div', 'player-records');
   body.append(node('p', 'records-caption', '最近 100 局 · 點開一局查看得獎組合'));
   for (const round of history) {
     const card = node('details', 'play-record');
     const summary = node('summary', 'record-summary');
     const title = node('div', 'record-title');
-    title.append(node('time', '', date(round.time)), node('strong', '', round.payout ? `獲得 ${fmt(round.payout)} 籌碼` : '這局沒有得獎'));
+    title.append(node('time', '', date(round.time)), node('strong', '', round.payout ? `獲得 ${fmt(round.payout)} 戲籌` : '這局沒有得獎'));
     const change = node('div', `record-change ${round.net > 0 ? 'is-positive' : ''}`);
-    change.append(node('span', '', '籌碼變化'), node('strong', '', `${round.net > 0 ? '+' : ''}${fmt(round.net)}`));
+    change.append(node('span', '', '戲籌變化'), node('strong', '', `${round.net > 0 ? '+' : ''}${fmt(round.net)}`));
     summary.append(title, change, node('span', 'record-chevron', ''));
     const detail = node('div', 'record-detail');
     detail.append(node('p', 'record-balance', `下注 ${fmt(round.bet)} · 結束餘額 ${fmt(round.after)}`));
@@ -39,7 +39,7 @@ export function roundRecords(history) {
       }
       detail.append(list);
     } else detail.append(node('p', '', '這局沒有連出中獎組合。'));
-    detail.append(node('p', 'record-outcome', round.net === 0 ? '這局的籌碼沒有變化。' : `這局${changeLabel(round.net)}籌碼。`));
+    detail.append(node('p', 'record-outcome', round.net === 0 ? '這局的戲籌沒有變化。' : `這局${changeLabel(round.net)}戲籌。`));
     card.append(summary, detail);
     body.append(card);
   }
@@ -47,7 +47,7 @@ export function roundRecords(history) {
 }
 
 export function ledgerRecords(entries) {
-  if (!entries.length) return emptyRecords('還沒有籌碼收支', '領取每日簽到或開始遊戲後，就能在這裡查看。');
+  if (!entries.length) return emptyRecords('還沒有戲籌收支', '領取每日簽到或開始遊戲後，就能在這裡查看。');
   const body = node('div', 'player-records');
   body.append(node('p', 'records-caption', '最近 50 筆 · 所有時間皆為台灣時間'));
   for (const entry of entries) {

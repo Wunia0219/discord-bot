@@ -12,11 +12,11 @@ export function roundFromStops(bet, stops) {
 export function createRound(state, bet, stops, id, time = new Date().toISOString()) {
   if (state.history.some(r => r.id === id)) return { state, round: state.history.find(r => r.id === id), duplicate: true };
   if (!BETS.includes(bet)) throw new Error('請選擇有效的下注額');
-  if (!Number.isSafeInteger(state.balance) || state.balance < bet) throw new Error('測試籌碼不足，請重設試玩');
+  if (!Number.isSafeInteger(state.balance) || state.balance < bet) throw new Error('測試戲籌不足，請重設試玩');
   if (typeof id !== 'string' || !id || !Number.isFinite(Date.parse(time))) throw new Error('無效的局號或時間');
   const outcome = roundFromStops(bet, stops);
   const after = state.balance - bet + outcome.payout;
-  if (!Number.isSafeInteger(after)) throw new Error('籌碼超過可記帳範圍');
+  if (!Number.isSafeInteger(after)) throw new Error('戲籌超過可記帳範圍');
   const milestone = after >= 12000 && !state.milestones.includes(12000);
   const round = { id, time, bet, before: state.balance, after, net: outcome.payout - bet, ...outcome, milestone };
   return { round, state: { ...state, version: 3, balance: after, history: [round, ...state.history].slice(0, 100), milestones: milestone ? [...state.milestones, 12000] : [...state.milestones] } };

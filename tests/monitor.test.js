@@ -12,6 +12,8 @@ test('backup capacity warns before the full-history limit without treating legac
  s.backup.bytes=80;s.backup.limitBytes=100;assert.ok(operationsHealth(s,{now:START}).alerts.some(a=>a.code==='BACKUP_CAPACITY_HIGH'));
  s.backup.bytes=100;const alerts=operationsHealth(s,{now:START}).alerts;assert.ok(alerts.some(a=>a.code==='BACKUP_CAPACITY_EXHAUSTED'&&a.severity==='critical'));
  assert.match(notificationPayload(alerts,START).content,/完整備份容量已達上限/);
+ s.backup.bytes=1;s.backup.parts=80;s.backup.limitParts=100;assert.ok(operationsHealth(s,{now:START}).alerts.some(a=>a.code==='BACKUP_CAPACITY_HIGH'));
+ s.backup.parts=100;assert.equal(operationsHealth(s,{now:START}).alerts.filter(a=>a.code==='BACKUP_CAPACITY_EXHAUSTED').length,1);
 });
 function fixture(){
   let now=START,target=()=>Response.json(healthy(now)),delivery=()=>Response.json({id:'100000000000000007'});

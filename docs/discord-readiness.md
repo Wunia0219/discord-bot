@@ -1,5 +1,15 @@
 # Discord 功能與啟動驗收
 
+## 2026-10-26 朋友群開放紀錄
+
+使用者指定「小丑俱樂部」的「工程師施工中」頻道進行試玩；設定時該頻道已更名為「工程師的專屬地」。群 ID 為 `760012177326997544`，頻道 ID 為 `1564243344857632818`。Discord 安裝授權後，該群指令查詢由 `403 Missing Access` 變為 `200`。
+
+已在同一現行 Worker 的 `ALLOWED_GUILD_IDS` 加入朋友群，保留原群 `1441097301685698703`，並註冊、重新讀取核對 `/簽到`、`/戲籌`、`/戲籌管理`。此白名單以群為範圍；指定頻道的成員可見性與應用程式使用權仍依 Discord 頻道設定，沒有宣稱後端僅開放單一頻道。管理指令沿用原權限保護，未新增戲籌管理角色。
+
+設定後，公開 health 顯示 `0.2.7`／`circus-243-v2`，ready 通過、備份有效；線上程式模組、入口 HTML 與主要 JS/CSS 雜湊一致。除白名單外，所有 bindings（含 Secrets、同一 DO、Firestore 範圍與既有公告目的群）逐項一致；原額度上限及資料來源保留。本機操作設定同步新白名單，`FIRESTORE_LIVE_ENABLED=false` 維持關閉。此次僅更新雲端設定，未發布本機新介面或調整停輪。
+
+朋友群目前沒有得獎公告；原公告仍只送至原群。未製造測試回合或代發頻道公告。朋友群的真人活動啟動、登入與頻道權限仍待實際操作驗收。私有設定備份、前後模組／前端雜湊及驗證結果保存在忽略 Git 的 `backups/friend-guild-20261026/`，其中 `.env` 副本須當憑證保管。
+
 2026-10-24 更新，工作區版本 **0.2.7**。目前 Discord 入口已切換 Cloudflare Workers Free，沿用原 Firestore v2 帳本與專用得獎 Webhook；本機 writer 與舊通道已停用。雲端／Discord 21 項診斷、加密備份下載還原及背景音樂發布已完成；停輪維持 [已驗收基準](reel-timing-baseline.md)。現行操作與回退見 [雲端手冊](cloud-runtime.md)，v2 遷移記錄見 [遷移進度](firestore-v2-migration-status.md)。
 
 ## 已完成的公告流程
@@ -67,3 +77,5 @@ npm run discord:check -- --cloud --discord --public-origin https://jokers-circus
 本機回歸依範圍使用 `npm test`、`npm run test:firestore`、`npm run test:cloud`、`npm run build` 及 `npm run cloud:build`。Firestore／workerd 使用官方本機模擬器與假 Discord 回應，不冒充真人驗收；文件與版本更新不重跑完整數學枚舉或真實資料遷移。
 
 10/23 歷史證據保留於 `test-results/discord-completion-unit.log`、`discord-completion-firestore.log`、`discord-completion-build.log` 與 `discord-readiness-live.log`：當時 307 項一般回歸及 52 項模擬器測試通過，本機通道後續曾有 28 項診斷通過。這些數字描述當時環境；原每日 v2 遷移接續排程已於遷移完成後刪除，不作為目前服務的操作指引。
+
+10/26 完整 0.2.7 已發布，25 項雲端／Discord 診斷通過。戲籌指令原 ID／預設權限保持一致；分塊備份、最新進度還原與監控均通過，剩餘真人驗收依 [本次發布](launch-readiness.md)。前述較早的待辦與版本為歷史狀態。

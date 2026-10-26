@@ -13,6 +13,7 @@ import {FirestoreRest} from '../cloud/firestore-rest.js';
 import {CloudState,Sealer} from '../cloud/storage.js';
 import {CloudQuota,QUOTA_LIMITS} from '../cloud/quota.js';
 import {SnapshotVault} from '../cloud/snapshot.js';
+import {SettlementQueue} from '../server/settlement-queue.js';
 import {CloudBackup} from '../cloud/backup.js';
 import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot} from '../server/cloud-handoff.js';
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8787');
@@ -39,13 +40,20 @@ test('20-player 1000-round incremental backup fits unchanged maintenance cap and
  restoreCloudSnapshot(recovered,join(dir,'restored.sqlite'),'test');assert.deepEqual(snapshotForCloud(join(dir,'restored.sqlite'),'test').tables,expected.tables);
  const backupMs=Math.round(performance.now()-backupStarted);
  // Simultaneous authoritative transactions; every retry retains its original key.
- const play=new FirestoreWalletCore(settings,{db,quota:global,guildIds:[guild]});await play.initialize();
+ const play=new FirestoreWalletCore(settings,{db,quota:global,guildIds:[guild],settlementQueue:new SettlementQueue()});await play.initialize();
  const ids=users.map(()=>randomUUID()),concurrentStarted=performance.now();
  const attempts=await Promise.allSettled(users.map((user,i)=>play.spin(guild,user,20,ids[i],{compact:true})));
- const initialRejected=attempts.filter(x=>x.status==='rejected').length;
+ const initialRejected=attempts.filter(x=>x.status==='rejected').length;assert.equal(initialRejected,0,'bounded queue removes shared-counter conflicts');
  const settlements=[];for(let i=0;i<users.length;i++)settlements.push(attempts[i].status==='fulfilled'?attempts[i].value:await play.spin(guild,users[i],20,ids[i],{compact:true}));
  for(let i=0;i<users.length;i++){const duplicate=await play.spin(guild,users[i],20,ids[i],{compact:true});assert.equal(duplicate.duplicate,true);assert.deepEqual(duplicate.round,settlements[i].round);}
  const meta=await play.read(play.meta);assert.equal(meta.nextId,expected.revision+20,'exactly one ledger entry per player');
- const report={ok:true,emulatorOnly:true,players:20,newRounds:1000,backupSteps:steps,maintenanceReadUnits:used,previousReservationUnits:used*6,unchangedMaintenanceCap:6000,allSevenTablesEqual:true,restartedMidBackup:true,snapshotBytes:Buffer.byteLength(JSON.stringify(recovered)),backupMs,concurrent:{players:20,initialRejected,allSettledAfterSameKeyRetry:true,duplicateSettlements:0,elapsedMs:Math.round(performance.now()-concurrentStarted)},totalMs:Math.round(performance.now()-started),scope:'Incremental backup and concurrent emulator transactions; not simultaneous browser play or real Cloudflare CPU'};
+ const scenarios=[];play.spinDelay=0;
+ for(const count of [2,5,8,10]){
+   const start=performance.now(),keys=users.slice(0,count).map(()=>randomUUID());
+   const values=await Promise.all(users.slice(0,count).map(async(user,i)=>{await new Promise(resolve=>setTimeout(resolve,i*60));return play.spin(guild,user,20,keys[i],{compact:true});}));
+   assert.equal(new Set(values.map(x=>x.round.id)).size,count);
+   scenarios.push({players:count,staggerMs:60,settled:values.length,elapsedMs:Math.round(performance.now()-start)});
+ }
+ const report={scenarios,ok:true,emulatorOnly:true,players:20,newRounds:1000,backupSteps:steps,maintenanceReadUnits:used,previousReservationUnits:used*6,unchangedMaintenanceCap:6000,allSevenTablesEqual:true,restartedMidBackup:true,snapshotBytes:Buffer.byteLength(JSON.stringify(recovered)),backupMs,concurrent:{players:20,initialRejected,allSettledAfterSameKeyRetry:true,duplicateSettlements:0,elapsedMs:Math.round(performance.now()-concurrentStarted)},totalMs:Math.round(performance.now()-started),scope:'Incremental backup and concurrent emulator transactions; not simultaneous browser play or real Cloudflare CPU'};
  writeFileSync('test-results/backup-scale-report.json',JSON.stringify(report,null,2));
 });

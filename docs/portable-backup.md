@@ -45,3 +45,7 @@ npm run backup:portable -- restore --from backups/encrypted/snapshot.jcbak --to 
 加密還原後全部七張表逐列相等，v2 匯入指紋相等；結果見 `test-results/portable-post-discord-play-report.json`。此快照之後的新增進度，仍須在真正切換前停止 writer、再取最新備份，不以本次演練取代切換驗證。
 
 完整回歸 314 項、Firestore 模擬器 52 項全數通過，無跳過。加密還原後的快照也完成 v2／v1 演練：777 筆原請求各重送一次共 1,554 次，沒有新增寫入；隔離演練新增的簽到與一局遊戲在回退後仍保留。備份專項涵蓋 WAL、錯誤金鑰／環境、標頭／密文／驗證標記遭修改、截斷／額外資料，以及拒絕覆蓋來源、既有備份與金鑰。
+
+## 10/26 雲端分塊格式
+
+現行雲端 archive format 2 以認證目錄及 AES-GCM 分塊保存完整七表；使用更新後的 `cloud:control archive/export` 分頁下載，`cloud-handoff restore` 同時支援 format 1／2。它與本頁 `.jcbak` 不同，限制與最新還原證據見 [發布驗收](launch-readiness.md)。金鑰仍須與下載的加密備份分開保管。
