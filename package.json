@@ -41,7 +41,9 @@
     "cloud:handoff": "node scripts/admin/cloud-handoff.js",
     "cloud:control": "node scripts/admin/cloud-control.js",
     "monitor:build": "node scripts/admin/cloud-local.js monitor-build",
-    "test:monitor": "node scripts/admin/cloud-local.js monitor-test"
+    "test:monitor": "node scripts/admin/cloud-local.js monitor-test",
+    "validation:start": "node scripts/admin/validation-server.js",
+    "validation:test": "node --test tests/local-wallet.test.js tests/wallet-client.test.js tests/spin-controls.test.js tests/spin-shortcut.test.js"
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "2.5.0",

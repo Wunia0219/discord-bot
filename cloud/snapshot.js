@@ -52,7 +52,7 @@ export class SnapshotVault {
   save(generation,snapshot){
     const text=JSON.stringify(snapshot);if(Buffer.byteLength(text)>8*1024**2)throw new Error('Cloud backup size limit; retain old snapshots');
     const parts=[];for(let i=0;i<text.length;i+=100000)parts.push(this.sealer.seal(text.slice(i,i+100000),`backup:${generation}:${parts.length}`));
-    const manifest={format:1,generation,parts:parts.length,sha256:digest(text),environment:snapshot.environment,revision:snapshot.revision,createdAt:Date.now()};
+    const manifest={format:1,generation,parts:parts.length,sha256:digest(text),environment:snapshot.environment,revision:snapshot.revision,createdAt:Date.now(),bytes:Buffer.byteLength(text),limitBytes:8*1024**2};
     this.storage.transactionSync(()=>{this.sql.exec('DELETE FROM backup_chunks WHERE generation=?',generation);for(let i=0;i<parts.length;i++)this.sql.exec('INSERT INTO backup_chunks VALUES(?,?,?)',generation,i,parts[i]);this.state.set('backup:'+generation,manifest);});return manifest;
   }
   load(generation){const a=this.archive(generation),text=a.chunks.map((v,i)=>this.sealer.open(v,`backup:${generation}:${i}`)).join('');if(digest(text)!==a.manifest.sha256)throw new Error('Backup checksum');return JSON.parse(text);}

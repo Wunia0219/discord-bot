@@ -12,6 +12,11 @@ export function operationsHealth(status,{now=Date.now()}={}){
   else if(status.backup.ok!==true)add('BACKUP_FAILED');
   else if(backupAge>=48*HOUR)add('BACKUP_STALE');
   else if(backupAge>=26*HOUR)add('BACKUP_DELAYED','warning');
+  const size=status?.backup?.bytes,limit=status?.backup?.limitBytes;
+  if(Number.isSafeInteger(size)&&size>=0&&Number.isSafeInteger(limit)&&limit>0){
+    if(size>=limit)add('BACKUP_CAPACITY_EXHAUSTED');
+    else if(size>=limit*.8)add('BACKUP_CAPACITY_HIGH','warning');
+  }
   if(alarmAge===null)add('ALARM_MISSING');
   else if(status.alarm.ok!==true)add('ALARM_FAILED');
   else if(alarmAge>=30*60000)add('ALARM_STALE');
@@ -33,6 +38,7 @@ const labels={SERVICE_NOT_ACTIVE:'服務未啟用',SERVICE_UNREACHABLE:'無法�
 const scopes={global:'整體',maintenance:'備份維護',highlights:'得獎公告'};
 export const alertFingerprint=alerts=>JSON.stringify(alerts.map(({code,severity,scope})=>[code,severity,scope||'']).sort());
 export function notificationPayload(alerts,now){
-  const lines=alerts.length?alerts.map(a=>'- '+(labels[a.code]||'維運狀態異常')+(scopes[a.scope]?'（'+scopes[a.scope]+'）':'')):['監控項目已恢復正常。'];
+  const capacityLabels={BACKUP_CAPACITY_HIGH:'完整備份容量已達八成，需安排擴充或調整架構',BACKUP_CAPACITY_EXHAUSTED:'完整備份容量已達上限'};
+  const lines=alerts.length?alerts.map(a=>'- '+(capacityLabels[a.code]||labels[a.code]||'維運狀態異常')+(scopes[a.scope]?'（'+scopes[a.scope]+'）':'')):['監控項目已恢復正常。'];
   return {content:['Joker’s Circus｜'+(alerts.length?'維運提醒':'服務恢復'),...lines,'檢查時間：'+new Date(now).toISOString()].join('\n'),allowed_mentions:{parse:[]}};
 }

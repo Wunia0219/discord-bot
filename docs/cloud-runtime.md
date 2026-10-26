@@ -202,3 +202,19 @@ Discord 網頁實際驗收：以既有帳號啟動雲端 Activity，登入成功
 自動審核拒絕以 --keep-vars=false 更新整份設定清單，故改用保留設定的發布，再透過精準合併更新只刪除 `SPIN_MEASUREMENT_COHORT`；中間版本 `da65fc70-a36b-45b7-8bac-b6678d074f8d` 在發布前逐項核對，最終版本除該變數外的全部雲端綁定與清理前完全相同，五組密鑰與同一 DO 均保留。沒有新增管理寫入介面。
 
 339 項一般測試通過、1 項條件測試跳過；3 項 REST／workerd 整合測試通過，前端 build、桌機／手機、慢結果／歷史、共用落地／音效及慢幀回歸通過；前端請求不再帶測速回報。最終公開建置雜湊、音樂／Range、health／ready 與 21 項 Discord 診斷通過，原資料範圍、active writer、備份與額度正常。證據：`test-results/measurement-cleanup-preserved.json`、`measurement-cleanup-sql-guard.json`、`measurement-cleanup-purge-verification.json`、`measurement-cleanup-variable-guard.json`、`measurement-cleanup-final-guard.json`、`measurement-cleanup-tests.log`、`measurement-cleanup-cloud.log`、`measurement-cleanup/report.json`、`measurement-cleanup-verification.json`、`measurement-cleanup-readiness.log`。本文件的舊量測敘述為歷史發布記錄，現行遊戲不持續收集停輪耗時。回退至 `b53b9835-9142-4305-9060-7d8b19a4d2f2` 會恢復量測程式，不能當作保留清理的回退；任何回退都不釋放 DO 或恢復過期帳本。
+
+## 10/26 首次跨日自動備份還原驗收
+
+台灣時間 10/25 17:23:14 完成的跨日備份（revision 1088）已於 10/26 下載至新的 first-daily-20261026.json 並解密還原至新的 SQLite。七表逐筆比對、AES-GCM 與 SHA-256 校驗、全帳本餘額／簽到／原結果及重送鍵驗帳全部通過。與 10/24 交接相比，原不可變歷史完整保留，新增 308 局與 1 筆簽到（309 筆帳本及原請求）；總計 2 錢包、1088 帳本、1086 原請求、1071 局。資料未記錄裝置種類，不能將全部新增局數單獨歸因於手機；本次完整涵蓋快照時間點內的新增進度，之後的進度由下一份備份涵蓋。
+
+自動執行依據為最後手動基準後超過 24 小時的備份時間推進及健康 alarm；本次僅 status/archive，未手動觸發 backup，未暫停或釋放服務。檢查時 active、backup/alarm 正常，24 小時保護計數 reads 7500/40000、writes 0/15000，上限未改。證據與各檔雜湊：backups/cloud-handoff/20261024/first-daily-verification-20261026.json。原備份、獨立金鑰、原額度檔與回退流程保留。此次單次驗收目的完成，結束其 Codex 排程；雲端每日備份不受影響。未改動 0.2.7 來源、停輪基準或雲端部署。
+
+## 10/26 維運監控接通
+
+已發布後端 `6e2e5db1-b384-4627-bc30-c7063d412d1b`（0.2.7），接入獨立 `jokers-circus-monitor` 的唯讀 token；使用 keep_assets 保留線上既有前端、政策頁與停輪體驗。原 DO、全部原 Secrets／變數、v2 資料及原額度不變；前端分支中的 0.2.7 新內容尚未因此發布。
+
+使用者指定並授權私人 #bot維護 專用 Webhook、Secrets 及一組明確標示的故障／恢復測試，通知已送達。352 項一般測試通過、1 項條件跳過，25 項隔離入口選定測試、3 項 Firestore／workerd 整合及 1 項監控 workerd 測試通過；線上 readonly 權限、前端雜湊、health/readiness 與雲端 Discord 診斷通過。維護子額度 94.7% 的提醒如實保留，未提高上限。
+
+設定、Cron 執行證據及回退見 [維運監控](operations-monitor.md)。回退目標 `c7ae9254-91eb-47bd-ac4d-bd3d95389d08` 僅用於程式回退，保留最新 DO／Firestore 資料；不需要或允許恢復過期帳本。本次新增隔離測試入口見 [分支驗收環境](validation-environment.md)，本次未提交或推送分支。
+
+同日 16:30:33 已確認首次雲端 Cron 實際探測，沒有手動觸發；讀到維護子額度提醒且按連續兩次規則等待確認。監控完全在雲端執行，不需要本機 Codex 排程或個人電腦常駐。

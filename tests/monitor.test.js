@@ -7,6 +7,12 @@ const START=Date.UTC(2026,9,24,12),TEN_MINUTES=600000;
 const quota=()=>({used:{reads:10,writes:0,egressBytes:0,storageBytes:10},limits:{reads:100,writes:100,egressBytes:1000,storageBytes:1000},blocked:false});
 const healthy=(now=START)=>({mode:'active',backup:{ok:true,at:now-1000},alarm:{ok:true,at:now},quota:{...quota(),scopes:{maintenance:quota(),highlights:quota()}}});
 const webhook='https://discord.com/api/webhooks/100000000000000005/isolated-operations-fixture';
+test('backup capacity warns before the full-history limit without treating legacy metadata as a failure',()=>{
+ const s=healthy();assert.equal(operationsHealth(s,{now:START}).ok,true);
+ s.backup.bytes=80;s.backup.limitBytes=100;assert.ok(operationsHealth(s,{now:START}).alerts.some(a=>a.code==='BACKUP_CAPACITY_HIGH'));
+ s.backup.bytes=100;const alerts=operationsHealth(s,{now:START}).alerts;assert.ok(alerts.some(a=>a.code==='BACKUP_CAPACITY_EXHAUSTED'&&a.severity==='critical'));
+ assert.match(notificationPayload(alerts,START).content,/完整備份容量已達上限/);
+});
 function fixture(){
   let now=START,target=()=>Response.json(healthy(now)),delivery=()=>Response.json({id:'100000000000000007'});
   const values=new Map(),messages=[],requests=[];

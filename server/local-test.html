@@ -80,7 +80,7 @@ async function refresh(){
     const next=await response.json();if(!next.ok||next.environment!=='test')throw new Error();
     if(overview&&next.runId!==overview.runId){$('#connection').dataset.ready=false;$('#connection-text').textContent='測試資料已切換';notify('後端已換成另一輪資料，請先匯出本頁紀錄，再重新整理。',true);return;}
     overview=next;storageKey=`circus-wallet-acceptance-v1:${overview.runId}`;
-    $('#environment').textContent=`v${overview.version} · backend 分支本機驗收 · 每日簽到 ${fmt(overview.daily)} · 輪次 ${overview.runId.slice(0,8)}`;
+    $('#environment').textContent=`v${overview.version} · 本機隔離驗收 · 每日簽到 ${fmt(overview.daily)} · 輪次 ${overview.runId.slice(0,8)}`;
     $('#connection').dataset.ready=true;$('#connection-text').textContent='後端與資料庫已就緒';renderProfiles();
     if(!mounted){loadRecords();renderCases();mounted=true;$('#export').disabled=false;$('#export-bottom').disabled=false;}
     $('#updated').textContent='錢包狀態更新於 '+new Date().toLocaleTimeString('zh-TW')+'，每 15 秒自動更新。';

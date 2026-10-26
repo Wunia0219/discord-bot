@@ -1,6 +1,6 @@
 # 獨立維運監控與通知
 
-2026-10-24，版本 **0.2.7**。依使用者要求先完成通知功能與隔離測試，目的地之後設定。獨立 Worker、持久告警去重、故障／恢復通知及唯讀權限已實作；目前未部署監控、未設定真實 Webhook，也未發送任何真實通知。首次跨日備份驗收仍依 [收尾計畫](roadmap.md)另行完成。
+2026-10-26，版本 **0.2.7**。已依使用者當次授權，在「記事小本本 → 私人 #bot維護」建立「Joker’s Circus 維運通知」，保存至同帳戶獨立監控 Worker Secrets。遊戲唯讀監控支援與獨立 Worker 已部署，一組明確標示的模擬故障／恢復通知已在 Discord 確認。首次跨日備份還原驗收也已完成，見 [雲端手冊](cloud-runtime.md)。雲端 Cron 執行證據記錄於本頁末尾。
 
 ## 目前可用的功能
 
@@ -64,3 +64,19 @@ npm run build
 `test:cloud` 使用官方 Firestore emulator 與真正 workerd，驗證唯讀 token 無法呼叫任何管理 POST、status 不增加 Firestore 額度，以及原結算／備份／回退契約。`test:monitor` 在真正 workerd 中以測試 wrapper 呼叫 scheduled handler，驗證 DO 重啟去重、恢復通知與公開存取保護；可控時鐘只存在測試 wrapper，不隨正式 Worker 發布。所有外部傳輸均為測試替身。
 
 平台介面參照 [Cloudflare scheduled handler](https://developers.cloudflare.com/workers/runtime-apis/handlers/scheduled/)、[Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/)與 [Discord Webhook](https://docs.discord.com/developers/resources/webhook#execute-webhook)。
+
+## 10/26 實際接通與回退
+
+- 遊戲後端版本：`6e2e5db1-b384-4627-bc30-c7063d412d1b`，0.2.7 唯讀監控支援；監控入口：`https://jokers-circus-monitor.nini900219.workers.dev`，Cron 每 10 分鐘。
+- 遊戲只加入 `CLOUD_MONITOR_TOKEN`。原五組 Secrets、全部原變數、同一 DO namespace、Firestore 美國區域入口與 v2 範圍逐項保持一致。監控 Worker 只有 `MONITORED_TOKEN`、`MONITOR_WEBHOOK_URL`，不保存 admin、Google 或備份金鑰。
+- 使用官方 [keep_assets](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/methods/update/) 保留線上既有前端與政策頁；入口 HTML、主要 JS/CSS 雜湊一致。這不是完整的 0.2.7 前端發布，分支新介面／政策內容仍待另行驗收發布。
+- 唯讀 token 可 GET status；未授權查詢及 pause／backup／archive／export／activate／seed／verify POST 均被拒絕。測試未執行管理動作，也未啟動本機 Firestore writer。
+- 正式 readiness、health、雲端 Discord 診斷通過。首次使用預設本機診斷，因已停機本機服務與靜態頁轉址而失敗；改用既有 `--cloud` 模式後通過，沒有重新啟動本機 writer。
+- 模擬通知送達 #bot維護，訊息 ID `1564192334130839683`、`1564192336605478943`。使用正式 ServiceMonitor 引擎與真實 Webhook，模擬探測與時鐘僅在本機驗收腳本；不是正式事故，未存取玩家資料。
+- 實際維護子額度 reads 5682/6000（94.7%）提醒；整體 reads 7500/40000、backup revision 1088 與 alarm 正常。保留原 24 小時滾動額度，不提高上限或手動觸發備份消耗剩餘額度。
+
+部署前程式、設定、前端雜湊、前後 status 與通知回執保存在忽略 Git 的 `backups/monitor-activation-20261026/`。其中私密環境備份須當憑證保管，不能分享。原跨日備份、還原 SQLite、獨立加密金鑰與額度均保留；本次沒有 seed、資料格式遷移或 writer 交接。
+
+只需撤回監控時，先將獨立監控 Worker 的 `MONITOR_ENABLED` 改為 `false`，保留其他設定與 Secrets。若要回退本次遊戲程式，先停用監控避免舊版拒絕 token 造成誤報，再將同一遊戲 Worker 回退至 `c7ae9254-91eb-47bd-ac4d-bd3d95389d08`。只回退程式，保留現行 DO、額度與最新 Firestore；不可接回過期 v1 或舊帳本。回退後核對 readiness、source、backup/alarm、額度與原前端雜湊。跨主機／資料回退仍遵循 [雲端交接手冊](cloud-runtime.md)的停 writer、最新快照及 ownership 流程。
+
+台灣時間 **2026-10-26 16:30:33.495** 已觀察到首次真正雲端 Cron 檢查（`checkedAt=1793003433495`），未使用手動觸發。它正確讀到維護子額度提醒；第一次尚未達連續兩次門檻，`confirmed=false`、`delivery=idle`，符合去抖規則。Cron 設定 API 確認每 10 分鐘，健康檢查 200、私有狀態拒絕未授權、公開 `/check` 不存在；監控雲端 Secrets 僅有唯讀 token 與專用 Webhook。證據：`backups/monitor-activation-20261026/cron-verification.json`、`cron-schedule.json`。模擬通知傳輸與實際 Cron 探測分開記錄，不把測試訊息冒充真實故障通知。

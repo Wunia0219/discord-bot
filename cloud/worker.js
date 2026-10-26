@@ -74,7 +74,8 @@ export class CircusProject extends DurableObject {
     if(path==='/__ops/status'&&request.method==='GET'){
       const quota=this.state.get('quota-identity')?this.quota.status():null;
       if(quota)quota.scopes=Object.fromEntries(['maintenance','highlights'].map(scope=>[scope,{used:this.quota.totals(scope),limits:this.quota.identity().limits[scope]}]));
-      const status={version:APP_VERSION,mode:this.state.get('mode')||'unseeded',source:this.state.get('source'),backup:this.state.get('backup-status'),alarm:this.state.get('alarm-status'),quota};
+      const backup=this.state.get('backup-status'),manifest=this.state.get('backup:'+this.state.get('backup-latest'));
+      const status={version:APP_VERSION,mode:this.state.get('mode')||'unseeded',source:this.state.get('source'),backup:backup?{...backup,...(Number.isSafeInteger(manifest?.bytes)?{bytes:manifest.bytes,limitBytes:manifest.limitBytes}: {})}:null,alarm:this.state.get('alarm-status'),quota};
       return json({...status,operations:operationsHealth(status)});
     }
     if(request.method!=='POST')return json({error:'POST required'},405);
