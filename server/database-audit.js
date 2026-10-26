@@ -1,13 +1,14 @@
 import {isDeepStrictEqual} from 'node:util';
 import {BETS,MODEL_VERSION,LEGACY_MODELS,gridFromStops,evaluateGrid} from '../src/game/index.js';
 import {previousDay,validCheckinTransition} from './weekly-checkin.js';
+import {validResetOperation} from './wallet-admin.js';
 
 const MAX_BALANCE=1_000_000_000_000;
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const balance=value=>Number.isSafeInteger(value)&&value>=0&&value<=MAX_BALANCE;
 const parse=text=>{try{return JSON.parse(text);}catch{return null;}};
 const currentMath={gridFromStops,evaluateGrid};
-const operationKinds=new Set(['spin','checkin','grant','reversal','test_fixture']);
+const operationKinds=new Set(['spin','checkin','grant','reversal','test_fixture','reset']);
 // Older writes sampled the clock separately for ledger, JSON and sort time.
 // Keep a bounded 1-second compatibility allowance without rewriting old rows.
 const sameSettlementTime=(left,right)=>Number.isFinite(left)&&Number.isFinite(right)&&Math.abs(left-right)<=1000;
@@ -62,6 +63,10 @@ export function inspectSettlements(db){
   for(const row of reader(db,'SELECT * FROM operations').iterate()){
     const result=parse(row.result);
     if(!object(result)){add('Operation result errors');continue;}
+    if(row.key.startsWith('reset:')){
+      if(!validResetOperation(row,result,id=>entryById.get(id)))add('Reset operation errors');
+      entryOperations+=Array.isArray(result.entries)?result.entries.length:0;continue;
+    }
     const spin=/^spin:(\d{17,20}):([-a-zA-Z0-9]{16,80})$/.exec(row.key);
     if(spin){
       spinOperations++;
@@ -112,6 +117,10 @@ export function inspectSettlements(db){
       if(entry.kind==='checkin'){
         const op=operationByKey.get(entry.guild,`daily:${entry.user}:${entry.day}`);
         if(parse(op?.result)?.entry?.id!==entry.id)add('Ledger operation errors');
+      }
+      if(entry.kind==='reset'){
+        const result=parse(operationByKey.get(entry.guild,'reset:'+entry.reference)?.result);
+        if(!Array.isArray(result?.entries)||!result.entries.some(e=>e?.id===entry.id&&e.user===entry.user))add('Reset ledger operation errors');
       }
       if(entry.kind==='reversal'){
         const original=/^[1-9]\d*$/.test(entry.reference??'')?entryById.get(entry.reference):null;

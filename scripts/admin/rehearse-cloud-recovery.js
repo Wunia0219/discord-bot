@@ -30,6 +30,7 @@ try{
   const expected=JSON.parse(op.result);let result;
   if(op.key.startsWith('spin:')){const [,user,id]=op.key.split(':');session={guild:op.guild,user};result=await request('/api/spin',{bet:Number(op.fingerprint),requestId:id});assert.deepEqual(result.round,expected.round);}
   else if(op.key.startsWith('daily:')){const [,user]=op.key.split(':');session={guild:op.guild,user};store.clock=()=>Date.parse(snapshot.tables.ledger.find(e=>e.id===expected.entry.id).time);result=await request('/api/checkin',{});assert.deepEqual(result.entry,expected.entry);}
+  else if(op.key.startsWith('reset:')){result=store.resetWallets(op.guild,expected.reset.actor,expected.reset.requestId);assert.deepEqual(result.entries,expected.entries);assert.deepEqual(result.reset,expected.reset);}
   else continue;
   assert.equal(result.duplicate,true);replayed++;
  }

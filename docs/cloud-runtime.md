@@ -6,6 +6,8 @@
 
 跨日自動備份、最新進度還原、金鑰保管確認與獨立監控已完成。最新資料與測試、發布及回退細節見 [上線驗收](launch-readiness.md)；剩餘真人手機／雙裝置、自然大獎與小群持續用量觀察見 [收尾計畫](roadmap.md)。
 
+2026-10-26 使用者將測試範圍收斂至「小丑俱樂部 → 工程師的專屬地」。現行 `ALLOWED_GUILD_IDS` 只保留 `760012177326997544`，Discord 原生權限只開放頻道 `1564243344857632818`，原群應用程式整合與遊戲公告已停用。這次 Cloudflare settings PATCH 不發布工作區週簽到程式；執行中的 `worker.js` 與前端資產雜湊均維持相同。Cloudflare 此次未在下載的模組清單保留非執行檔 `worker.js.map`，原 map 已隨變更前 multipart 備份保存，不影響執行程式。資料範圍、DO、額度與有效備份不變，細節見 [現行 Discord 範圍](discord-readiness.md)。
+
 ## 執行方式
 
 `wrangler.jsonc` 使用 Workers 靜態資產與 SQLite Durable Object；沒有新增 R2、Cloudflare 付費方案或自動升級。使用者已啟用 Firebase Blaze；Firestore v2 仍是唯一遊戲帳本，保留原免費用量保護。遊戲結算、紀錄查詢、Discord 驗證及公告共用 Node 的核心，Worker 使用 REST 交易傳輸；不確定的 commit 不自動重送，沿用原 request ID 查回結果。

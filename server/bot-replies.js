@@ -12,6 +12,13 @@ export function privateReply(environment, description, title = '你的戲籌', t
 export function commandError(error, { store, subcommand } = {}) {
   const number = value => value.toLocaleString('en-US');
   const messages = {
+    WALLET_CURSOR: ['玩家編號再確認一下', '請填入上一頁提供的玩家編號，再接著查詢。'],
+    RESET_CONFIRM: ['確認後才會重設', '這會將本群所有已建立錢包的玩家重設為 **10,000 戲籌**。\n週簽到與遊玩歷史保留；系統會保存每位玩家重設前一刻的實際餘額。\n確定執行時，請將「確認」選為 True。'],
+    RESET_PAGE: ['報表頁碼再確認一下', '先執行重設，再填入該筆「紀錄編號」與報表提供的頁碼來翻頁。'],
+    RESET_MISSING: ['找不到這筆重設紀錄', '請核對「紀錄編號」，並在當初重設的伺服器查詢。'],
+    RESET_EMPTY: ['本群還沒有玩家錢包', '目前沒有可重設的錢包。玩家開啟遊戲或簽到後，才會建立錢包。'],
+    RESET_LIMIT: ['本次重設超出安全範圍', '本群的錢包數量或資料量超出單筆安全交易上限。這次沒有變更任何餘額，請先聯絡維護人員調整容量。'],
+    RESET_INVALID: ['錢包資料需要核對', '這次沒有變更任何餘額，請聯絡維護人員核對錢包資料後再操作。'],
     FIRESTORE_BUDGET: ['今天先休息一下', '服務今天的使用量較高，暫時不能操作戲籌。請稍後再試，或找管理員幫忙看看。'],
     COMMAND_SCOPE: ['回到群裡再試試', '請到有開放遊戲的群組頻道，使用這個指令。'],
     GUILD_CLOSED: ['這個群還沒開放遊戲', '換到有開放遊戲的群再試試，或找群裡的管理員問問。'],

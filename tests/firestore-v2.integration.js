@@ -30,6 +30,56 @@ async function fixture(t){
 }
 const compact={compact:true};
 
+for(const version of [1,2])test(`v${version} reset and concurrent play serialize from authoritative balances; retained state, read-only report and retry survive restart`,async t=>{
+  const h=await fixture(t),settings={...h.settings,schemaVersion:version,namespace:`reset-v${version}-${randomUUID()}-test`};
+  let now=Date.parse('2026-10-26T00:00:00Z');const options={clock:()=>now},a=await h.create(settings,options),b=await h.create(settings,options);
+  await a.checkin(guild,user,compact);await a.checkin(guild,other,compact);await a.state(other,user,compact);
+  const prior=await a.spin(guild,user,20,randomUUID(),compact),checkin=await a.state(guild,user,compact),before=await a.auditSummary(guild,user);
+  const readMany=a.readMany.bind(a);let release,arrived;const gate=new Promise(r=>release=r),ready=new Promise(r=>arrived=r);let held=false;
+  // Hold the reset after its first transactional read. A second service's spin
+  // either commits before a retried reset, or waits and uses the reset balance.
+  a.readMany=async(refs,tx)=>{const data=await readMany(refs,tx);if(!held&&refs.length===2){held=true;arrived();await gate;}return data;};
+  const id=randomUUID(),resetPromise=a.resetWallets(guild,admin,id);await ready;
+  const spinPromise=b.spin(guild,user,20,randomUUID(),compact);release();
+  const [reset,spin]=await Promise.all([resetPromise,spinPromise]);a.readMany=readMany;
+  const entry=reset.entries.find(e=>e.user===user),history=await a.history(guild,user),resetLedger=history.find(e=>e.kind==='reset'),spinLedger=history.find(e=>e.kind==='spin'&&e.id!==prior.state.revision);
+  assert.equal(entry.before,resetLedger.before);
+  if(spinLedger.id<resetLedger.id)assert.equal(entry.before,spin.round.after);else{assert.equal(spin.round.before,10000);assert.equal(entry.before,prior.round.after);}
+  assert.equal(reset.entries.length,2);assert.equal(reset.entries.find(e=>e.user===other).before,10100);
+  a.cache.clear();b.cache.clear();const after=await a.state(guild,user,compact);
+  assert.deepEqual(after.weeklyCheckin,checkin.weeklyCheckin);assert.equal(after.balanceReset.roundId,spinLedger.id<resetLedger.id?spin.round.id:prior.round.id);
+  assert.equal((await a.auditSummary(guild,user)).game.rounds,before.game.rounds+1);assert.equal((await a.auditSummary(guild,user)).checkin.days,1);
+  assert.equal((await a.state(other,user,compact)).balance,10000);
+  const usage=a.quota.status().used.writes,again=await a.resetWallets(guild,admin,id);assert.deepEqual(again,{...reset,duplicate:true});assert.equal(a.quota.status().used.writes,usage);
+  assert.deepEqual(await a.walletResetReport(guild,admin,id),{...reset,duplicate:true});assert.equal(a.quota.status().used.writes,usage);
+  await assert.rejects(a.resetWallets(guild,other,id),{code:'REQUEST_CONFLICT'});
+  const roster=await a.playerWallets(guild);assert.deepEqual(roster.rows.map(w=>w.user),[user,other]);assert.equal(a.quota.status().used.writes,usage);
+  const c=await h.create(settings,options);assert.deepEqual(await c.walletResetReport(guild,admin,id),{...reset,duplicate:true});
+  assert.equal((await c.auditHistory(guild,user,{category:'rewards'})).rows[0].kind,'reset');
+  const snap=await c.read(c.walletRef(guild,user)),meta=await c.read(c.meta);c.quota.limits.writes=c.quota.status().used.writes+3;
+  await assert.rejects(c.resetWallets(guild,admin,randomUUID()),{code:'FIRESTORE_BUDGET'});
+  assert.deepEqual(JSON.parse((await c.walletRef(guild,user).get()).get('json')),snap);assert.deepEqual(JSON.parse((await c.meta.get()).get('json')),meta);
+});
+
+test('v2 reset writes only two documents per existing player plus one receipt and counter; pagination never creates wallets',async t=>{
+  const h=await fixture(t),s=h.s;
+  for(let i=0;i<21;i++)await s.state(guild,String(100000000000000100n+BigInt(i)),compact);
+  const used=s.quota.status().used.writes,list=await s.playerWallets(guild),next=await s.playerWallets(guild,{after:list.next});
+  assert.equal(list.rows.length,20);assert.equal(next.rows.length,1);assert.equal(next.next,null);assert.equal(s.quota.status().used.writes,used);
+  const reset=await s.resetWallets(guild,admin,randomUUID());assert.equal((s.quota.status().used.writes-used)/2,44);assert.equal(reset.reset.changed,0);
+  assert.equal(reset.entries.length,21);assert.ok(reset.entries.every(e=>e.delta===0));
+});
+
+for(const version of [1,2])test(`v${version} empty and excessive guild resets refuse atomically before changing any records`,async t=>{
+  const h=await fixture(t),s=await h.create({...h.settings,schemaVersion:version,namespace:`reset-limit-${version}-${randomUUID()}-test`});
+  const writes=s.quota.status().used.writes;await assert.rejects(s.resetWallets(guild,admin,randomUUID()),{code:'RESET_EMPTY'});assert.equal(s.quota.status().used.writes,writes);
+  const file=join(h.directory,'limit.sqlite'),local=new WalletStore({filename:file,guildIds:[guild]});
+  for(let i=0;i<(version===1?61:101);i++)local.state(guild,String(100000000000000100n+BigInt(i)));local.checkin(guild,'100000000000000100');local.close();
+  await importFirestore(s,firestoreImportPlan(file,'test',{version}));const meta=await s.read(s.meta),before=s.quota.status().used.writes;
+  await assert.rejects(s.resetWallets(guild,admin,randomUUID()),{code:'RESET_LIMIT'});assert.equal(s.quota.status().used.writes,before);assert.deepEqual(await s.read(s.meta),meta);
+  assert.equal((await s.state(guild,'100000000000000100',compact)).balance,10100);
+});
+
 for(const version of [1,2])test(`v${version} weekly claims persist across devices, cycle, interruptions, configuration changes and replay`,async t=>{
   const h=await fixture(t),settings={...h.settings,schemaVersion:version,namespace:`weekly-v${version}-${randomUUID()}-test`};
   let now=Date.parse('2026-12-28T15:59:59.999Z');const options={clock:()=>now};
@@ -161,6 +211,7 @@ test('v2 full and incremental backups restore to both v2 and v1 without losing o
   const settings=operationsSettings(h.env),maintenance=await h.create(h.settings,{quota:new MaintenanceQuota(settings)},false);
   const run=()=>performFirestoreMaintenance(settings,{store:maintenance,freeBytes:()=>1024**3,forceBackup:true});
   const first=await run();assert.equal(first.backup?.verified,true,JSON.stringify(first));
+  const resetId=randomUUID(),reset=await s.resetWallets(guild,admin,resetId);
   await s.spin(guild,user,20,randomUUID(),compact);const next=await run();assert.equal(next.backup?.verified,true,JSON.stringify(next));
   const filename=join(settings.directory,next.backup.file);
   for(const version of [2,1]){
@@ -169,6 +220,8 @@ test('v2 full and incremental backups restore to both v2 and v1 without losing o
     assert.equal((await restored.state(guild,user)).balance,(await s.state(guild,user,compact)).balance);
     const replay=await restored.spin(guild,user,20,request,compact);assert.equal(replay.duplicate,true);assert.deepEqual(replay.round,spin.round);
     assert.equal((await restored.auditSummary(guild,user)).game.rounds,2);
+    assert.deepEqual(await restored.resetWallets(guild,admin,resetId),{...reset,duplicate:true});
+    assert.equal((await restored.state(guild,user,compact)).balanceReset.roundId,spin.round.id);
   }
 });
 

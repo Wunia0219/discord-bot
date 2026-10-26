@@ -6,6 +6,12 @@ export const commandDefinitions = [
   {name:'簽到',description:'週簽到：連續七天獎勵循環，中斷從第 1 天重新開始',type:1},
   {name:'戲籌',description:'看看你在這個群有多少戲籌',type:1},
   {name:'戲籌管理',description:'幫群友發戲籌、收回誤發或查紀錄',type:1,default_member_permissions:'0',options:[
+    {type:1,name:'玩家戲籌',description:'查看本群所有已建立錢包的玩家與目前戲籌',options:[{type:3,name:'起始玩家',description:'接續上一頁：填入上一頁提供的玩家編號',min_length:17,max_length:20}]},
+    {type:1,name:'重設戲籌',description:'將本群已有錢包的玩家重設為 10000，保存重設前實際餘額',options:[
+      {type:5,name:'確認',description:'執行新一筆重設時請選 True；簽到與歷史均會保留'},
+      {type:3,name:'紀錄編號',description:'查看已完成的重設報表，填入先前提供的編號，不會再次重設',min_length:16,max_length:80},
+      {type:4,name:'頁碼',description:'重設報表頁碼，每頁 20 位玩家',min_value:1,max_value:5},
+    ]},
     {type:1,name:'發放',description:'送戲籌給群友，順便留個原因',options:[{type:6,name:'成員',description:'要送給哪位群友？',required:true},{type:4,name:'數量',description:'要送多少戲籌？',required:true,min_value:1,max_value:100000},{type:3,name:'原因',description:'留個原因，之後查紀錄才記得',required:true,max_length:200}]},
     {type:1,name:'紀錄',description:'看看群友的戲籌紀錄，沒選分類就先看發放與收回',options:[
       {type:6,name:'成員',description:'想看哪位群友的紀錄？',required:true},
@@ -47,6 +53,22 @@ export async function handleCommand(interaction, store, adminRoles=[]) {
     if(!(permissions&8n)&&!interaction.member.roles?.some(id=>adminRoles.includes(id)))throw problem(403,'只有伺服器管理員或指定的戲籌管理身分組可以操作。','COMMAND_ADMIN');
     const sub=interaction.data.options?.[0];
     const args=Object.fromEntries((sub?.options||[]).map(option=>[option.name,option.value]));
+    if(sub?.name==='玩家戲籌'){
+      const page=await store.playerWallets(guild,{after:args['起始玩家']??''});
+      return reply(`本群已建立錢包的玩家，包括只有簽到的玩家。\n查詢時間：${taipeiTime(page.time)}\n這是查詢當下的餘額；重設時會另外保存實際餘額。\n\n${page.rows.length?'每頁最多 20 位。':'本群還沒有已建立錢包的玩家。'}${page.next?`\n下一頁：/戲籌管理 玩家戲籌 起始玩家:${page.next}`:''}`,'玩家戲籌','info',
+        page.rows.map(w=>({name:`玩家 ${w.user}`,value:`<@${w.user}> · **${number(w.balance)} 戲籌**\n遊玩 ${number(w.rounds)} 局`})));
+    }
+    if(sub?.name==='重設戲籌'){
+      const saved=args['紀錄編號'],page=args['頁碼']??1;
+      if(!Number.isInteger(page)||page<1||page>5||(!saved&&page!==1))throw problem(400,'請先執行重設，再使用紀錄編號查看其他頁。','RESET_PAGE');
+      if(!saved&&args['確認']!==true)throw problem(400,'請將確認選為 True，才會重設本群所有已建立錢包的玩家。','RESET_CONFIRM');
+      const r=saved?await store.walletResetReport(guild,user,saved):await store.resetWallets(guild,user,interaction.id);
+      const pages=Math.ceil(r.entries.length/20);
+      if(page>pages)throw problem(400,'這筆紀錄沒有此頁。','RESET_PAGE');
+      const rows=r.entries.slice((page-1)*20,page*20),id=r.reset.requestId;
+      return reply(`${r.duplicate?'以下為原重設報表，這次沒有再次重設。':'本群所有已建立錢包的玩家，已在同一筆交易中重設為 **10,000 戲籌**。'}\n重設時間：${taipeiTime(r.reset.time)}\n共 ${r.reset.count} 位玩家；重設前總戲籌 **${BigInt(r.reset.totalBefore).toLocaleString('en-US')}**。\n\n下方為重設前一刻的實際餘額 → 重設餘額。\n週簽到進度與遊玩歷史均已保留。重設後的新遊玩會從 10,000 開始結算。\n\n紀錄編號：\`${id}\`\n第 ${page} / ${pages} 頁${pages>1?`\n翻頁：/戲籌管理 重設戲籌 紀錄編號:${id} 頁碼:${page<pages?page+1:1}`:''}`,
+        r.duplicate?'重設紀錄':'戲籌已重設','info',rows.map(w=>({name:`玩家 ${w.user}`,value:`<@${w.user}>\n**${number(w.before)} → ${number(w.after)}** 戲籌`})));
+    }
     if(sub?.name==='更正'){
       const r=await store.reverse(guild,user,args['紀錄編號'],args['原因'],interaction.id);
       return reply(r.duplicate?`這筆 **${number(-r.entry.delta)} 戲籌**已經收回過，這次沒有再扣一次。`:`已收回 **${number(-r.entry.delta)} 戲籌**，原本的發放紀錄也會保留。`,r.duplicate?'這筆已經收回了':'這筆戲籌收回了','warning',[
@@ -96,8 +118,10 @@ export async function handleCommand(interaction, store, adminRoles=[]) {
 
 const number=value=>value.toLocaleString('en-US');
 const signed=value=>`${value>=0?'+':''}${number(value)}`;
+const taipeiTime=value=>new Date(Date.parse(value)+8*3600000).toISOString().slice(0,19).replace('T',' ')+'（台灣時間）';
 const escapeText=value=>String(value).replace(/@/g,'＠').replace(/[\\`*_{}\[\]()<>~|#]/g,'\\$&');
 function recordField(r){
+  if(r.kind==='reset')return {name:`#${r.id}｜餘額重設｜重設為 ${number(r.after)} 戲籌`,value:`${taipeiTime(r.time)}\n管理員：<@${r.actor}>\n重設前餘額：${number(r.before)}\n重設後餘額：${number(r.after)}\n週簽到進度與遊玩歷史保留。`};
   const labels={grant:'收到戲籌',reversal:'收回誤發戲籌',checkin:'週簽到',spin:'遊玩紀錄',test_seed:'試玩起始戲籌'};
   const time=new Date(Date.parse(r.time)+8*3600000).toISOString().slice(0,16).replace('T',' ');
   const status=r.kind==='grant'?`\n${r.reversal_id?`這筆已收回（#${r.reversal_id}）`:'這筆已收到'}`:r.kind==='reversal'?`\n對應發放：#${r.reference}`:'';

@@ -3,11 +3,12 @@ import {createHash} from 'node:crypto';
 import {inspectWalletDatabase} from './database.js';
 import {taipeiDay} from './wallet.js';
 import {ledgerIndex,encodeHistory} from './firestore-schema.js';
+import {resetMarker} from './wallet-admin.js';
 import {highlightEventPath,highlightEventIndex,assertHighlightEvent,assertHighlightBoard,highlightEvent} from './firestore-highlight-data.js';
 
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const blank=()=>({checkin:{days:0,total:0},game:{rounds:0,bet:0,payout:0,net:0}});
-const category=kind=>({grant:'rewards',reversal:'rewards',checkin:'checkin',spin:'game'}[kind]||'other');
+const category=kind=>({grant:'rewards',reversal:'rewards',reset:'rewards',checkin:'checkin',spin:'game'}[kind]||'other');
 
 // Read an audited SQLite snapshot; the source is never modified or reopened writable.
 export function firestoreImportPlan(filename,environment,{version=1}={}){
@@ -18,9 +19,10 @@ export function firestoreImportPlan(filename,environment,{version=1}={}){
   const put=(path,data,index={})=>{if(documents.has(path))throw new Error('Duplicate import target');documents.set(path,{path,data,index});};
   try{
     db.exec('BEGIN');
-    const operationLinks=new Map(),spinRequests=new Map(),roundSequences=new Map();
-    if(version===2)for(const row of db.prepare('SELECT * FROM operations').iterate()){
+    const operationLinks=new Map(),spinRequests=new Map(),roundSequences=new Map(),resetLinks=new Map(),lastRounds=new Map();
+    for(const row of db.prepare('SELECT * FROM operations').iterate()){
       const result=JSON.parse(row.result);
+      if(row.key.startsWith('reset:'))resetLinks.set(result.entries[0].id,row.key);
       if(result.entry)operationLinks.set(result.entry.id,row.key);
       if(result.round)spinRequests.set(row.guild+'\0'+row.key,result.round.id);
     }
@@ -33,10 +35,10 @@ export function firestoreImportPlan(filename,environment,{version=1}={}){
       wallet.revision=entry.id;
       if(version===1){
         for(const name of ['ledger',`entries-${cat}`,`entries-${cat}-${entry.day}`,`entries-all-${entry.day}`])put(`${base}/${name}/${id}`,entry,{id:entry.id});
-        put(`ledger/${entry.id}`,entry);
+        put(`ledger/${entry.id}`,entry,entry.kind==='reset'?{operationKey:resetLinks.get(entry.id)||null}:{});
       }else{
         const key=entry.kind==='spin'?`spin:${entry.user}:${entry.reference}`:
-          entry.kind==='checkin'?`daily:${entry.user}:${entry.day}`:operationLinks.get(entry.id)||null;
+          entry.kind==='checkin'?`daily:${entry.user}:${entry.day}`:entry.kind==='reset'?resetLinks.get(entry.id)||null:operationLinks.get(entry.id)||null;
         put(`ledger/${entry.id}`,entry,{...ledgerIndex(entry),operationKey:key});
         if(entry.kind==='spin'){
           const roundId=spinRequests.get(entry.guild+'\0'+key);
@@ -48,6 +50,8 @@ export function firestoreImportPlan(filename,environment,{version=1}={}){
         wallet.claimedDay=entry.day;wallet.summary.checkin.days++;wallet.summary.checkin.total+=entry.delta;
         const key=base+'/days/'+entry.day,summary=days.get(key)||blank();summary.checkin.days++;summary.checkin.total+=entry.delta;days.set(key,summary);
       }
+      if(entry.kind==='spin')lastRounds.set(base,spinRequests.get(entry.guild+'\0'+`spin:${entry.user}:${entry.reference}`));
+      if(entry.kind==='reset')wallet.balanceReset=resetMarker(entry,lastRounds.get(base)||null);
       if(entry.kind==='reversal')put(`reversals/${entry.reference}`,{entryId:entry.id});
       if(entry.kind==='grant'){
         const key=`adminDays/${entry.guild}_${entry.actor}_${entry.day}`;adminDays.set(key,{used:(adminDays.get(key)?.used||0)+entry.delta});

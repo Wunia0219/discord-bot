@@ -2,6 +2,7 @@ import {isDeepStrictEqual} from 'node:util';
 import {validRound} from '../server/database-audit.js';
 import {assertHighlightEvent,assertHighlightBoard,highlightEvent} from '../server/firestore-highlight-data.js';
 import {previousDay,validCheckinTransition} from '../server/weekly-checkin.js';
+import {validResetOperation} from '../server/wallet-admin.js';
 
 // Same relationships as auditSnapshot, with bounded row iteration and segment-location
 // indexes. No array containing the complete history is constructed in the Worker.
@@ -24,6 +25,10 @@ export function auditRows(header,rows,environment,map){
   for(const o of rows('operations')){
     check(typeof o.fingerprint==='string'&&typeof o.result==='string','Operation format');unique(ops,o.guild+'\0'+o.key,o);counts.operations++;
     const r=JSON.parse(o.result),spin=/^spin:(\d{17,20}):([-a-zA-Z0-9]{16,80})$/.exec(o.key);
+    if(o.key.startsWith('reset:')){
+      check(validResetOperation(o,r,id=>entries.get(id)),'Reset mismatch');
+      for(const e of r.entries)unique(usedOps,e.id,true);continue;
+    }
     if(spin){const key=o.guild+'_'+spin[1]+'_'+r.round?.id,row=rounds.get(key);check(row&&validRound(row,r.round)&&isDeepStrictEqual(JSON.parse(row.data),r.round)&&o.fingerprint===String(r.round.bet),'Original round mismatch');unique(usedRounds,key,true);}
     else{
       const e=entries.get(r.entry?.id);check(e&&e.guild===o.guild&&['id','before','after','delta'].every(k=>r.entry[k]===e[k]),'Original entry mismatch');

@@ -55,5 +55,17 @@ test('20-player 1000-round incremental backup fits unchanged maintenance cap and
    scenarios.push({players:count,staggerMs:60,settled:values.length,elapsedMs:Math.round(performance.now()-start)});
  }
  const report={scenarios,ok:true,emulatorOnly:true,players:20,newRounds:1000,backupSteps:steps,maintenanceReadUnits:used,previousReservationUnits:used*6,unchangedMaintenanceCap:6000,allSevenTablesEqual:true,restartedMidBackup:true,snapshotBytes:Buffer.byteLength(JSON.stringify(recovered)),backupMs,concurrent:{players:20,initialRejected,allSettledAfterSameKeyRetry:true,duplicateSettlements:0,elapsedMs:Math.round(performance.now()-concurrentStarted)},totalMs:Math.round(performance.now()-started),scope:'Incremental backup and concurrent emulator transactions; not simultaneous browser play or real Cloudflare CPU'};
+ // A group reset spans multiple 20-entry checkpoints. Its immutable receipt
+ // must be backed up once, including across a Durable Object reconstruction.
+ await play.state(guild,'100000000000000199',{compact:true});
+ const resetId=randomUUID(),reset=await play.resetWallets(guild,users[0],resetId);assert.equal(reset.entries.length,21);
+ const post=await play.spin(guild,users[0],20,randomUUID(),{compact:true});assert.equal(post.round.before,10000);
+ let resetSteps=0;while(true){const r=await backup.step();resetSteps++;if(r.complete)break;if(resetSteps===2){state=new CloudState(storage);vault=new SnapshotVault(storage,state,new Sealer(key));backup=new CloudBackup(store,state,vault);}assert.ok(resetSteps<20);}
+ const resetSnapshot=decodeCloudArchive(vault.archive(state.get('backup-latest')),key,'test');
+ assert.equal(resetSnapshot.tables.operations.filter(o=>o.key==='reset:'+resetId).length,1);assert.equal(resetSnapshot.tables.ledger.filter(e=>e.kind==='reset').length,21);
+ const resetFile=join(dir,'reset-restored.sqlite');restoreCloudSnapshot(resetSnapshot,resetFile,'test');
+ const restored=new WalletStore({filename:resetFile,environment:'test',guildIds:[guild],spinDelay:0});
+ try{assert.deepEqual(restored.resetWallets(guild,users[0],resetId),{...reset,duplicate:true});assert.equal(restored.state(guild,users[0]).balance,post.round.after);}finally{restored.close();}
+ report.reset={players:21,checkpointSteps:resetSteps,receiptCopies:1,restartedMidBackup:true,replayedWithoutOverwritingPostResetSpin:true};
  writeFileSync('test-results/backup-scale-report.json',JSON.stringify(report,null,2));
 });

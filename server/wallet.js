@@ -4,6 +4,7 @@ import { BETS, roundFromStops, REEL_STRIPS } from '../src/game/index.js';
 
 import {problem,taipeiDay,nextCheckin} from './wallet-common.js';
 import {checkinRewards,checkinReceipt,weeklyCheckinState} from './weekly-checkin.js';
+import {RESET_BALANCE,RESET_WALLET_LIMIT,RESET_REASON,resetFingerprint,resetMarker,resetResult} from './wallet-admin.js';
 export {problem,taipeiDay,nextCheckin} from './wallet-common.js';
 const MAX_BALANCE=1_000_000_000_000;
 const snowflake=value=>/^\d{17,20}$/.test(value||'');
@@ -57,7 +58,10 @@ export class WalletStore {
     const last=this.lastCheckin(guild,user),checkin=weeklyCheckinState(last?.day,last?.checkin,taipeiDay(now),this.weeklyRewards);
     const revision=this.db.prepare('SELECT COALESCE(MAX(id),0) revision FROM ledger WHERE guild=? AND user=?').get(guild,user).revision;
     const spinCooldownMs=Math.max(0,wallet.last_spin+this.spinDelay-now);
-    return {version:3,balance:wallet.balance,history,milestones:wallet.milestone?[12000]:[],environment:this.environment,guildId:guild,...checkin,nextCheckin:nextCheckin(now),revision,spinCooldownMs};
+    const reset=this.db.prepare("SELECT id,time,after FROM ledger WHERE guild=? AND user=? AND kind='reset' ORDER BY id DESC LIMIT 1").get(guild,user);
+    const prior=reset?this.db.prepare("SELECT reference FROM ledger WHERE guild=? AND user=? AND kind='spin' AND id<? ORDER BY id DESC LIMIT 1").get(guild,user,reset.id):null;
+    const priorRound=prior?JSON.parse(this.db.prepare('SELECT result FROM operations WHERE guild=? AND key=?').get(guild,`spin:${user}:${prior.reference}`).result).round.id:null;
+    return {version:3,balance:wallet.balance,history,milestones:wallet.milestone?[12000]:[],environment:this.environment,guildId:guild,...checkin,nextCheckin:nextCheckin(now),revision,spinCooldownMs,...(reset?{balanceReset:resetMarker(reset,priorRound)}:{})};
   }
   state(guild,user){return this.tx(()=>{this.ensure(guild,user);return this.snapshot(guild,user);});}
   spin(guild,user,bet,requestId){
@@ -103,6 +107,29 @@ export class WalletStore {
       this.ensure(guild,user);return {entry:this.credit(guild,user,amount,'grant',actor,reason)};
     }));
   }
+  playerWallets(guild,{after='',limit=20}={}){
+    this.assertGuild(guild);
+    if((after&&!snowflake(after))||!Number.isInteger(limit)||limit<1||limit>20)throw problem(400,'無效的玩家名單頁碼。','WALLET_CURSOR');
+    const wallets=this.db.prepare('SELECT w.user,w.balance,(SELECT COUNT(*) FROM rounds r WHERE r.guild=w.guild AND r.user=w.user) rounds FROM wallets w WHERE w.guild=? AND w.user>? ORDER BY w.user LIMIT ?').all(guild,after,limit+1);
+    const rows=wallets.slice(0,limit).map(w=>({...w}));return {rows,next:wallets.length>limit?rows.at(-1).user:null,time:new Date(this.clock()).toISOString()};
+  }
+  walletResetReport(guild,actor,requestId){
+    this.validate(guild,actor);this.requestId(requestId);
+    const saved=this.db.prepare('SELECT result FROM operations WHERE guild=? AND key=?').get(guild,'reset:'+requestId);
+    if(!saved)throw problem(404,'找不到這筆重設紀錄。','RESET_MISSING');
+    return {...JSON.parse(saved.result),duplicate:true};
+  }
+  resetWallets(guild,actor,requestId){
+    this.validate(guild,actor);this.requestId(requestId);
+    return this.tx(()=>this.once(guild,'reset:'+requestId,resetFingerprint(actor),()=>{
+      const wallets=this.db.prepare('SELECT user,balance FROM wallets WHERE guild=? ORDER BY user LIMIT ?').all(guild,RESET_WALLET_LIMIT+1);
+      if(wallets.length>RESET_WALLET_LIMIT)throw problem(409,'玩家數量超出本次安全重設範圍，這次沒有變更任何餘額。','RESET_LIMIT');
+      if(!wallets.length)throw problem(409,'本群還沒有已建立錢包的玩家。','RESET_EMPTY');
+      const now=this.clock(),time=new Date(now).toISOString();
+      const entries=wallets.map(w=>({user:w.user,...this.credit(guild,w.user,RESET_BALANCE-w.balance,'reset',actor,RESET_REASON,requestId,now)}));
+      return resetResult(actor,requestId,time,entries);
+    }));
+  }
   reverse(guild,actor,entryId,reason,requestId){
     this.validate(guild,actor);this.reason(reason);this.requestId(requestId);
     return this.tx(()=>this.once(guild,`admin:${requestId}`,JSON.stringify([actor,entryId,reason]),()=>{
@@ -120,7 +147,7 @@ export class WalletStore {
   }
   auditHistory(guild,user,{category='rewards',before=Number.MAX_SAFE_INTEGER,days=0}={}){
     this.validate(guild,user);
-    const kinds={rewards:['grant','reversal'],checkin:['checkin'],game:['spin'],all:[]};
+    const kinds={rewards:['grant','reversal','reset'],checkin:['checkin'],game:['spin'],all:[]};
     if(!Object.hasOwn(kinds,category)||!Number.isSafeInteger(before)||before<1||![0,1,7,30].includes(days))throw problem(400,'無效的紀錄查詢條件。','AUDIT_FILTER');
     const since=days?taipeiDay(this.clock()-(days-1)*86400000):'0000-01-01';
     const filter=kinds[category];

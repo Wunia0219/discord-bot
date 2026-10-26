@@ -29,6 +29,7 @@ const migrations = [
         guild TEXT PRIMARY KEY, message_id TEXT, started INTEGER NOT NULL,
         total INTEGER NOT NULL, entries TEXT NOT NULL, next_attempt INTEGER NOT NULL);`,
   },
+  {version:3,sql:"CREATE INDEX IF NOT EXISTS ledger_wallet_reset ON ledger(guild,user,id DESC) WHERE kind='reset';"},
 ];
 
 export const DATABASE_VERSION = migrations.at(-1).version;

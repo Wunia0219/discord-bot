@@ -5,6 +5,16 @@ import {createWalletClient} from '../src/platform/wallet-client.js';
 const row=sequence=>({sequence,round:{id:String(sequence),payout:sequence}});
 const state=(revision,historyRevision=revision)=>({revision,historyRevision,balance:10000+revision});
 
+test('reset refresh keeps history without extra reads and stale in-flight spin responses cannot restore the old balance',async()=>{
+  let calls=0;const sync=createWalletSync(async()=>{calls++;return {rows:[row(3),row(2),row(1)]};});
+  await sync({state:state(3)});const marker={id:4,time:'2026-10-26T00:00:00Z',balance:10000,roundId:'3'};
+  const reset=await sync({state:{...state(4,3),balance:10000,balanceReset:marker}});
+  assert.equal(reset.state.balance,10000);assert.deepEqual(reset.state.balanceReset,marker);assert.equal(calls,1);assert.equal(reset.state.history.length,3);
+  const stale=await sync({state:state(3),round:row(3).round});assert.deepEqual(stale.state,reset.state);
+  const post=await sync({state:{...state(5),balance:9980,balanceReset:marker},round:row(5).round,historyBase:3,historyRevision:5});
+  assert.equal(post.state.balance,9980);assert.equal(post.state.history.length,4);assert.deepEqual(post.state.balanceReset,marker);assert.equal(calls,1);
+});
+
 test('compact history loads once, merges local spins and retains history across grants and claims',async()=>{
   const calls=[],sync=createWalletSync(async options=>{calls.push(options);return {rows:[row(3),row(2),row(1)]};});
   let result=await sync({state:state(3)});assert.equal(result.state.history.length,3);assert.equal(calls.length,1);

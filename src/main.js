@@ -2,7 +2,7 @@ import { mainArt } from './ui/main-art.js';
 import { icon } from './ui/icons.js';
 import { createPlayerBar } from './ui/player-bar.js';
 import { playerError } from './ui/player-copy.js';
-import { roundRecords } from './ui/player-records.js';
+import { roundRecords,placeResetMarker } from './ui/player-records.js';
 import './style.css';
 import { SlotScene } from './ui/scene.js';
 import { Sound } from './ui/audio.js';
@@ -237,9 +237,10 @@ async function showHistory(){
     }
     if(!$('#dialog').open||!pending.isConnected)return;
   }
-  const body=roundRecords(state.history);openDialog('遊玩紀錄',body,'records');
+  const body=roundRecords(state.history,{balanceReset:state.balanceReset});openDialog('遊玩紀錄',body,'records');
   if(!walletClient||!state.historyBefore||state.history.length<100)return;
   let cursor=state.historyBefore;
+  const shown=[...state.history],balanceReset=state.balanceReset;
   const button=document.createElement('button'),status=document.createElement('p');
   button.type='button';button.className='notice-action';button.textContent='載入更早的紀錄';
   status.setAttribute('role','status');body.append(status,button);
@@ -248,6 +249,7 @@ async function showHistory(){
     try{
       const page=await walletClient.rounds(cursor),extra=roundRecords(page.rows.map(row=>row.round));
       for(const card of [...extra.querySelectorAll('.play-record')])body.insertBefore(card,status);
+      shown.push(...page.rows.map(row=>row.round));placeResetMarker(body,shown,balanceReset);
       cursor=page.next;status.textContent=cursor?'':'已顯示所有遊玩紀錄。';button.hidden=!cursor;
       const caption=body.querySelector('.records-caption');
       if(caption)caption.textContent=`已顯示 ${body.querySelectorAll('.play-record').length} 局 · 點開一局查看得獎組合`;

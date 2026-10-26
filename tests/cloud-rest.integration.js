@@ -23,5 +23,10 @@ test('REST adapter preserves SDK import, all history, summaries, concurrent retr
  assert.equal(quota.status().used.writes,before);const key=randomUUID(),both=await Promise.all([s.spin(guild,user,20,key,{compact:true}),sdk.spin(guild,user,20,key,{compact:true})]);assert.equal(both.filter(r=>r.duplicate).length,1);assert.deepEqual(both[0].round,both[1].round);
  const claims=await Promise.all([s.checkin(guild,user,{compact:true}),s.checkin(guild,user,{compact:true})]);assert.equal(claims.filter(r=>r.duplicate).length,1);const h=await s.auditHistory(guild,user,{category:'checkin'});assert.equal(h.rows.length,2);
  assert.equal((await s.history(guild,user)).length,50);assert.equal((await s.auditSummary(guild,user,1)).checkin.days,1);await assert.rejects(s.state('100000000000000099',user));
+ const roster=await s.playerWallets(guild);assert.equal(roster.rows.length,1);const actual=(await s.read(s.walletRef(guild,user))).balance,resetId=randomUUID();
+ const reset=await s.resetWallets(guild,user,resetId);assert.equal(reset.entries[0].before,actual);assert.equal(reset.entries[0].after,10000);
+ const post=await s.spin(guild,user,20,randomUUID(),{compact:true});assert.equal(post.round.before,10000);
+ assert.deepEqual(await s.resetWallets(guild,user,resetId),{...reset,duplicate:true});assert.equal((await s.state(guild,user,{compact:true})).balance,post.round.after);
+ assert.deepEqual(await s.walletResetReport(guild,user,resetId),{...reset,duplicate:true});
  const readonly=new FirestoreRest({...settings,readOnly:true});await assert.rejects(readonly.runTransaction(tx=>tx.set(readonly.doc(`circus_wallet_v1/${settings.namespace}/meta/state`),{json:'{}'})));await readonly.terminate();
 });

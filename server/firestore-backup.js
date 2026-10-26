@@ -117,6 +117,11 @@ async function readWallets(store,tx){
 function operationKey(entry,document){
   if(entry.kind==='test_seed')return null;
   const linked=document.get('operationKey');
+  if(entry.kind==='reset'){
+    if(linked===null)return null;
+    if(linked!==`reset:${entry.reference}`)throw fail('BACKUP_OPERATION_LINK_MISMATCH');
+    return linked;
+  }
   // Pre-upgrade spins and claims have recoverable keys. Administrative IDs require
   // a verified migration baseline or the new ledger link; never drop deduplication.
   if(entry.kind==='spin'||entry.kind==='checkin'){

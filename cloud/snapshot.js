@@ -5,6 +5,7 @@ import {assertHighlightEvent,assertHighlightBoard} from '../server/firestore-hig
 import {highlightEvent} from '../server/firestore-highlight-data.js';
 import {auditRows} from './snapshot-audit.js';
 import {previousDay,validCheckinTransition} from '../server/weekly-checkin.js';
+import {validResetOperation} from '../server/wallet-admin.js';
 
 export const TABLES=['settings','wallets','ledger','operations','rounds','highlight_events','highlight_boards'];
 export const digest=value=>createHash('sha256').update(value).digest('hex');
@@ -26,6 +27,10 @@ export function auditSnapshot(snapshot,environment){
   for(const [owner,w] of wallets){requireValue(snowflake(w.guild)&&snowflake(w.user)&&amount(w.balance)&&w.balance===(balances.get(owner)||0)&&[0,1].includes(w.milestone)&&Number.isSafeInteger(w.last_spin),'Wallet balance');}
   for(const o of t.operations){
     requireValue(typeof o.fingerprint==='string'&&typeof o.result==='string','Operation format');const r=JSON.parse(o.result),spin=/^spin:(\d{17,20}):([-a-zA-Z0-9]{16,80})$/.exec(o.key),key=o.guild+'\0'+o.key;
+    if(o.key.startsWith('reset:')){
+      requireValue(validResetOperation(o,r,id=>entries.get(id)),'Reset mismatch');
+      for(const e of r.entries){requireValue(!usedOps.has(e.id),'Duplicate entry result');usedOps.add(e.id);}continue;
+    }
     if(spin){const row=rounds.get(o.guild+'_'+spin[1]+'_'+r.round?.id);requireValue(row&&validRound(row,r.round)&&isDeepStrictEqual(JSON.parse(row.data),r.round)&&o.fingerprint===String(r.round.bet),'Original round mismatch');requireValue(!usedRounds.has(row),'Duplicate round result');usedRounds.add(row);}
     else{const e=entries.get(r.entry?.id);requireValue(e&&e.guild===o.guild&&['id','before','after','delta'].every(k=>r.entry[k]===e[k]),'Original entry mismatch');
       if(o.key.startsWith('daily:')){

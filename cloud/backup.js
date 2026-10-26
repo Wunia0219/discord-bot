@@ -33,7 +33,7 @@ export class CloudBackup {
     for(const name of ['ledger','operations','rounds','wallets','highlight_events','highlight_boards'])t[name]=[];
     if(job.phase==='ledger'&&job.cursor<job.target){
       const ids=Array.from({length:Math.min(20,job.target-job.cursor)},(_,i)=>job.cursor+i+1),docs=await this.read(ids.map(id=>s.root.collection('ledger').doc(String(id))),job.readTime),links=[];
-      docs.forEach((doc,i)=>{const e=unpack(doc);if(e.id!==ids[i])throw new Error('Ledger gap');t.ledger.push(e);if(e.kind==='test_seed')return;const key=doc.get('operationKey');if(typeof key!=='string')throw new Error('Missing original retry key');links.push({guild:e.guild,user:e.user,key});});
+      docs.forEach((doc,i)=>{const e=unpack(doc);if(e.id!==ids[i])throw new Error('Ledger gap');t.ledger.push(e);if(e.kind==='test_seed')return;const key=doc.get('operationKey');if(e.kind==='reset'&&key===null)return;if(typeof key!=='string')throw new Error('Missing original retry key');links.push({guild:e.guild,user:e.user,key});});
       const ops=await this.read(links.map(o=>s.root.collection('operations').doc(digest(o.guild+'\0'+o.key))),job.readTime),rounds=[];
       ops.forEach((doc,i)=>{const o=unpack(doc),link=links[i];t.operations.push({guild:link.guild,key:link.key,fingerprint:o.fingerprint,result:JSON.stringify(o.result)});if(link.key.startsWith('spin:'))rounds.push({...link,round:o.result.round});});
       const original=await this.read(rounds.map(r=>s.walletRef(r.guild,r.user).collection('rounds').doc(r.round.id)),job.readTime);

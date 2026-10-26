@@ -71,6 +71,12 @@ dialog.records-dialog { width: min(800px, calc(100% - 32px)); max-width: 800px; 
 .ledger-record h3 { color: #f5d28c; font-size: 16px; font-weight: 500; margin: 0; }
 .records-dialog #dialog-body .ledger-record p { font-size: 12px; margin: 5px 0 0; overflow-wrap: anywhere; }
 .ledger-record .ledger-amount { color: #e2c7cd; font: 25px Georgia, serif; white-space: nowrap; }
+.balance-reset-record { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px 20px; margin-bottom: 12px; padding: 18px 20px; border: 1px solid #e1bc786e; border-left: 3px solid #e1bc78; border-radius: 12px; background: linear-gradient(115deg, #64433040, #302633); }
+.reset-record-title time { display: block; margin-bottom: 5px; color: #d3bac6; font-size: 12px; }
+.reset-record-title > strong { color: #f5d28c; font-size: 16px; font-weight: 500; }
+.reset-record-balance { color: #ffe4a9; font-size: 17px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.records-dialog #dialog-body .balance-reset-record p { grid-column: 1 / -1; margin: 0; color: #d7c4bc; font-size: 12px; }
+@media (max-width: 500px) { .balance-reset-record { grid-template-columns: 1fr; padding: 16px 14px; gap: 8px; } }
 .records-empty, .records-loading { min-height: 200px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; padding: 24px; text-align: center; }
 .records-empty > strong { font-size: 19px; color: #f5d28c; font-weight: 500; }
 .records-loading::before { content: ''; width: 28px; height: 28px; border: 2px solid #c79a5f33; border-top-color: #f5d28c; border-radius: 50%; animation: rotate .8s linear infinite; }

@@ -1,6 +1,6 @@
 import {deflateRawSync,inflateRawSync} from 'node:zlib';
 
-export const entryCategory=kind=>({grant:'rewards',reversal:'rewards',checkin:'checkin',spin:'game'}[kind]||'other');
+export const entryCategory=kind=>({grant:'rewards',reversal:'rewards',reset:'rewards',checkin:'checkin',spin:'game'}[kind]||'other');
 export const sequenceKey=id=>String(id).padStart(16,'0');
 const maxHistoryBytes=2*1024*1024;
 export function encodeHistory(records){

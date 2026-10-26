@@ -24,6 +24,7 @@ export function playerError(error, { context = 'game', canClaim = false } = {}) 
 }
 
 export function ledgerLabel(entry) {
+  if(entry.kind==='reset')return '餘額重設';
   return { checkin: '週簽到', test_seed: '歡迎戲籌', spin: '戲籌變化', grant: '收到戲籌', reversal: '戲籌調整' }[entry.kind] || '戲籌變化';
 }
 

@@ -5,10 +5,11 @@ import {checkinRewards,checkinReceipt,weeklyCheckinState} from './weekly-checkin
 import {readAuditPage} from './firestore-history.js';
 import {ledgerIndex,ledgerRange,sequenceKey,encodeHistory,decodeHistory} from './firestore-schema.js';
 import {highlightEvent,highlightEventPath,highlightEventIndex} from './firestore-highlight-data.js';
+import {firestoreAdminWallets} from './firestore-admin-wallets.js';
 
 const maxBalance=1_000_000_000_000,maxDocument=512*1024;
 const digest=value=>createHash('sha256').update(value).digest('hex');
-const category=kind=>({grant:'rewards',reversal:'rewards',checkin:'checkin',spin:'game'}[kind]||'other');
+const category=kind=>({grant:'rewards',reversal:'rewards',reset:'rewards',checkin:'checkin',spin:'game'}[kind]||'other');
 const zeroSummary=()=>({checkin:{days:0,total:0},game:{rounds:0,bet:0,payout:0,net:0}});
 const unpack=doc=>doc.exists?JSON.parse(doc.get('json')):null;
 const packed=data=>({json:JSON.stringify(data)});
@@ -81,7 +82,7 @@ export class FirestoreWalletCore {
   snapshot(wallet,now=this.clock()){
     return {version:3,balance:wallet.balance,...(this.schemaVersion===2?{historyRevision:wallet.historyRevision}:{history:wallet.history}),milestones:wallet.milestone?[12000]:[],environment:this.environment,
       guildId:wallet.guild,...weeklyCheckinState(wallet.claimedDay,wallet.checkin,taipeiDay(now),this.weeklyRewards),nextCheckin:nextCheckin(now),revision:wallet.revision,
-      spinCooldownMs:Math.max(0,wallet.last_spin+this.spinDelay-now)};
+      spinCooldownMs:Math.max(0,wallet.last_spin+this.spinDelay-now),...(wallet.balanceReset?{balanceReset:wallet.balanceReset}:{})};
   }
   async completeState(guild,user,state){
     if(Array.isArray(state.history))return state;
@@ -323,3 +324,4 @@ export class FirestoreWalletCore {
   status(){return {backend:'firestore',schemaVersion:this.schemaVersion,environment:this.environment,projectId:this.settings.projectId,namespace:this.settings.namespace,quota:this.quota.status(),ready:this.ready&&!this.closed};}
   async close(){if(this.closed)return;this.closed=true;this.cache.clear();this.histories.clear();await this.db.terminate();this.quota.close();}
 }
+Object.assign(FirestoreWalletCore.prototype,firestoreAdminWallets);

@@ -16,8 +16,21 @@ export function emptyRecords(message, detail) {
   return body;
 }
 
-export function roundRecords(history) {
-  if (!history.length) return emptyRecords('第一場表演，等你開場', '按下 SPIN，這裡就會留下每一局的獎勵與戲籌變化。');
+export function placeResetMarker(body,history,reset) {
+  body.querySelector('.balance-reset-record')?.remove();
+  if(!reset)return;
+  const cards=[...body.querySelectorAll('.play-record')],anchor=reset.roundId&&history.some(r=>r.id===reset.roundId);
+  const index=history.findIndex(round=>anchor?round.id===reset.roundId:Date.parse(round.time)<=Date.parse(reset.time));
+  const summary=index<0&&history.length>0,card=node('article','balance-reset-record'),title=node('div','reset-record-title');
+  title.append(node('time','',date(reset.time)),node('strong','',summary?'最近一次餘額重設':'餘額重設'));
+  card.append(title,node('strong','reset-record-balance',`重設後餘額 ${fmt(reset.balance)}`),node('p','',summary?'此為最近一次重設摘要；週簽到進度與遊玩歷史保留':'週簽到進度與遊玩歷史保留'));
+  // If the reset is older than the loaded page, show an explicit summary above
+  // it. Move to the exact chronological position when older rounds are loaded.
+  body.insertBefore(card,cards[index<0?0:index]||null);
+}
+
+export function roundRecords(history,{balanceReset}={}) {
+  if (!history.length&&!balanceReset) return emptyRecords('第一場表演，等你開場', '按下 SPIN，這裡就會留下每一局的獎勵與戲籌變化。');
   const body = node('div', 'player-records');
   body.append(node('p', 'records-caption', '最近 100 局 · 點開一局查看得獎組合'));
   for (const round of history) {
@@ -43,6 +56,7 @@ export function roundRecords(history) {
     card.append(summary, detail);
     body.append(card);
   }
+  placeResetMarker(body,history,balanceReset);
   return body;
 }
 
@@ -56,8 +70,8 @@ export function ledgerRecords(entries) {
     description.append(node('time', '', date(entry.time)), node('h3', '', ledgerLabel(entry)));
     // Staff-written reasons are useful; internal seed/spin strings are not UI copy.
     if (['grant', 'reversal'].includes(entry.kind) && entry.reason) description.append(node('p', 'ledger-reason', entry.reason));
-    description.append(node('p', 'ledger-balance', `餘額 ${fmt(entry.after)}`));
-    const amount = node('strong', `ledger-amount ${entry.delta > 0 ? 'is-positive' : ''}`, `${entry.delta > 0 ? '+' : ''}${fmt(entry.delta)}`);
+    description.append(node('p', 'ledger-balance', `${entry.kind==='reset'?'重設後餘額':'餘額'} ${fmt(entry.after)}`));
+    const amount = entry.kind==='reset'?node('strong','ledger-amount', '餘額重設'):node('strong', `ledger-amount ${entry.delta > 0 ? 'is-positive' : ''}`, `${entry.delta > 0 ? '+' : ''}${fmt(entry.delta)}`);
     card.append(description, amount);
     body.append(card);
   }
