@@ -1,6 +1,7 @@
 import {randomInt,randomUUID,createHash} from 'node:crypto';
 import {BETS,roundFromStops,REEL_STRIPS} from '../src/game/index.js';
 import {walletValidation,problem,taipeiDay,nextCheckin} from './wallet-common.js';
+import {checkinRewards,checkinReceipt,weeklyCheckinState} from './weekly-checkin.js';
 import {readAuditPage} from './firestore-history.js';
 import {ledgerIndex,ledgerRange,sequenceKey,encodeHistory,decodeHistory} from './firestore-schema.js';
 import {highlightEvent,highlightEventPath,highlightEventIndex} from './firestore-highlight-data.js';
@@ -13,10 +14,10 @@ const unpack=doc=>doc.exists?JSON.parse(doc.get('json')):null;
 const packed=data=>({json:JSON.stringify(data)});
 
 export class FirestoreWalletCore {
-  constructor(settings,{guildIds=[],daily=500,grantMax=100000,grantDaily=1000000,clock=Date.now,spinDelay=2000,db,quota,settlementQueue}={}){
+  constructor(settings,{guildIds=[],weeklyRewards,grantMax=100000,grantDaily=1000000,clock=Date.now,spinDelay=2000,db,quota,settlementQueue}={}){
     if(!guildIds.length||guildIds.some(id=>!/^\d{17,20}$/.test(id)))throw new Error('Explicit guild allowlist required');
-    for(const value of [daily,grantMax,grantDaily])if(!Number.isSafeInteger(value)||value<=0||value>maxBalance)throw new Error('Invalid wallet limits');
-    Object.assign(this,{settings,environment:settings.environment,guildIds:new Set(guildIds),daily,grantMax,grantDaily,clock,spinDelay});
+    for(const value of [grantMax,grantDaily])if(!Number.isSafeInteger(value)||value<=0||value>maxBalance)throw new Error('Invalid wallet limits');
+    Object.assign(this,{settings,environment:settings.environment,guildIds:new Set(guildIds),weeklyRewards:checkinRewards(weeklyRewards),grantMax,grantDaily,clock,spinDelay});
     this.backend='firestore';
     this.schemaVersion=settings.schemaVersion??1;
     if(![1,2].includes(this.schemaVersion))throw new Error('Invalid Firestore schema version');
@@ -79,7 +80,7 @@ export class FirestoreWalletCore {
   }
   snapshot(wallet,now=this.clock()){
     return {version:3,balance:wallet.balance,...(this.schemaVersion===2?{historyRevision:wallet.historyRevision}:{history:wallet.history}),milestones:wallet.milestone?[12000]:[],environment:this.environment,
-      guildId:wallet.guild,daily:this.daily,claimed:wallet.claimedDay===taipeiDay(now),nextCheckin:nextCheckin(now),revision:wallet.revision,
+      guildId:wallet.guild,...weeklyCheckinState(wallet.claimedDay,wallet.checkin,taipeiDay(now),this.weeklyRewards),nextCheckin:nextCheckin(now),revision:wallet.revision,
       spinCooldownMs:Math.max(0,wallet.last_spin+this.spinDelay-now)};
   }
   async completeState(guild,user,state){
@@ -185,8 +186,9 @@ export class FirestoreWalletCore {
           else wallet.history=[round,...wallet.history].slice(0,100);
           for(const summary of [wallet.summary,daySummary]){summary.game.rounds++;summary.game.bet+=round.bet;summary.game.payout+=round.payout;summary.game.net=summary.game.payout-summary.game.bet;}
         }else if(kind==='checkin'){
-          answer={entry:credit(this.daily,'checkin',user,'每日簽到')};wallet.claimedDay=day;
-          for(const summary of [wallet.summary,daySummary]){summary.checkin.days++;summary.checkin.total+=this.daily;}
+          const checkin=checkinReceipt(wallet.claimedDay,wallet.checkin,day,this.weeklyRewards),amount=checkin.rewards[checkin.cycleDay-1];
+          answer={entry:credit(amount,'checkin',user,`週簽到第 ${checkin.cycleDay} 天`),checkin};wallet.claimedDay=day;wallet.checkin=checkin;
+          for(const summary of [wallet.summary,daySummary]){summary.checkin.days++;summary.checkin.total+=amount;}
         }else if(kind==='grant')answer={entry:credit(operation.amount,'grant',operation.actor,operation.reason)};
         else if(kind==='reversal')answer={entry:credit(-original.delta,'reversal',operation.actor,operation.reason,String(operation.entryId))};
         else if(kind==='fixture')answer={entry:credit(operation.balance-wallet.balance,'test_fixture',null,'本機驗收情境初始餘額')};

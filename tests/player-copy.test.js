@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { dailyRewardView, playerError, ledgerLabel } from '../src/ui/player-copy.js';
 
 test('daily reward keeps a clear, disabled state during a claim and after it is claimed', () => {
-  assert.deepEqual(dailyRewardView({ready:true,daily:500}), {title:'每日簽到',detail:'領取 500 戲籌',disabled:false});
+  assert.deepEqual(dailyRewardView({ready:true,daily:500}), {title:'週簽到・第 1 天',detail:'領取 500 戲籌',disabled:false});
   assert.equal(dailyRewardView({ready:true,busy:true}).disabled,true);
   assert.equal(dailyRewardView({ready:false}).disabled,true);
   assert.deepEqual(dailyRewardView({ready:true,claiming:true}), {title:'領取中…',detail:'馬上就好',disabled:true});
-  assert.deepEqual(dailyRewardView({ready:true,claimed:true}), {title:'今日已領取',detail:'明天再領 500 戲籌',disabled:true});
+  assert.deepEqual(dailyRewardView({ready:true,claimed:true}), {title:'今日已領取',detail:'明天 100 戲籌',disabled:true});
 });
 
 test('player errors never expose raw server/SDK details and give an action appropriate to the operation', () => {

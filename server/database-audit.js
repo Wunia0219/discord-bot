@@ -1,5 +1,6 @@
 import {isDeepStrictEqual} from 'node:util';
 import {BETS,MODEL_VERSION,LEGACY_MODELS,gridFromStops,evaluateGrid} from '../src/game/index.js';
+import {previousDay,validCheckinTransition} from './weekly-checkin.js';
 
 const MAX_BALANCE=1_000_000_000_000;
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
@@ -76,8 +77,12 @@ export function inspectSettlements(db){
     const admin=/^admin:([-a-zA-Z0-9]{16,80})$/.test(row.key);
     const local=/^local-fixture:[a-z0-9-]+$/.test(row.key);
     let valid=false;
-    if(daily)valid=entry.kind==='checkin'&&entry.user===daily[1]&&entry.day===daily[2]
-      &&entry.actor===entry.user&&entry.delta>0&&row.fingerprint==='daily';
+    if(daily){
+      const day=previousDay(entry.day),prior=parse(operationByKey.get(row.guild,`daily:${entry.user}:${day}`)?.result);
+      valid=entry.kind==='checkin'&&entry.user===daily[1]&&entry.day===daily[2]
+        &&entry.actor===entry.user&&entry.delta>0&&row.fingerprint==='daily'
+        &&validCheckinTransition(result,prior?{...prior,day}:null,entry.day);
+    }
     else if(admin){
       const fingerprint=parse(row.fingerprint);
       if(Array.isArray(fingerprint)){

@@ -77,7 +77,7 @@ const playerBar=createPlayerBar({icon,onCheckin:claimDaily,onHistory:showHistory
 $('#player-header').append(playerBar.element);
 function renderAudio(){playerBar.audio(sound.state);}
 renderAudio();
-function renderPlayer(){playerBar.update({user:activityUser,connected:!!walletClient,localTest:activityMode==='local',ready,busy,claiming,claimed:state.claimed,daily:state.daily,storageAvailable});}
+function renderPlayer(){playerBar.update({user:activityUser,connected:!!walletClient,localTest:activityMode==='local',ready,busy,claiming,claimed:state.claimed,daily:state.daily,weeklyCheckin:state.weeklyCheckin,storageAvailable});}
 function notifyPlayer(message,tone='success'){
   const toast=$('#player-toast');clearTimeout(toastTimer);
   toast.replaceChildren();const text=document.createElement('span');text.textContent=message;
@@ -221,7 +221,7 @@ function openDialog(title,body,variant='notice') {
   if(!$('#dialog').open)$('#dialog').showModal();
   $('#dialog-body').scrollTop=0;
 }
-function showRules(){openDialog('遊戲規則',createGameRules(bet),'rules');}
+function showRules(){openDialog('遊戲規則',createGameRules(bet,state.weeklyCheckin?.rewards),'rules');}
 async function showHistory(){
   if(historySync){
     const syncing=historySync;

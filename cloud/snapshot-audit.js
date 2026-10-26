@@ -1,6 +1,7 @@
 import {isDeepStrictEqual} from 'node:util';
 import {validRound} from '../server/database-audit.js';
 import {assertHighlightEvent,assertHighlightBoard,highlightEvent} from '../server/firestore-highlight-data.js';
+import {previousDay,validCheckinTransition} from '../server/weekly-checkin.js';
 
 // Same relationships as auditSnapshot, with bounded row iteration and segment-location
 // indexes. No array containing the complete history is constructed in the Worker.
@@ -34,6 +35,10 @@ export function auditRows(header,rows,environment,map){
     }
   }
   for(const e of rows('ledger')){
+    if(e.kind==='checkin'){
+      const day=previousDay(e.day),op=ops.get(e.guild+'\0'+`daily:${e.user}:${e.day}`),prior=ops.get(e.guild+'\0'+`daily:${e.user}:${day}`);
+      check(op&&validCheckinTransition(JSON.parse(op.result),prior?{...JSON.parse(prior.result),day}:null,e.day),'Checkin mismatch');
+    }
     if(e.kind==='spin'){unique(spinLinks,e.guild+'_'+e.user+'_'+e.reference,true);const r=JSON.parse(ops.get(e.guild+'\0'+`spin:${e.user}:${e.reference}`)?.result||'null')?.round;check(r&&e.actor===e.user&&r.before===e.before&&r.after===e.after&&r.net===e.delta&&Math.abs(Date.parse(r.time)-Date.parse(e.time))<=1000,'Spin link mismatch');spinCount++;}
     else if(e.kind!=='test_seed')check(usedOps.has(e.id),'Missing retry result');
     if(e.kind==='reversal')unique(reversals,e.guild+'_'+e.reference,true);

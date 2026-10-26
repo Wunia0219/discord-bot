@@ -47,7 +47,7 @@ export function roundRecords(history) {
 }
 
 export function ledgerRecords(entries) {
-  if (!entries.length) return emptyRecords('還沒有戲籌收支', '領取每日簽到或開始遊戲後，就能在這裡查看。');
+  if (!entries.length) return emptyRecords('還沒有戲籌收支', '領取週簽到或開始遊戲後，就能在這裡查看。');
   const body = node('div', 'player-records');
   body.append(node('p', 'records-caption', '最近 50 筆 · 所有時間皆為台灣時間'));
   for (const entry of entries) {

@@ -6,8 +6,8 @@ import {createActivityServer} from '../server/app.js';
 const application='100000000000000001',user='100000000000000002';
 const interaction=()=>({type:2,id:'100000000000000003',application_id:application,token:'private-fixture-token-12345',guild_id:application,
   member:{user:{id:user},permissions:'0'},data:{name:'簽到'}});
-function wallet(){let calls=0;return {store:{backend:'firestore',environment:'test',daily:500,validate:()=>{},
-  checkin:async()=>{calls++;return {state:{balance:10500}};}},get calls(){return calls;}};}
+function wallet(){let calls=0;return {store:{backend:'firestore',environment:'test',validate:()=>{},
+  checkin:async()=>{calls++;return {entry:{delta:100},state:{balance:10100,weeklyCheckin:{nextDay:2,nextReward:200}}};}},get calls(){return calls;}};}
 test('deferred delivery retries PATCH while executing the financial command only once',async()=>{
   const w=wallet(),attempts=[];
   const ok=await completeDeferredCommand(interaction(),w,{wait:async()=>{},fetchImpl:async(url,options)=>{
@@ -40,5 +40,5 @@ test('signed cloud commands acknowledge before a delayed database call completes
   const response=await fetch(`http://127.0.0.1:${server.address().port}/api/interactions`,{method:'POST',headers:{
     'x-signature-timestamp':timestamp,'x-signature-ed25519':sign(null,Buffer.concat([Buffer.from(timestamp),Buffer.from(body)]),keys.privateKey).toString('hex')},body});
   assert.deepEqual(await response.json(),{type:5,data:{flags:64}});assert.equal(calls,0);assert.equal(typeof finish,'function');
-  finish({state:{balance:10500}});await server.drainCommands();assert.equal(calls,1);
+  finish({entry:{delta:100},state:{balance:10100,weeklyCheckin:{nextDay:2,nextReward:200}}});await server.drainCommands();assert.equal(calls,1);
 });

@@ -4,6 +4,7 @@ import {validRound} from '../server/database-audit.js';
 import {assertHighlightEvent,assertHighlightBoard} from '../server/firestore-highlight-data.js';
 import {highlightEvent} from '../server/firestore-highlight-data.js';
 import {auditRows} from './snapshot-audit.js';
+import {previousDay,validCheckinTransition} from '../server/weekly-checkin.js';
 
 export const TABLES=['settings','wallets','ledger','operations','rounds','highlight_events','highlight_boards'];
 export const digest=value=>createHash('sha256').update(value).digest('hex');
@@ -27,7 +28,11 @@ export function auditSnapshot(snapshot,environment){
     requireValue(typeof o.fingerprint==='string'&&typeof o.result==='string','Operation format');const r=JSON.parse(o.result),spin=/^spin:(\d{17,20}):([-a-zA-Z0-9]{16,80})$/.exec(o.key),key=o.guild+'\0'+o.key;
     if(spin){const row=rounds.get(o.guild+'_'+spin[1]+'_'+r.round?.id);requireValue(row&&validRound(row,r.round)&&isDeepStrictEqual(JSON.parse(row.data),r.round)&&o.fingerprint===String(r.round.bet),'Original round mismatch');requireValue(!usedRounds.has(row),'Duplicate round result');usedRounds.add(row);}
     else{const e=entries.get(r.entry?.id);requireValue(e&&e.guild===o.guild&&['id','before','after','delta'].every(k=>r.entry[k]===e[k]),'Original entry mismatch');
-      if(o.key.startsWith('daily:'))requireValue(o.key===`daily:${e.user}:${e.day}`&&e.kind==='checkin'&&e.actor===e.user&&e.delta>0&&o.fingerprint==='daily','Checkin mismatch');
+      if(o.key.startsWith('daily:')){
+        const day=previousDay(e.day),prior=ops.get(o.guild+'\0'+`daily:${e.user}:${day}`);
+        requireValue(o.key===`daily:${e.user}:${e.day}`&&e.kind==='checkin'&&e.actor===e.user&&e.delta>0&&o.fingerprint==='daily'
+          &&validCheckinTransition(r,prior?{...JSON.parse(prior.result),day}:null,e.day),'Checkin mismatch');
+      }
       else if(e.kind==='grant')requireValue(o.key.startsWith('admin:')&&e.delta>0&&isDeepStrictEqual(JSON.parse(o.fingerprint),[e.actor,e.user,e.delta,e.reason]),'Grant mismatch');
       else if(e.kind==='reversal'){const original=entries.get(Number(e.reference));requireValue(o.key.startsWith('admin:')&&original?.kind==='grant'&&original.guild===e.guild&&original.user===e.user&&e.delta===-original.delta&&isDeepStrictEqual(JSON.parse(o.fingerprint),[e.actor,Number(e.reference),e.reason]),'Reversal mismatch');}
       else requireValue(e.kind==='test_fixture'&&Number(o.fingerprint)===e.after,'Fixture mismatch');

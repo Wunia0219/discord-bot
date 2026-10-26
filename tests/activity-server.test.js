@@ -226,7 +226,7 @@ test('wallet HTTP routes require verified sessions, isolate callers and settle c
  assert.equal(login.session.userId,id);
  const headers={'Content-Type':'application/json',Authorization:'Bearer '+login.session.token};
  const requests=await Promise.all(Array.from({length:40},()=>request('/api/checkin',{method:'POST',headers,body:'{}'})));
- assert.ok(requests.every(r=>r.status===200));assert.equal(store.state(guild,id).balance,10500);
+ assert.ok(requests.every(r=>r.status===200));assert.equal(store.state(guild,id).balance,10100);
  const spins=await Promise.all(Array.from({length:20},()=>request('/api/spin',{method:'POST',headers,body:JSON.stringify({bet:100,requestId:'11111111-2222-3333-4444-555555555555',userId:'fake',guildId:'fake',stops:[0,0,0,0,0],payout:9999999})}).then(r=>r.json())));
  assert.ok(spins.every(r=>r.round.id===spins[0].round.id));assert.equal(store.history(guild,id).filter(e=>e.kind==='spin').length,1);
  assert.equal(store.history(guild,id).filter(e=>e.kind==='checkin').length,1);
@@ -279,7 +279,7 @@ test('separate device sessions share wallet, checkin and rounds in both directio
   const desktopView=(await desktop.client.state()).state;
   assert.deepEqual(desktopView,mobileRound.state);
   assert.deepEqual(desktopView.history.map(round=>round.id),[mobileRound.round.id,desktopRound.round.id]);
-  assert.equal(desktopView.balance,10500+desktopRound.round.net+mobileRound.round.net);
+  assert.equal(desktopView.balance,10100+desktopRound.round.net+mobileRound.round.net);
   const desktopLedger=await desktop.client.ledger(),mobileLedger=await mobile.client.ledger();
   assert.deepEqual(desktopLedger,mobileLedger);
   const entries=store.history(guild,id);

@@ -21,7 +21,7 @@ export function walletConfig(env=process.env){
   const adminRoles=(env.CHIP_ADMIN_ROLE_IDS||'').split(',').map(s=>s.trim()).filter(Boolean);
   if(adminRoles.some(id=>!/^\d{17,20}$/.test(id)))throw new Error('Invalid CHIP_ADMIN_ROLE_IDS');
   mkdirSync(dirname(filename),{recursive:true});
-  const store=new WalletStore({filename,environment,guildIds,daily:Number(env.DAILY_CHIPS||500),grantMax:Number(env.ADMIN_GRANT_MAX||100000),grantDaily:Number(env.ADMIN_DAILY_MAX||1000000)});
+  const store=new WalletStore({filename,environment,guildIds,weeklyRewards:env.WEEKLY_CHECKIN_REWARDS,grantMax:Number(env.ADMIN_GRANT_MAX||100000),grantDaily:Number(env.ADMIN_DAILY_MAX||1000000)});
   try { return {store,service:new WalletService(store),adminRoles,highlights:highlightsConfig(env,store)}; }
   catch(error) { store.close();throw error; }
 }

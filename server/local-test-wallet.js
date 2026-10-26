@@ -48,7 +48,7 @@ export function localTestWalletConfig(env){
   }
   const filename=resolve(env.DATABASE_PATH);
   mkdirSync(dirname(filename),{recursive:true});
-  const store=new WalletStore({filename,environment:'test',guildIds:[guild],daily:Number(env.DAILY_CHIPS||500)});
+  const store=new WalletStore({filename,environment:'test',guildIds:[guild],weeklyRewards:env.WEEKLY_CHECKIN_REWARDS});
   try {
     // Fixed fixtures are restricted to this local identity provider. Apply them once,
     // through the append-only ledger; logging in or restarting never resets progress.
@@ -62,7 +62,7 @@ export function localTestWalletConfig(env){
     });
     const localOverview=()=>({
       ok:store.isReady(),environment:'test',version:APP_VERSION,runId:hash(filename).slice(0,16),
-      daily:store.daily,cases:LOCAL_TEST_CASES,
+      weeklyRewards:store.weeklyRewards,cases:LOCAL_TEST_CASES,
       profiles:LOCAL_TEST_PROFILES.map(profile=>{
         const state=store.state(guild,profile.user);
         return {key:profile.key,name:profile.name,initialBalance:profile.balance,purpose:profile.purpose,

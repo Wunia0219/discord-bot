@@ -65,8 +65,8 @@ test('Taipei checkin is atomic once per calendar day across devices and survives
  let now=Date.parse('2026-10-18T15:59:59Z');const s=store(t,{clock:()=>now});
  assert.equal(taipeiDay(now),'2026-10-18');s.checkin(guild,user);
  for(let i=0;i<20;i++)assert.equal(s.checkin(guild,user).duplicate,true);
- assert.equal(s.state(guild,user).balance,10500);now+=2000;
- assert.equal(s.checkin(guild,user).state.balance,11000);assert.equal(s.history(guild,user).filter(e=>e.kind==='checkin').length,2);
+ assert.equal(s.state(guild,user).balance,10100);now+=2000;
+ assert.equal(s.checkin(guild,user).state.balance,10300);assert.equal(s.history(guild,user).filter(e=>e.kind==='checkin').length,2);
 });
 test('server spins are replayable forever with original stops and cannot alter a reused request',t=>{
  let now=Date.now();const s=store(t,{clock:()=>now});const key=randomUUID();const r=s.spin(guild,user,100,key);
@@ -95,7 +95,7 @@ test('admin grant caps, duplicate delivery, and compensating reversal preserve a
 test('wallet survives reopen and refuses to open a test DB as production',async t=>{
  const dir=await mkdtemp(join(tmpdir(),'kemet-wallet-'));t.after(()=>rm(dir,{recursive:true,force:true}));const filename=join(dir,'wallet.sqlite');
  const a=new WalletStore({filename,guildIds:[guild]});a.checkin(guild,user);a.close();
- const b=new WalletStore({filename,guildIds:[guild]});assert.equal(b.state(guild,user).balance,10500);b.close();
+ const b=new WalletStore({filename,guildIds:[guild]});assert.equal(b.state(guild,user).balance,10100);b.close();
  assert.throws(()=>new WalletStore({filename,guildIds:[guild],environment:'production'}),/mix test/);
 });
 

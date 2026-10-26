@@ -65,7 +65,11 @@ export function firestoreImportPlan(filename,environment,{version=1}={}){
       for(const target of [summary,wallet.summary]){target.game.rounds++;target.game.bet+=round.bet;target.game.payout+=round.payout;target.game.net=target.game.payout-target.game.bet;}
       days.set(key,summary);
     }
-    for(const row of db.prepare('SELECT * FROM operations ORDER BY guild,key').iterate())put(`operations/${digest(row.guild+'\0'+row.key)}`,{fingerprint:row.fingerprint,result:JSON.parse(row.result)});
+    for(const row of db.prepare('SELECT * FROM operations ORDER BY guild,key').iterate()){
+      const result=JSON.parse(row.result),claim=/^daily:(\d{17,20}):(\d{4}-\d{2}-\d{2})$/.exec(row.key);
+      if(claim){const wallet=wallets.get(`wallets/${row.guild}_${claim[1]}`);if(wallet.claimedDay===claim[2]&&result.checkin)wallet.checkin=result.checkin;}
+      put(`operations/${digest(row.guild+'\0'+row.key)}`,{fingerprint:row.fingerprint,result});
+    }
     if(audit.counts.highlight_events)for(const row of db.prepare('SELECT * FROM highlight_events ORDER BY guild,round_id').iterate()){
       assertHighlightEvent(row);
       const rounds=db.prepare('SELECT data FROM rounds WHERE guild=? AND id=?').all(row.guild,row.round_id);

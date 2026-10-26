@@ -18,7 +18,7 @@ export async function firestoreWalletConfig(env){
   if(adminRoles.some(id=>!/^\d{17,20}$/.test(id)))throw new Error('Invalid CHIP_ADMIN_ROLE_IDS');
   const settings=firestoreSettings(env);
   if(localTest&&!settings.namespace.endsWith('-qa-test'))throw new Error('Local Firestore fixtures require a separate namespace ending in -qa-test');
-  const store=new FirestoreWalletStore(settings,{guildIds,daily:Number(env.DAILY_CHIPS||500),grantMax:Number(env.ADMIN_GRANT_MAX||100000),grantDaily:Number(env.ADMIN_DAILY_MAX||1000000)});
+  const store=new FirestoreWalletStore(settings,{guildIds,weeklyRewards:env.WEEKLY_CHECKIN_REWARDS,grantMax:Number(env.ADMIN_GRANT_MAX||100000),grantDaily:Number(env.ADMIN_DAILY_MAX||1000000)});
   let highlights;
   try{
     highlights=firestoreHighlightsConfig(env,store);
@@ -27,7 +27,7 @@ export async function firestoreWalletConfig(env){
     const guild=guildIds[0];
     for(const profile of LOCAL_TEST_PROFILES)await store.ensureFixture(guild,profile.user,profile.balance,profile.key);
     const localOverview=async()=>({ok:await store.isReady(),environment:'test',version:APP_VERSION,
-      runId:createHash('sha256').update(settings.projectId+':'+settings.namespace).digest('hex').slice(0,16),daily:store.daily,cases:LOCAL_TEST_CASES,
+      runId:createHash('sha256').update(settings.projectId+':'+settings.namespace).digest('hex').slice(0,16),weeklyRewards:store.weeklyRewards,cases:LOCAL_TEST_CASES,
       profiles:await Promise.all(LOCAL_TEST_PROFILES.map(async profile=>{
         const state=await store.state(guild,profile.user);
         return {key:profile.key,name:profile.name,initialBalance:profile.balance,purpose:profile.purpose,balance:state.balance,claimed:state.claimed,

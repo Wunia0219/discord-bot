@@ -142,12 +142,12 @@ test('balance and daily commands seed once, deduplicate concurrent checkins, and
   assert.equal(responses.filter(response => response.data.embeds[0].color === 0xc99456).length, 7);
   for (const response of responses) {
     const embed = card(response, response.data.embeds[0].color === 0x68a880 ? 'success' : 'warning');
-    assert.match(embed.description, /10,500/);
+    assert.match(embed.description, /10,100/);
   }
   assert.equal(store.history(guild, member).filter(entry => entry.kind === 'test_seed').length, 1);
   assert.equal(store.history(guild, member).filter(entry => entry.kind === 'checkin').length, 1);
   advance(2000);
-  assert.match(card(await invoke(command('簽到')), 'success').description, /11,000/);
+  assert.match(card(await invoke(command('簽到')), 'success').description, /10,300/);
   assert.equal(store.history(guild, member).filter(entry => entry.kind === 'checkin').length, 2);
 });
 
@@ -157,8 +157,8 @@ test('bot balances and daily claims stay separate for each member and guild', as
   const secondMember = command('戲籌', { member: { user: { id: recipient }, permissions: '0' } });
   assert.match(card(await invoke(secondMember)).description, /10,000/);
   assert.match(card(await invoke(command('戲籌', { guild_id: otherGuild }))).description, /10,000/);
-  assert.match(card(await invoke(command('簽到', { guild_id: otherGuild })), 'success').description, /10,500/);
-  assert.match(card(await invoke(command('戲籌'))).description, /10,500/);
+  assert.match(card(await invoke(command('簽到', { guild_id: otherGuild })), 'success').description, /10,100/);
+  assert.match(card(await invoke(command('戲籌'))).description, /10,100/);
 });
 
 test('production bot wallets start at zero and never display a test-environment label', async t => {
@@ -166,7 +166,7 @@ test('production bot wallets start at zero and never display a test-environment 
   const balance = card(await invoke(command('戲籌')));
   assert.match(balance.description, /\*\*0 戲籌\*\*/);
   assert.doesNotMatch(JSON.stringify(balance), /測試環境|試玩戲籌/);
-  assert.match(card(await invoke(command('簽到')), 'success').description, /現在有 \*\*500 戲籌/);
+  assert.match(card(await invoke(command('簽到')), 'success').description, /現在有 \*\*100 戲籌/);
   assert.deepEqual(store.history(guild, member).map(entry => entry.kind), ['checkin']);
 });
 
@@ -285,7 +285,7 @@ test('audit commands paginate rewards without duplicates and expose daily and em
 
   await invoke(command('簽到', { member: { user: { id: recipient }, permissions: '0' } }));
   const daily = card(await invoke(management('紀錄', { 成員: recipient, 分類: 'checkin', 期間: 1 })));
-  assert.match(daily.description, /簽到 1 天.*500 戲籌/);
+  assert.match(daily.description, /簽到 1 天.*100 戲籌/);
   assert.equal(daily.fields.length, 1);
   const summary = card(await invoke(management('紀錄', { 成員: recipient, 分類: 'summary', 期間: 1 })));
   assert.deepEqual(summary.fields.map(field => field.value), ['0', '0', '0', '+0']);

@@ -1,9 +1,10 @@
 const fmt = n => n.toLocaleString('en-US');
 
-export function dailyRewardView({ daily = 500, claimed = false, claiming = false, busy = false, ready = false }) {
+export function dailyRewardView({ daily = 100, weeklyCheckin, claimed = false, claiming = false, busy = false, ready = false }) {
   if (claiming) return { title: '領取中…', detail: '馬上就好', disabled: true };
-  if (claimed) return { title: '今日已領取', detail: `明天再領 ${fmt(daily)} 戲籌`, disabled: true };
-  return { title: '每日簽到', detail: `領取 ${fmt(daily)} 戲籌`, disabled: busy || !ready };
+  const day=weeklyCheckin?.day||1;
+  if (claimed) return { title: '今日已領取', detail: `明天 ${fmt(weeklyCheckin?.nextReward??100)} 戲籌`, disabled: true };
+  return { title: `週簽到・第 ${day} 天`, detail: `領取 ${fmt(daily)} 戲籌`, disabled: busy || !ready };
 }
 
 // Display a useful next step, never an unfiltered server/SDK exception.
@@ -23,7 +24,7 @@ export function playerError(error, { context = 'game', canClaim = false } = {}) 
 }
 
 export function ledgerLabel(entry) {
-  return { checkin: '每日簽到', test_seed: '歡迎戲籌', spin: '戲籌變化', grant: '收到戲籌', reversal: '戲籌調整' }[entry.kind] || '戲籌變化';
+  return { checkin: '週簽到', test_seed: '歡迎戲籌', spin: '戲籌變化', grant: '收到戲籌', reversal: '戲籌調整' }[entry.kind] || '戲籌變化';
 }
 
 export function changeLabel(value) {

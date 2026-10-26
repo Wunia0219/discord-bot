@@ -42,7 +42,7 @@ export class CircusProject extends DurableObject {
     const settings=identity(this.env),saved=this.state.get('source');if(!saved||saved.projectId!==settings.projectId||saved.namespace!==settings.namespace||this.quota.identity().projectId!==settings.projectId)throw new Error('Handoff is required');
     const credentials=JSON.parse(this.env.GOOGLE_SERVICE_ACCOUNT_JSON||'null');if(credentials?.type!=='service_account'||credentials.project_id!==settings.projectId||!credentials.private_key||!credentials.client_email)throw new Error('Credentials mismatch');
     const sealer=new Sealer(this.env.CLOUD_ENCRYPTION_KEY),vault=new SnapshotVault(this.ctx.storage,this.state,sealer),guildIds=(this.env.ALLOWED_GUILD_IDS||'').split(',').map(x=>x.trim());
-    const transport=()=>new FirestoreRest({...settings,credentials,fetchImpl:cloudFetch,endpoint:this.env.FIRESTORE_ENDPOINT}),options={guildIds,daily:Number(this.env.DAILY_CHIPS||500),grantMax:Number(this.env.ADMIN_GRANT_MAX||100000),grantDaily:Number(this.env.ADMIN_DAILY_MAX||1000000)};
+    const transport=()=>new FirestoreRest({...settings,credentials,fetchImpl:cloudFetch,endpoint:this.env.FIRESTORE_ENDPOINT}),options={guildIds,weeklyRewards:this.env.WEEKLY_CHECKIN_REWARDS,grantMax:Number(this.env.ADMIN_GRANT_MAX||100000),grantDaily:Number(this.env.ADMIN_DAILY_MAX||1000000)};
     const store=new FirestoreWalletCore(settings,{...options,db:transport(),quota:this.quota,settlementQueue:new SettlementQueue()});
     // Never initialize an empty remote namespace from a public request.
     store.checkMeta(await store.read(store.meta));store.ready=true;store.readyAt=Date.now();

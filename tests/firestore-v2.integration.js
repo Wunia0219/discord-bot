@@ -29,6 +29,32 @@ async function fixture(t){
   const s=await create();return {s,settings,env,directory,create};
 }
 const compact={compact:true};
+
+for(const version of [1,2])test(`v${version} weekly claims persist across devices, cycle, interruptions, configuration changes and replay`,async t=>{
+  const h=await fixture(t),settings={...h.settings,schemaVersion:version,namespace:`weekly-v${version}-${randomUUID()}-test`};
+  let now=Date.parse('2026-12-28T15:59:59.999Z');const options={clock:()=>now};
+  let a=await h.create(settings,options),b=await h.create(settings,options);let total=10000;
+  for(let i=0;i<9;i++){
+    const cycleDay=i%7+1;
+    const result=await Promise.all([a.checkin(guild,user,compact),b.checkin(guild,user,compact)]);
+    assert.equal(result.filter(r=>r.duplicate).length,1);assert.deepEqual(result[0].entry,result[1].entry);assert.deepEqual(result[0].checkin,result[1].checkin);
+    total+=cycleDay*100;assert.equal(result[0].state.balance,total);assert.equal(result[0].checkin.cycleDay,cycleDay);
+    assert.equal(result[0].state.weeklyCheckin.nextReward,(cycleDay%7+1)*100);
+    const before=a.quota.status().used.writes,again=await a.checkin(guild,user,compact);
+    assert.equal(again.duplicate,true);assert.equal(a.quota.status().used.writes,before);
+    await a.close();a=await h.create(settings,options);assert.equal((await a.state(guild,user,compact)).claimed,true);
+    now+=86400000;
+  }
+  assert.deepEqual((await a.auditSummary(guild,user)).checkin,{days:9,total:3100});
+  now+=86400000;assert.equal((await a.state(guild,user,compact)).weeklyCheckin.day,1);
+  const reset=await a.checkin(guild,user,compact);assert.equal(reset.entry.delta,100);
+  const changed=await h.create(settings,{...options,weeklyRewards:[10,40,90,160,250,360,490]});
+  assert.equal((await changed.state(guild,user,compact)).daily,100);assert.equal((await changed.state(guild,user,compact)).weeklyCheckin.nextReward,40);
+  assert.deepEqual((await changed.checkin(guild,user,compact)).checkin,reset.checkin);
+  now+=86400000;assert.equal((await changed.checkin(guild,user,compact)).entry.delta,40);
+  assert.equal((await a.checkin(other,user,compact)).entry.delta,100);
+});
+
 function source(h,count=0){
   const filename=join(h.directory,'source.sqlite'),s=new WalletStore({filename,guildIds:[guild],spinDelay:0});
   s.checkin(guild,user);for(let i=0;i<count;i++)s.spin(guild,user,20,randomUUID());

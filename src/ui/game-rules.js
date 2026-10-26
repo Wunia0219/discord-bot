@@ -41,9 +41,10 @@ function waysPanel(bet) {
     <div class="rules-callout"><strong>有得獎，戲籌也可能變少</strong><span>每局會先扣下注，再加上獎勵。如果獎勵少於下注，戲籌餘額就會減少；紀錄裡的「戲籌變化」會幫你算好。</span></div>`;
 }
 
-function playPanel(bet) {
+function playPanel(bet,weeklyRewards) {
   return `<div class="rules-intro"><span class="rules-kicker">LET THE SHOW BEGIN</span><h3>準備好，讓表演開始</h3><p>選好下注額，按下中央的旋轉按鈕。每一局拿到多少、戲籌多了還是少了，都能在右上角的「遊玩紀錄」查看。</p></div>
     <ol class="rules-steps"><li><span class="rules-step-number">01</span><div><h4>選擇下注</h4><p>${BETS.map(fmt).join('／')} 戲籌。按 MAX BET 會幫你選好 ${fmt(BETS.at(-1))}，再按 SPIN 才會開始。</p></div></li><li><span class="rules-step-art">${mainArt('spin-button.png', 'rules-spin-art')}</span><div><h4>按下 SPIN</h4><p>轉輪停下後，亮框會指出中獎的圖標，機台上方會顯示這局拿到的戲籌。</p></div></li><li><span class="rules-step-number">03</span><div><h4>AUTO SPIN 連續旋轉</h4><p>想連續玩就按 AUTO SPIN；想停下來，再按 STOP AUTO。這局會先玩完，看到得獎結果後才會接著轉。</p></div></li></ol>
+    ${weeklyRewards?`<div class="rules-callout"><strong>週簽到・連續七天循環</strong><span>${weeklyRewards.map((n,i)=>`第 ${i+1} 天 ${fmt(n)}`).join('／')} 戲籌。</span><span>每天手動領取一次，台灣時間 00:00 換日。連續簽到第 7 天後，隔天回到第 1 天；漏簽一天就中斷，下次從第 1 天重新開始。每個伺服器分別累積。</span></div>`:''}
     <aside class="rules-keyboard"><kbd>SPACE</kbd><div><h4>電腦快捷鍵</h4><p>主畫面的空白鍵固定用來開轉或快停，點過紀錄、規則或其他按鈕也一樣。轉動中再按一次，只會讓轉輪早一點停下，結果和獎勵不變。紀錄／規則視窗開啟時，空白鍵不關閉視窗也不開轉；關閉請按右上角或 Esc。用鍵盤操作工具按鈕可按 Enter。</p></div></aside>
     <div class="rules-section-heading"><h4>聚光燈下的大獎演出</h4><span>WIN CELEBRATIONS</span></div><p class="rules-tier-explanation">這局拿到的戲籌越多，慶祝也越熱鬧。以下倍數都以這局的總下注計算，只會播放最高的一種。</p><div class="rules-tier-grid">${['big', 'super', 'mega'].map((tier, i, tiers) => `<article class="rules-tier" data-win-tier="${tier}"><div role="img" aria-label="${WIN_TITLES[tier]}">${mainArt(`${tier}-win.png`, 'rules-win-art')}</div><strong>${WIN_THRESHOLDS[tier]}<small>${tiers[i + 1] ? `～不足 ${WIN_THRESHOLDS[tiers[i + 1]]} 倍` : ' 倍以上'}</small></strong><span>下注 ${fmt(bet)} · 獲得 ${fmt(bet * WIN_THRESHOLDS[tier])} 起</span></article>`).join('')}</div><p class="rules-footnote">這些都是得獎後的慶祝，不會再把戲籌乘一次。餘額第一次達到 12,000 時，也會有里程碑慶祝。</p>
     <div class="rules-callout"><strong>暫停一下，隨時再回到舞台</strong><span>打開規則或紀錄、離開遊戲，或戲籌不夠時，自動旋轉就會暫停。回來後再按 AUTO SPIN 即可繼續。右上角的音效與音樂各自控制；音樂標示「待加入」時尚無曲目。切到背景時聲音會暫停。</span></div>${gameFacts()}`;
@@ -53,10 +54,10 @@ function gameFacts() {
   return `<section class="rules-basics" aria-labelledby="rules-basics-title"><h4 id="rules-basics-title">遊戲基本資訊</h4><div class="rules-facts"><article><span>理論返還率</span><strong>${Number((THEORETICAL_RTP * 100).toFixed(4))}<small>%</small></strong><p>這是長期平均值，不代表每次都能拿回 ${Number((THEORETICAL_RTP * 100).toFixed(4))}% 的戲籌。</p></article><article><span>最高倍率</span><strong>${fmt(MAXIMUM_MULTIPLIER)}<small>倍</small></strong><p>以這局的總下注計算，實際拿到多少，要看中獎圖標和組合。</p></article></div><p>戲籌是遊戲裡用的，不能購買、轉讓，也不能換成現金。</p></section>`;
 }
 
-export function createGameRules(bet) {
+export function createGameRules(bet,weeklyRewards) {
   const root = document.createElement('div');
   root.className = 'game-rules';
-  const panels = [symbolsPanel(bet), waysPanel(bet), playPanel(bet)];
+  const panels = [symbolsPanel(bet), waysPanel(bet), playPanel(bet,weeklyRewards)];
   root.innerHTML = `<div class="rules-masthead">${mainArt('logo-long.png', 'rules-logo')}<span>5 軸 × 3 列 <i>◆</i> 243 路 <i>◆</i> 由左至右</span></div><div class="rules-tabs" role="tablist" aria-label="遊戲規則章節">${sections.map(([key, title], i) => `<button id="rules-tab-${key}" role="tab" aria-controls="rules-panel-${key}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${title}</button>`).join('')}</div>${sections.map(([key], i) => `<section id="rules-panel-${key}" class="rules-panel" role="tabpanel" aria-labelledby="rules-tab-${key}" tabindex="0" ${i ? 'hidden' : ''}>${panels[i]}</section>`).join('')}<nav class="rules-legal" aria-label="服務與隱私"><a href="/terms.html">服務條款</a><a href="/privacy.html">隱私權政策</a></nav><footer class="rules-version"><span>JOKER’S CIRCUS</span><span>v${APP_VERSION}</span></footer>`;
 
   const tabs = [...root.querySelectorAll('[role="tab"]')];

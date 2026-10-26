@@ -3,16 +3,17 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { BETS, roundFromStops, REEL_STRIPS } from '../src/game/index.js';
 
 import {problem,taipeiDay,nextCheckin} from './wallet-common.js';
+import {checkinRewards,checkinReceipt,weeklyCheckinState} from './weekly-checkin.js';
 export {problem,taipeiDay,nextCheckin} from './wallet-common.js';
 const MAX_BALANCE=1_000_000_000_000;
 const snowflake=value=>/^\d{17,20}$/.test(value||'');
 
 export class WalletStore {
-  constructor({ filename=':memory:', environment='test', guildIds=[], daily=500, grantMax=100000, grantDaily=1000000, clock=Date.now, spinDelay=2000 }={}) {
+  constructor({ filename=':memory:', environment='test', guildIds=[], weeklyRewards, grantMax=100000, grantDaily=1000000, clock=Date.now, spinDelay=2000 }={}) {
     if (!['test','production'].includes(environment)) throw new Error('Invalid wallet environment');
     if (!guildIds.length || guildIds.some(id=>!snowflake(id))) throw new Error('Explicit guild allowlist required');
-    for(const value of [daily,grantMax,grantDaily]) if(!Number.isSafeInteger(value)||value<=0||value>MAX_BALANCE) throw new Error('Invalid wallet limits');
-    Object.assign(this,{environment,guildIds:new Set(guildIds),daily,grantMax,grantDaily,clock,spinDelay});
+    for(const value of [grantMax,grantDaily]) if(!Number.isSafeInteger(value)||value<=0||value>MAX_BALANCE) throw new Error('Invalid wallet limits');
+    Object.assign(this,{environment,guildIds:new Set(guildIds),weeklyRewards:checkinRewards(weeklyRewards),grantMax,grantDaily,clock,spinDelay});
     this.db=openWalletDatabase(filename,environment);
   }
   close(){if(this.db.isOpen)this.db.close();}
@@ -44,13 +45,19 @@ export class WalletStore {
     const result=fn();
     this.db.prepare('INSERT INTO operations VALUES(?,?,?,?)').run(guild,key,fingerprint,JSON.stringify(result));return result;
   }
-  snapshot(guild,user){
+  lastCheckin(guild,user){
+    // ISO dates sort lexically. This range uses the existing (guild,key) PK;
+    // it never scans the player's spins or rewrites historical claims.
+    const prefix=`daily:${user}:`,row=this.db.prepare('SELECT key,result FROM operations WHERE guild=? AND key>=? AND key<? ORDER BY key DESC LIMIT 1').get(guild,prefix,prefix+'\uffff');
+    return row?{day:row.key.slice(prefix.length),...JSON.parse(row.result)}:null;
+  }
+  snapshot(guild,user,now=this.clock()){
     const wallet=this.db.prepare('SELECT * FROM wallets WHERE guild=? AND user=?').get(guild,user);
     const history=this.db.prepare('SELECT data FROM rounds WHERE guild=? AND user=? ORDER BY created DESC,rowid DESC LIMIT 100').all(guild,user).map(row=>JSON.parse(row.data));
-    const claimed=!!this.db.prepare('SELECT 1 FROM operations WHERE guild=? AND key=?').get(guild,`daily:${user}:${taipeiDay(this.clock())}`);
+    const last=this.lastCheckin(guild,user),checkin=weeklyCheckinState(last?.day,last?.checkin,taipeiDay(now),this.weeklyRewards);
     const revision=this.db.prepare('SELECT COALESCE(MAX(id),0) revision FROM ledger WHERE guild=? AND user=?').get(guild,user).revision;
-    const spinCooldownMs=Math.max(0,wallet.last_spin+this.spinDelay-this.clock());
-    return {version:3,balance:wallet.balance,history,milestones:wallet.milestone?[12000]:[],environment:this.environment,guildId:guild,daily:this.daily,claimed,nextCheckin:nextCheckin(this.clock()),revision,spinCooldownMs};
+    const spinCooldownMs=Math.max(0,wallet.last_spin+this.spinDelay-now);
+    return {version:3,balance:wallet.balance,history,milestones:wallet.milestone?[12000]:[],environment:this.environment,guildId:guild,...checkin,nextCheckin:nextCheckin(now),revision,spinCooldownMs};
   }
   state(guild,user){return this.tx(()=>{this.ensure(guild,user);return this.snapshot(guild,user);});}
   spin(guild,user,bet,requestId){
@@ -79,8 +86,12 @@ export class WalletStore {
   checkin(guild,user){return this.tx(()=>{
     this.ensure(guild,user);
     const claimedAt=this.clock();
-    const result=this.once(guild,`daily:${user}:${taipeiDay(claimedAt)}`,'daily',()=>({entry:this.credit(guild,user,this.daily,'checkin',user,'每日簽到',null,claimedAt)}));
-    return {...result,state:this.snapshot(guild,user)};
+    const day=taipeiDay(claimedAt);
+    const result=this.once(guild,`daily:${user}:${day}`,'daily',()=>{
+      const last=this.lastCheckin(guild,user),checkin=checkinReceipt(last?.day,last?.checkin,day,this.weeklyRewards);
+      return {entry:this.credit(guild,user,checkin.rewards[checkin.cycleDay-1],'checkin',user,`週簽到第 ${checkin.cycleDay} 天`,null,claimedAt),checkin};
+    });
+    return {...result,state:this.snapshot(guild,user,claimedAt)};
   });}
   grant(guild,actor,user,amount,reason,requestId){
     this.validate(guild,actor);this.validate(guild,user);

@@ -3,13 +3,13 @@ import { problem } from './wallet-common.js';
 import { privateReply, commandError } from './bot-replies.js';
 
 export const commandDefinitions = [
-  {name:'簽到',description:'領今天的戲籌，每天都能來領一份',type:1},
+  {name:'簽到',description:'週簽到：連續七天獎勵循環，中斷從第 1 天重新開始',type:1},
   {name:'戲籌',description:'看看你在這個群有多少戲籌',type:1},
   {name:'戲籌管理',description:'幫群友發戲籌、收回誤發或查紀錄',type:1,default_member_permissions:'0',options:[
     {type:1,name:'發放',description:'送戲籌給群友，順便留個原因',options:[{type:6,name:'成員',description:'要送給哪位群友？',required:true},{type:4,name:'數量',description:'要送多少戲籌？',required:true,min_value:1,max_value:100000},{type:3,name:'原因',description:'留個原因，之後查紀錄才記得',required:true,max_length:200}]},
     {type:1,name:'紀錄',description:'看看群友的戲籌紀錄，沒選分類就先看發放與收回',options:[
       {type:6,name:'成員',description:'想看哪位群友的紀錄？',required:true},
-      {type:3,name:'分類',description:'想看哪一種？沒選就先看發放與收回',choices:[{name:'發放與收回',value:'rewards'},{name:'每日簽到',value:'checkin'},{name:'遊戲摘要',value:'summary'},{name:'遊戲明細',value:'game'},{name:'全部戲籌紀錄',value:'all'}]},
+      {type:3,name:'分類',description:'想看哪一種？沒選就先看發放與收回',choices:[{name:'發放與收回',value:'rewards'},{name:'週簽到',value:'checkin'},{name:'遊戲摘要',value:'summary'},{name:'遊戲明細',value:'game'},{name:'全部戲籌紀錄',value:'all'}]},
       {type:4,name:'期間',description:'想看多久以前的？日期都按台灣時間算',choices:[{name:'今天',value:1},{name:'近 7 天',value:7},{name:'近 30 天',value:30},{name:'全部期間',value:0}]},
       {type:4,name:'早於編號',description:'想接著看更早的紀錄？填上上一頁提供的編號',min_value:1},
     ]},
@@ -35,11 +35,12 @@ export async function handleCommand(interaction, store, adminRoles=[]) {
     if(interaction.data?.type===4)return {type:12};
     if(interaction.data.name==='簽到'){
       const r=await store.checkin(guild,user,{compact:true});
-      return reply(`${r.duplicate?`今天的 **${number(store.daily)} 戲籌**已經領過囉。`:`今天的 **${number(store.daily)} 戲籌**領到了！`}\n你現在有 **${number(r.state.balance)} 戲籌**。\n\n台灣時間過午夜，就能再領下一份。`,r.duplicate?'今天已經領過囉':'今天的簽到領到了',r.duplicate?'warning':'success');
+      const progress=r.state.weeklyCheckin,cycle=r.checkin?`週簽到第 ${r.checkin.cycleDay} 天，`:'';
+      return reply(`${cycle}${r.duplicate?`今天的 **${number(r.entry.delta)} 戲籌**已經領過囉。`:`今天的 **${number(r.entry.delta)} 戲籌**領到了！`}\n你現在有 **${number(r.state.balance)} 戲籌**。\n\n明天第 ${progress.nextDay} 天可領 **${number(progress.nextReward)} 戲籌**。\n連續七天循環，中斷從第 1 天重新開始；台灣時間午夜換日。`,r.duplicate?'今天已經領過囉':'今天的簽到領到了',r.duplicate?'warning':'success');
     }
     if(['戲籌','\u7c4c\u78bc'].includes(interaction.data.name)){
       const state=await store.state(guild,user,{compact:true});
-      return reply(`**${number(state.balance)} 戲籌**\n\n${state.claimed?'今天的簽到已經領過了，明天再來補充吧。':`今天的簽到還沒領，輸入 /簽到 就能領 **${number(store.daily)} 戲籌**。`}`);
+      return reply(`**${number(state.balance)} 戲籌**\n\n${state.claimed?`今天的週簽到已經領過了，明天可領 **${number(state.weeklyCheckin.nextReward)} 戲籌**。`:`週簽到第 ${state.weeklyCheckin.day} 天，輸入 /簽到 就能領 **${number(state.daily)} 戲籌**。`}\n連續七天循環，中斷從第 1 天重新開始。`);
     }
     if(!['戲籌管理','\u7c4c\u78bc管理'].includes(interaction.data.name))throw problem(400,'不支援此指令。','COMMAND_UNKNOWN');
     const permissions=BigInt(interaction.member.permissions || '0');
@@ -67,7 +68,7 @@ export async function handleCommand(interaction, store, adminRoles=[]) {
     }
     if(sub?.name==='紀錄'){
       const category=args['分類']??'rewards',days=args['期間']??0;
-      const labels={rewards:'發放與收回',checkin:'每日簽到',summary:'遊戲摘要',game:'遊戲明細',all:'全部戲籌紀錄'};
+      const labels={rewards:'發放與收回',checkin:'週簽到',summary:'遊戲摘要',game:'遊戲明細',all:'全部戲籌紀錄'};
       if(!Object.hasOwn(labels,category))throw problem(400,'無效的紀錄分類。','AUDIT_FILTER');
       const period=days===0?'全部期間':days===1?'今天':`近 ${days} 天`;
       let description=`<@${target}> · ${period}（台灣時間）`;
@@ -97,7 +98,7 @@ const number=value=>value.toLocaleString('en-US');
 const signed=value=>`${value>=0?'+':''}${number(value)}`;
 const escapeText=value=>String(value).replace(/@/g,'＠').replace(/[\\`*_{}\[\]()<>~|#]/g,'\\$&');
 function recordField(r){
-  const labels={grant:'收到戲籌',reversal:'收回誤發戲籌',checkin:'每日簽到',spin:'遊玩紀錄',test_seed:'試玩起始戲籌'};
+  const labels={grant:'收到戲籌',reversal:'收回誤發戲籌',checkin:'週簽到',spin:'遊玩紀錄',test_seed:'試玩起始戲籌'};
   const time=new Date(Date.parse(r.time)+8*3600000).toISOString().slice(0,16).replace('T',' ');
   const status=r.kind==='grant'?`\n${r.reversal_id?`這筆已收回（#${r.reversal_id}）`:'這筆已收到'}`:r.kind==='reversal'?`\n對應發放：#${r.reference}`:'';
   const reason=r.kind==='test_seed'?'試玩時的起始戲籌':r.kind==='spin'?r.reason.replace('派彩','拿到'):r.reason;
