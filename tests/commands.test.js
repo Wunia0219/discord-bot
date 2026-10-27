@@ -62,8 +62,8 @@ test('cards preserve privacy, colors, empty states and Discord text limits',asyn
 test('admin command permissions are enforced on the server, including configured roles and guild isolation',async t=>{
  const s=new WalletStore({guildIds:[guild],environment:'production'});t.after(()=>s.close());
  const i={type:2,id:'1561284960986599700',guild_id:guild,member:{user:{id:user},roles:[],permissions:'0'},data:{name:'戲籌管理',resolved:{members:{[target]:{}},users:{[target]:{bot:false}}},options:[{name:'發放',options:[{name:'成員',value:target},{name:'數量',value:500},{name:'原因',value:'測試'}]}]}};
- assert.match((await handleCommand(i,s)).data.embeds[0].description,/需要管理員/);assert.equal(s.state(guild,target).balance,0);
- i.member.roles=['role'];assert.match((await handleCommand(i,s,['role'])).data.embeds[0].description,/500.*戲籌/);assert.equal(s.state(guild,target).balance,500);
+ assert.match((await handleCommand(i,s)).data.embeds[0].description,/需要管理員/);assert.equal(s.state(guild,target).balance,10000);
+ i.member.roles=['role'];assert.match((await handleCommand(i,s,['role'])).data.embeds[0].description,/500.*戲籌/);assert.equal(s.state(guild,target).balance,10500);
  assert.match((await handleCommand(i,s,['role'])).data.embeds[0].description,/沒有再加一次/);
  i.guild_id='123456789012345678';assert.match((await handleCommand(i,s,['role'])).data.embeds[0].description,/有開放遊戲的群/);
 });

@@ -81,9 +81,9 @@ test('two admin subcommands enforce permissions/confirmation and render exact be
   const {s}=fixture(t);s.checkin(guild,user);s.grant(guild,admin,user,500,'reward',randomUUID());
   const subcommands=commandDefinitions.find(c=>c.name==='戲籌管理').options.map(c=>c.name);assert.ok(subcommands.includes('玩家戲籌')&&subcommands.includes('重設戲籌'));
   for(const name of ['玩家戲籌','重設戲籌'])assert.match((await handleCommand(command(name,{'確認':true},'0'),s)).data.embeds[0].description,/需要管理員/);
-  const list=(await handleCommand(command('玩家戲籌'),s)).data;assert.equal(list.flags,64);assert.deepEqual(list.allowed_mentions,{parse:[]});assert.match(list.embeds[0].fields[0].value,/10,600/);
-  assert.match((await handleCommand(command('重設戲籌'),s)).data.embeds[0].title,/確認/);assert.equal(s.state(guild,user).balance,10600);
-  const i=command('重設戲籌',{'確認':true}),first=(await handleCommand(i,s)).data.embeds[0];assert.equal(first.title,'戲籌已重設');assert.match(first.fields[0].value,/10,600 → 10,000/);assert.equal(s.state(guild,user).balance,10000);
+  const list=(await handleCommand(command('玩家戲籌'),s)).data;assert.equal(list.flags,64);assert.deepEqual(list.allowed_mentions,{parse:[]});assert.match(list.embeds[0].fields[0].value,/11,000/);
+  assert.match((await handleCommand(command('重設戲籌'),s)).data.embeds[0].title,/確認/);assert.equal(s.state(guild,user).balance,11000);
+  const i=command('重設戲籌',{'確認':true}),first=(await handleCommand(i,s)).data.embeds[0];assert.equal(first.title,'戲籌已重設');assert.match(first.fields[0].value,/11,000 → 10,000/);assert.equal(s.state(guild,user).balance,10000);
   s.spin(guild,user,20,randomUUID());const balance=s.state(guild,user).balance;
   const report=(await handleCommand(command('重設戲籌',{'紀錄編號':i.id,'確認':true}),s)).data.embeds[0];assert.match(report.description,/沒有再次重設/);assert.deepEqual(report.fields,first.fields);assert.equal(s.state(guild,user).balance,balance);
   const history=command('紀錄',{'成員':user});history.data.resolved={members:{[user]:{}},users:{[user]:{bot:false}}};

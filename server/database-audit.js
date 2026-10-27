@@ -2,6 +2,7 @@ import {isDeepStrictEqual} from 'node:util';
 import {BETS,MODEL_VERSION,LEGACY_MODELS,gridFromStops,evaluateGrid} from '../src/game/index.js';
 import {previousDay,validCheckinTransition} from './weekly-checkin.js';
 import {validResetOperation} from './wallet-admin.js';
+import {validWelcomeEntry} from './wallet-opening.js';
 
 const MAX_BALANCE=1_000_000_000_000;
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
@@ -99,7 +100,11 @@ export function inspectSettlements(db){
     if(!valid)add('Operation result errors');
   }
 
-  for(const entry of reader(db,'SELECT * FROM ledger').iterate()){
+  const seenOwners=new Set();
+  for(const entry of reader(db,'SELECT * FROM ledger ORDER BY id').iterate()){
+    const owner=entry.guild+'_'+entry.user;
+    if(entry.kind==='welcome'&&(!validWelcomeEntry(entry)||seenOwners.has(owner)))add('Invalid welcome credit');
+    seenOwners.add(owner);
     if(!balance(entry.before)||!balance(entry.after)||!Number.isSafeInteger(entry.delta)
       ||entry.after!==entry.before+entry.delta)add('Invalid ledger amounts');
     const time=typeof entry.time==='string'?Date.parse(entry.time):NaN,day=new Date(time+8*3600000);
@@ -126,7 +131,7 @@ export function inspectSettlements(db){
         const original=/^[1-9]\d*$/.test(entry.reference??'')?entryById.get(entry.reference):null;
         if(!original||original.guild!==entry.guild||original.user!==entry.user||original.kind!=='grant'||entry.delta!==-original.delta)add('Ledger reversal errors');
       }
-    }else if(entry.kind!=='test_seed')add('Unsupported ledger kinds');
+    }else if(entry.kind!=='test_seed'&&entry.kind!=='welcome')add('Unsupported ledger kinds');
   }
 
   // Unique links plus matching totals ensure no round or recorded action is

@@ -65,7 +65,7 @@ test('acceptance fixtures stay isolated and never reset balances or checkins on 
   assert.equal(wallet.store.state(low.guild,low.user).history.length,0);
   wallet.store.checkin(zero.guild,zero.user);
   const saved=wallet.localOverview();
-  assert.deepEqual(saved.profiles.map(profile=>profile.balance),[10100,10000,50,100]);
+  assert.deepEqual(saved.profiles.map(profile=>profile.balance),[10500,10000,50,500]);
   wallet.store.close();wallet=localTestWalletConfig(env);
   assert.deepEqual(wallet.localOverview(),saved);
   assert.equal(wallet.store.checkin(zero.guild,zero.user).duplicate,true);
@@ -103,7 +103,7 @@ test('local game uses persisted server wallets, daily idempotency and saved roun
   const initial=await (await request('/api/wallet',{headers})).json();assert.equal(initial.state.balance,10000);
   for(let i=0;i<2;i++)assert.equal((await request('/api/checkin',{method:'POST',headers,body:'{}'})).status,200);
   const spin=await (await request('/api/spin',{method:'POST',headers,body:JSON.stringify({bet:100,requestId:'local-test-spin-00000001'})})).json();
-  assert.equal(spin.round.before,10100);assert.equal(spin.state.history.length,1);
+  assert.equal(spin.round.before,10500);assert.equal(spin.state.history.length,1);
   const entries=await (await request('/api/ledger',{headers})).json();
   assert.deepEqual(entries.entries.map(entry=>entry.kind),['spin','checkin','test_seed']);
   // Reopen the database and log in again, without browser storage or a Discord token.

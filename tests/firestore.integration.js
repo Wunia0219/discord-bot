@@ -26,14 +26,14 @@ async function fixture(t,options={}){
 }
 const raw=async ref=>{const doc=await ref.get();return doc.exists?JSON.parse(doc.get('json')):null;};
 
-test('Firestore seeds once, isolates guilds/accounts, persists restarts and keeps production empty',async t=>{
+test('Firestore seeds once, isolates guilds/accounts, persists restarts and credits new production wallets',async t=>{
   const h=await fixture(t),s=h.store;
   assert.equal((await s.state(guild,user)).balance,10000);assert.equal((await s.state(guild,user)).balance,10000);
   await s.checkin(guild,user);assert.equal((await s.state(other,user)).balance,10000);assert.equal((await s.state(guild,admin)).balance,10000);
-  await s.close();const reopened=await h.create();assert.equal((await reopened.state(guild,user)).balance,10100);
+  await s.close();const reopened=await h.create();assert.equal((await reopened.state(guild,user)).balance,10500);
   assert.equal((await reopened.history(guild,user)).filter(row=>row.kind==='test_seed').length,1);
   const prod=new FirestoreWalletStore({...h.settings,namespace:h.settings.namespace+'-production',environment:'production'},{guildIds:[guild]});
-  try{await prod.initialize();assert.equal((await prod.state(guild,user)).balance,0);assert.equal((await prod.history(guild,user)).length,0);}finally{await prod.close();}
+  try{await prod.initialize();assert.equal((await prod.state(guild,user)).balance,10000);assert.equal((await prod.history(guild,user))[0].kind,'welcome');}finally{await prod.close();}
   await assert.rejects(reopened.state('999999999999999999',user),{code:'GUILD_CLOSED'});
 });
 
@@ -41,8 +41,8 @@ test('concurrent checkins from independent devices credit one Taipei daily claim
   let now=Date.parse('2026-10-22T15:59:59Z');const h=await fixture(t,{clock:()=>now}),a=h.store,b=await h.create();
   const results=await Promise.all([a.checkin(guild,user),b.checkin(guild,user)]);
   assert.equal(results.filter(result=>result.duplicate).length,1);assert.equal((await a.history(guild,user)).filter(row=>row.kind==='checkin').length,1);
-  a.cache.clear();assert.equal((await a.state(guild,user)).balance,10100);
-  now+=2000;assert.equal((await b.checkin(guild,user)).state.balance,10300);
+  a.cache.clear();assert.equal((await a.state(guild,user)).balance,10500);
+  now+=2000;assert.equal((await b.checkin(guild,user)).state.balance,11000);
   assert.equal((await a.auditSummary(guild,user,1)).checkin.days,1);
 });
 
@@ -142,7 +142,7 @@ test('concurrent readiness probes share one remote read after freshness expires'
 test('cache and concurrent read coalescing reduce polling without serving a stale local settlement',async t=>{
   const h=await fixture(t),s=h.store;await s.state(guild,user);s.cache.clear();
   const before=s.quota.status().used.reads;await Promise.all(Array.from({length:20},()=>s.state(guild,user)));
-  assert.equal(s.quota.status().used.reads-before,6);await s.checkin(guild,user);assert.equal((await s.state(guild,user)).balance,10100);
+  assert.equal(s.quota.status().used.reads-before,6);await s.checkin(guild,user);assert.equal((await s.state(guild,user)).balance,10500);
 });
 
 test('budget exhaustion inside a transaction leaves wallet, ledger and dedup unchanged',async t=>{
@@ -181,7 +181,7 @@ test('signed Discord commands await Firestore while preserving private replies a
     'x-signature-timestamp':timestamp,'x-signature-ed25519':sign(null,Buffer.concat([Buffer.from(timestamp),Buffer.from(body)]),keys.privateKey).toString('hex')},body});
   const result=await response.json();assert.equal(response.status,200);assert.equal(result.type,5);assert.equal(result.data.flags,64);
   await server.drainCommands();assert.equal(replies.length,1);assert.equal(replies[0].options.method,'PATCH');
-  const privateResult=JSON.parse(replies[0].options.body);assert.match(privateResult.embeds[0].description,/10,100/);assert.deepEqual(privateResult.allowed_mentions,{parse:[]});
+  const privateResult=JSON.parse(replies[0].options.body);assert.match(privateResult.embeds[0].description,/10,500/);assert.deepEqual(privateResult.allowed_mentions,{parse:[]});
 });
 
 test('local browser QA requires a separate namespace and retains fixture state on restart',async t=>{
@@ -190,7 +190,7 @@ test('local browser QA requires a separate namespace and retains fixture state o
   const a=await walletConfig(env);
   try{const overview=await a.localOverview();assert.equal(overview.version,APP_VERSION);assert.deepEqual(overview.profiles.map(row=>row.balance),[10000,10000,50,0]);
     await a.store.checkin(guild,'100000000000000011');}finally{await a.store.close();}
-  const b=await walletConfig(env);try{assert.equal((await b.localOverview()).profiles[0].balance,10100);}finally{await b.store.close();}
+  const b=await walletConfig(env);try{assert.equal((await b.localOverview()).profiles[0].balance,10500);}finally{await b.store.close();}
   await assert.rejects(walletConfig({...env,FIRESTORE_NAMESPACE:h.settings.namespace}),/separate namespace/);
 });
 

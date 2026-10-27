@@ -27,14 +27,15 @@ function wallet(filename,environment='test') {
   return new WalletStore({filename,environment,guildIds:[guild],spinDelay:0});
 }
 
-test('fresh databases have a versioned schema, a real readiness check and no seeded users',t=>{
+test('fresh databases have a versioned schema, readiness and no wallets until the first player arrives',t=>{
   const {filename}=fixture(t),s=wallet(filename,'production');
   assert.equal(s.db.prepare('PRAGMA user_version').get().user_version,DATABASE_VERSION);
   assert.equal(s.isReady(),true);
-  assert.equal(s.state(guild,user).balance,0);
+  assert.equal(s.db.prepare('SELECT COUNT(*) n FROM wallets').get().n,0);
+  assert.equal(s.state(guild,user).balance,10000);
   s.close();s.close();assert.equal(s.isReady(),false);
   const report=inspectWalletDatabase(filename,'production');
-  assert.equal(report.ok,true);assert.equal(report.counts.wallets,1);assert.equal(report.counts.ledger,0);
+  assert.equal(report.ok,true);assert.equal(report.counts.wallets,1);assert.equal(report.counts.ledger,1);
 });
 
 test('legacy migration preserves balances, settled retries, IDs and append-only protection across reopen',t=>{
@@ -212,12 +213,12 @@ test('Discord startup requires explicit environment and credentials before touch
   assert.ok(!child.stdout.includes('Activity server:'));assert.equal(existsSync(filename),false);
 });
 
-test('explicit Discord test and production configurations retain their respective initial balances',t=>{
+test('explicit Discord test and production configurations both start new wallets at 10000',t=>{
   const {directory}=fixture(t);
   for(const environment of ['test','production']){
     const wallet=walletConfig({WALLET_ENABLED:'true',APP_ENV:environment,DATABASE_PATH:join(directory,environment+'.sqlite'),
       ALLOWED_GUILD_IDS:guild,DISCORD_CLIENT_ID:user,DISCORD_CLIENT_SECRET:'test-secret',DISCORD_PUBLIC_KEY:'ab'.repeat(32)});
-    try{assert.equal(wallet.store.environment,environment);assert.equal(wallet.store.state(guild,user).balance,environment==='test'?10000:0);}
+    try{assert.equal(wallet.store.environment,environment);assert.equal(wallet.store.state(guild,user).balance,10000);}
     finally{wallet.store.close();}
   }
 });

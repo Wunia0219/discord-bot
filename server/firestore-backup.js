@@ -1,4 +1,5 @@
 import {DatabaseSync} from 'node:sqlite';
+import {isOpeningKind} from './wallet-opening.js';
 import {createHash,randomUUID} from 'node:crypto';
 import {isDeepStrictEqual} from 'node:util';
 import {existsSync,mkdirSync,readFileSync,writeFileSync,readdirSync,lstatSync,renameSync,unlinkSync,statSync,openSync,closeSync} from 'node:fs';
@@ -115,7 +116,7 @@ async function readWallets(store,tx){
   return wallets;
 }
 function operationKey(entry,document){
-  if(entry.kind==='test_seed')return null;
+  if(isOpeningKind(entry.kind))return null;
   const linked=document.get('operationKey');
   if(entry.kind==='reset'){
     if(linked===null)return null;

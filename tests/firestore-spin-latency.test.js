@@ -42,8 +42,8 @@ test('a new spin opens and reads in one batch then commits, preserving four read
 test('weekly checkin keeps the original four reads and five atomic writes without history queries',async()=>{
   const f=fixture(),result=await f.store.checkin(guild,user,{compact:true});
   assert.deepEqual(f.calls,['read:4','commit:5']);assert.deepEqual(f.usage,{reads:24,writes:10});
-  assert.equal(result.entry.delta,100);assert.equal(result.checkin.cycleDay,1);
-  assert.equal(result.state.weeklyCheckin.nextReward,200);
+  assert.equal(result.entry.delta,500);assert.equal(result.checkin.cycleDay,1);
+  assert.equal(result.state.weeklyCheckin.nextReward,500);
   assert.deepEqual(await f.store.state(guild,user,{compact:true}),result.state);
   assert.deepEqual(f.calls,['read:4','commit:5']);
 });

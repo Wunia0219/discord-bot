@@ -30,6 +30,24 @@ async function fixture(t){
 }
 const compact={compact:true};
 
+for(const version of [1,2])test(`v${version} production welcomes only newly created wallets, once across devices, and preserves legacy balances`,async t=>{
+  const h=await fixture(t),settings={...h.settings,environment:'production',schemaVersion:version,namespace:`welcome-${version}-${randomUUID()}-production`};
+  const a=await h.create(settings),file=join(h.directory,'legacy-production.sqlite'),local=new WalletStore({filename:file,environment:'production',guildIds:[guild]});
+  for(const id of [user,other])local.db.prepare('INSERT INTO wallets(guild,user,balance) VALUES(?,?,0)').run(guild,id);
+  local.grant(guild,admin,other,7350,'legacy balance',randomUUID());local.close();await importFirestore(a,firestoreImportPlan(file,'production',{version}));
+  const b=await h.create(settings),newUser='100000000000000010';
+  const both=await Promise.all([a.state(guild,newUser,compact),b.state(guild,newUser,compact)]);assert.ok(both.every(s=>s.balance===10000));
+  assert.equal((await a.history(guild,newUser)).filter(e=>e.kind==='welcome').length,1);
+  assert.equal((await a.state(guild,user,compact)).balance,0);assert.equal((await a.history(guild,user)).length,0);
+  assert.equal((await b.state(guild,other,compact)).balance,7350);assert.ok((await b.history(guild,other)).every(e=>e.kind!=='welcome'));
+  const spinUser='100000000000000011',spin=await a.spin(guild,spinUser,20,randomUUID(),compact);assert.equal(spin.round.before,10000);
+  await a.close();const c=await h.create(settings);assert.equal((await c.state(guild,newUser,compact)).balance,10000);assert.equal((await c.state(guild,user,compact)).balance,0);
+  const before=await c.read(c.meta),limit=c.quota.limits.writes,budgetUser='100000000000000012';c.quota.limits.writes=c.quota.status().used.writes+3;
+  await assert.rejects(c.state(guild,budgetUser,compact),{code:'FIRESTORE_BUDGET'});
+  assert.equal((await c.walletRef(guild,budgetUser).get()).exists,false);assert.deepEqual(JSON.parse((await c.meta.get()).get('json')),before);
+  c.quota.limits.writes=limit;assert.equal((await c.state(guild,budgetUser,compact)).balance,10000);assert.equal((await c.history(guild,budgetUser)).length,1);
+});
+
 for(const version of [1,2])test(`v${version} reset and concurrent play serialize from authoritative balances; retained state, read-only report and retry survive restart`,async t=>{
   const h=await fixture(t),settings={...h.settings,schemaVersion:version,namespace:`reset-v${version}-${randomUUID()}-test`};
   let now=Date.parse('2026-10-26T00:00:00Z');const options={clock:()=>now},a=await h.create(settings,options),b=await h.create(settings,options);
@@ -45,7 +63,7 @@ for(const version of [1,2])test(`v${version} reset and concurrent play serialize
   const entry=reset.entries.find(e=>e.user===user),history=await a.history(guild,user),resetLedger=history.find(e=>e.kind==='reset'),spinLedger=history.find(e=>e.kind==='spin'&&e.id!==prior.state.revision);
   assert.equal(entry.before,resetLedger.before);
   if(spinLedger.id<resetLedger.id)assert.equal(entry.before,spin.round.after);else{assert.equal(spin.round.before,10000);assert.equal(entry.before,prior.round.after);}
-  assert.equal(reset.entries.length,2);assert.equal(reset.entries.find(e=>e.user===other).before,10100);
+  assert.equal(reset.entries.length,2);assert.equal(reset.entries.find(e=>e.user===other).before,10500);
   a.cache.clear();b.cache.clear();const after=await a.state(guild,user,compact);
   assert.deepEqual(after.weeklyCheckin,checkin.weeklyCheckin);assert.equal(after.balanceReset.roundId,spinLedger.id<resetLedger.id?spin.round.id:prior.round.id);
   assert.equal((await a.auditSummary(guild,user)).game.rounds,before.game.rounds+1);assert.equal((await a.auditSummary(guild,user)).checkin.days,1);
@@ -77,32 +95,32 @@ for(const version of [1,2])test(`v${version} empty and excessive guild resets re
   for(let i=0;i<(version===1?61:101);i++)local.state(guild,String(100000000000000100n+BigInt(i)));local.checkin(guild,'100000000000000100');local.close();
   await importFirestore(s,firestoreImportPlan(file,'test',{version}));const meta=await s.read(s.meta),before=s.quota.status().used.writes;
   await assert.rejects(s.resetWallets(guild,admin,randomUUID()),{code:'RESET_LIMIT'});assert.equal(s.quota.status().used.writes,before);assert.deepEqual(await s.read(s.meta),meta);
-  assert.equal((await s.state(guild,'100000000000000100',compact)).balance,10100);
+  assert.equal((await s.state(guild,'100000000000000100',compact)).balance,10500);
 });
 
 for(const version of [1,2])test(`v${version} weekly claims persist across devices, cycle, interruptions, configuration changes and replay`,async t=>{
   const h=await fixture(t),settings={...h.settings,schemaVersion:version,namespace:`weekly-v${version}-${randomUUID()}-test`};
   let now=Date.parse('2026-12-28T15:59:59.999Z');const options={clock:()=>now};
-  let a=await h.create(settings,options),b=await h.create(settings,options);let total=10000;
+  let a=await h.create(settings,options),b=await h.create(settings,options);let total=10000;const rewards=[500,500,1000,1000,1000,2000,4000];
   for(let i=0;i<9;i++){
     const cycleDay=i%7+1;
     const result=await Promise.all([a.checkin(guild,user,compact),b.checkin(guild,user,compact)]);
     assert.equal(result.filter(r=>r.duplicate).length,1);assert.deepEqual(result[0].entry,result[1].entry);assert.deepEqual(result[0].checkin,result[1].checkin);
-    total+=cycleDay*100;assert.equal(result[0].state.balance,total);assert.equal(result[0].checkin.cycleDay,cycleDay);
-    assert.equal(result[0].state.weeklyCheckin.nextReward,(cycleDay%7+1)*100);
+    total+=rewards[cycleDay-1];assert.equal(result[0].state.balance,total);assert.equal(result[0].checkin.cycleDay,cycleDay);
+    assert.equal(result[0].state.weeklyCheckin.nextReward,rewards[cycleDay%7]);
     const before=a.quota.status().used.writes,again=await a.checkin(guild,user,compact);
     assert.equal(again.duplicate,true);assert.equal(a.quota.status().used.writes,before);
     await a.close();a=await h.create(settings,options);assert.equal((await a.state(guild,user,compact)).claimed,true);
     now+=86400000;
   }
-  assert.deepEqual((await a.auditSummary(guild,user)).checkin,{days:9,total:3100});
+  assert.deepEqual((await a.auditSummary(guild,user)).checkin,{days:9,total:11000});
   now+=86400000;assert.equal((await a.state(guild,user,compact)).weeklyCheckin.day,1);
-  const reset=await a.checkin(guild,user,compact);assert.equal(reset.entry.delta,100);
+  const reset=await a.checkin(guild,user,compact);assert.equal(reset.entry.delta,500);
   const changed=await h.create(settings,{...options,weeklyRewards:[10,40,90,160,250,360,490]});
-  assert.equal((await changed.state(guild,user,compact)).daily,100);assert.equal((await changed.state(guild,user,compact)).weeklyCheckin.nextReward,40);
+  assert.equal((await changed.state(guild,user,compact)).daily,500);assert.equal((await changed.state(guild,user,compact)).weeklyCheckin.nextReward,40);
   assert.deepEqual((await changed.checkin(guild,user,compact)).checkin,reset.checkin);
   now+=86400000;assert.equal((await changed.checkin(guild,user,compact)).entry.delta,40);
-  assert.equal((await a.checkin(other,user,compact)).entry.delta,100);
+  assert.equal((await a.checkin(other,user,compact)).entry.delta,500);
 });
 
 function source(h,count=0){

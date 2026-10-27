@@ -6,6 +6,7 @@ import {highlightEvent} from '../server/firestore-highlight-data.js';
 import {auditRows} from './snapshot-audit.js';
 import {previousDay,validCheckinTransition} from '../server/weekly-checkin.js';
 import {validResetOperation} from '../server/wallet-admin.js';
+import {isOpeningKind,validWelcomeEntry} from '../server/wallet-opening.js';
 
 export const TABLES=['settings','wallets','ledger','operations','rounds','highlight_events','highlight_boards'];
 export const digest=value=>createHash('sha256').update(value).digest('hex');
@@ -22,6 +23,7 @@ export function auditSnapshot(snapshot,environment){
   let revision=0;
   for(const e of [...t.ledger].sort((a,b)=>a.id-b.id)){
     const owner=e.guild+'_'+e.user;requireValue(e.id===++revision&&wallets.has(owner)&&amount(e.before)&&amount(e.after)&&Number.isSafeInteger(e.delta)&&e.after===e.before+e.delta&&e.before===(balances.get(owner)||0),'Ledger continuity');
+    if(e.kind==='welcome')requireValue(!balances.has(owner)&&validWelcomeEntry(e),'Welcome credit mismatch');
     const time=Date.parse(e.time);requireValue(Number.isFinite(time)&&e.day===new Date(time+28800000).toISOString().slice(0,10),'Ledger date');balances.set(owner,e.after);
   }
   for(const [owner,w] of wallets){requireValue(snowflake(w.guild)&&snowflake(w.user)&&amount(w.balance)&&w.balance===(balances.get(owner)||0)&&[0,1].includes(w.milestone)&&Number.isSafeInteger(w.last_spin),'Wallet balance');}
@@ -47,7 +49,7 @@ export function auditSnapshot(snapshot,environment){
   }
   for(const e of t.ledger){
     if(e.kind==='spin'){const link=e.guild+'_'+e.user+'_'+e.reference;requireValue(!spinLinks.has(link),'Duplicate spin ledger');spinLinks.add(link);const r=JSON.parse(ops.get(e.guild+'\0'+`spin:${e.user}:${e.reference}`)?.result||'null')?.round;requireValue(r&&e.actor===e.user&&r.before===e.before&&r.after===e.after&&r.net===e.delta&&Math.abs(Date.parse(r.time)-Date.parse(e.time))<=1000,'Spin link mismatch');}
-    else if(e.kind!=='test_seed')requireValue(usedOps.has(e.id),'Missing retry result');
+    else if(!isOpeningKind(e.kind))requireValue(usedOps.has(e.id),'Missing retry result');
     if(e.kind==='reversal'){const link=e.guild+'_'+e.reference;requireValue(!reversals.has(link),'Duplicate reversal');reversals.add(link);}
   }
   requireValue(usedRounds.size===rounds.size&&t.ledger.filter(e=>e.kind==='spin').length===rounds.size,'Round coverage');

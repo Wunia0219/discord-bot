@@ -1,6 +1,7 @@
 import {taipeiDay} from './wallet-common.js';
+import {DEFAULT_CHECKIN_REWARDS} from '../src/game/checkin-rewards.js';
 
-export const DEFAULT_CHECKIN_REWARDS=Object.freeze([100,200,300,400,500,600,700]);
+export {DEFAULT_CHECKIN_REWARDS};
 const validRewards=value=>Array.isArray(value)&&value.length===7&&[...value].every(n=>Number.isSafeInteger(n)&&n>0&&n<=1_000_000_000_000);
 export function checkinRewards(value=DEFAULT_CHECKIN_REWARDS){
   const rewards=typeof value==='string'?value.split(',').map(n=>/^\s*\d+\s*$/.test(n)?Number(n):NaN):value;

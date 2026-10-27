@@ -19,7 +19,7 @@
 .daily-checkin small { font-size: 12px; line-height: 1.5; color: #ffdfab; white-space: nowrap; }
 .daily-checkin:hover:not(:disabled) { filter: brightness(1.13); }
 .daily-checkin:active:not(:disabled) { background: #693e37; }
-.daily-checkin.is-claimed { opacity: 1; cursor: default; color: #e4d3ba; border-color: #947c6070; background: #352631; box-shadow: none; }
+.daily-checkin.is-claimed { opacity: 1; cursor: pointer; color: #e4d3ba; border-color: #947c6070; background: #352631; box-shadow: none; }
 .daily-checkin.is-claimed small { color: #cdbab4; }
 .daily-checkin.is-loading { opacity: 1; }
 .daily-checkin.is-loading > svg { animation: rotate 1.2s linear infinite; }

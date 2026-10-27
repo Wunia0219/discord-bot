@@ -107,7 +107,9 @@ test('retention prunes only after a verified replacement; capacity shortage pres
 });
 
 test('production zero-balance wallets without ledger events are included and audited',async t=>{
-  const h=await fixture(t,{environment:'production'});assert.equal((await h.game.state(guild,user)).balance,0);
+  const h=await fixture(t,{environment:'production'}),file=join(h.directory,'legacy-zero.sqlite');
+  const local=new WalletStore({filename:file,environment:'production',guildIds:[guild]});local.db.prepare('INSERT INTO wallets(guild,user,balance) VALUES(?,?,0)').run(guild,user);local.close();
+  await importFirestore(h.game,firestoreImportPlan(file,'production'));assert.equal((await h.game.state(guild,user)).balance,0);
   const result=await h.run(),backup=backupPlan(h,result);assert.equal(backup.plan.audit.counts.wallets,1);assert.equal(backup.plan.nextId,0);
   backupPlan(h,await h.run({forceBackup:true,now:Date.now()+1000}));
 });

@@ -44,7 +44,7 @@ Cloudflare 已登入且確認 Workers **Free / Active**、沒有付款方式；�
 |---|---|
 | 公開執行設定 | `CLOUD_PLAN=free`、`APP_ENV`、`FIRESTORE_PROJECT_ID`、`FIRESTORE_NAMESPACE` |
 | Discord 範圍 | `DISCORD_CLIENT_ID`、`DISCORD_PUBLIC_KEY`、`ALLOWED_GUILD_IDS`、`ADMIN_ROLE_IDS`、`DISCORD_HIGHLIGHTS_GUILD_ID` |
-| 遊戲限制 | `WEEKLY_CHECKIN_REWARDS`（預設 100,200,300,400,500,600,700）、`ADMIN_GRANT_MAX`、`ADMIN_DAILY_MAX` |
+| 遊戲限制 | `WEEKLY_CHECKIN_REWARDS`（預設 500,500,1000,1000,1000,2000,4000）、`ADMIN_GRANT_MAX`、`ADMIN_DAILY_MAX` |
 | Wrangler Secrets | `DISCORD_CLIENT_SECRET`、`DISCORD_HIGHLIGHTS_WEBHOOK_URL`、`GOOGLE_SERVICE_ACCOUNT_JSON`、`CLOUD_ADMIN_TOKEN`、`CLOUD_ENCRYPTION_KEY` |
 
 兩個 `CLOUD_*` secret 各使用不同的 32-byte 隨機值（64 位 hex）。Google service account 必須與現行專案相符，作為 secret JSON 上傳，不能把本機憑證路徑當作 Worker 檔案。前端只放公開的 `VITE_DISCORD_CLIENT_ID` 及既有 auth／wallet 開關；任何 secret 都不能有 `VITE_` 前綴。

@@ -122,7 +122,7 @@ const taipeiTime=value=>new Date(Date.parse(value)+8*3600000).toISOString().slic
 const escapeText=value=>String(value).replace(/@/g,'＠').replace(/[\\`*_{}\[\]()<>~|#]/g,'\\$&');
 function recordField(r){
   if(r.kind==='reset')return {name:`#${r.id}｜餘額重設｜重設為 ${number(r.after)} 戲籌`,value:`${taipeiTime(r.time)}\n管理員：<@${r.actor}>\n重設前餘額：${number(r.before)}\n重設後餘額：${number(r.after)}\n週簽到進度與遊玩歷史保留。`};
-  const labels={grant:'收到戲籌',reversal:'收回誤發戲籌',checkin:'週簽到',spin:'遊玩紀錄',test_seed:'試玩起始戲籌'};
+  const labels={grant:'收到戲籌',reversal:'收回誤發戲籌',checkin:'週簽到',spin:'遊玩紀錄',test_seed:'試玩起始戲籌',welcome:'新手戲籌'};
   const time=new Date(Date.parse(r.time)+8*3600000).toISOString().slice(0,16).replace('T',' ');
   const status=r.kind==='grant'?`\n${r.reversal_id?`這筆已收回（#${r.reversal_id}）`:'這筆已收到'}`:r.kind==='reversal'?`\n對應發放：#${r.reference}`:'';
   const reason=r.kind==='test_seed'?'試玩時的起始戲籌':r.kind==='spin'?r.reason.replace('派彩','拿到'):r.reason;

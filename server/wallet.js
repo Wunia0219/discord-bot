@@ -4,6 +4,7 @@ import { BETS, roundFromStops, REEL_STRIPS } from '../src/game/index.js';
 
 import {problem,taipeiDay,nextCheckin} from './wallet-common.js';
 import {checkinRewards,checkinReceipt,weeklyCheckinState} from './weekly-checkin.js';
+import {INITIAL_BALANCE,openingKind,openingReason} from './wallet-opening.js';
 import {RESET_BALANCE,RESET_WALLET_LIMIT,RESET_REASON,resetFingerprint,resetMarker,resetResult} from './wallet-admin.js';
 export {problem,taipeiDay,nextCheckin} from './wallet-common.js';
 const MAX_BALANCE=1_000_000_000_000;
@@ -30,7 +31,7 @@ export class WalletStore {
   ensure(guild,user){
     this.validate(guild,user);
     const created=this.db.prepare('INSERT OR IGNORE INTO wallets(guild,user,balance) VALUES(?,?,0)').run(guild,user).changes;
-    if(created&&this.environment==='test')this.credit(guild,user,10000,'test_seed',null,'測試環境首次戲籌');
+    if(created)this.credit(guild,user,INITIAL_BALANCE,openingKind(this.environment),null,openingReason(this.environment));
   }
   credit(guild,user,delta,kind,actor,reason,reference=null,now=this.clock()){
     const before=this.db.prepare('SELECT balance FROM wallets WHERE guild=? AND user=?').get(guild,user).balance;

@@ -3,6 +3,7 @@ import {validRound} from '../server/database-audit.js';
 import {assertHighlightEvent,assertHighlightBoard,highlightEvent} from '../server/firestore-highlight-data.js';
 import {previousDay,validCheckinTransition} from '../server/weekly-checkin.js';
 import {validResetOperation} from '../server/wallet-admin.js';
+import {isOpeningKind,validWelcomeEntry} from '../server/wallet-opening.js';
 
 // Same relationships as auditSnapshot, with bounded row iteration and segment-location
 // indexes. No array containing the complete history is constructed in the Worker.
@@ -18,6 +19,7 @@ export function auditRows(header,rows,environment,map){
   let revision=0,spinCount=0;
   for(const e of rows('ledger')){
     const owner=e.guild+'_'+e.user;check(e.id===++revision&&wallets.has(owner)&&amount(e.before)&&amount(e.after)&&Number.isSafeInteger(e.delta)&&e.after===e.before+e.delta&&e.before===(balances.get(owner)||0),'Ledger continuity');
+    if(e.kind==='welcome')check(!balances.has(owner)&&validWelcomeEntry(e),'Welcome credit mismatch');
     const time=Date.parse(e.time);check(Number.isFinite(time)&&e.day===new Date(time+28800000).toISOString().slice(0,10),'Ledger date');balances.set(owner,e.after);unique(entries,e.id,e);counts.ledger++;
   }
   for(const w of rows('wallets'))check(/^\d{17,20}$/.test(w.guild)&&/^\d{17,20}$/.test(w.user)&&amount(w.balance)&&w.balance===(balances.get(w.guild+'_'+w.user)||0)&&[0,1].includes(w.milestone)&&Number.isSafeInteger(w.last_spin),'Wallet balance');
@@ -45,7 +47,7 @@ export function auditRows(header,rows,environment,map){
       check(op&&validCheckinTransition(JSON.parse(op.result),prior?{...JSON.parse(prior.result),day}:null,e.day),'Checkin mismatch');
     }
     if(e.kind==='spin'){unique(spinLinks,e.guild+'_'+e.user+'_'+e.reference,true);const r=JSON.parse(ops.get(e.guild+'\0'+`spin:${e.user}:${e.reference}`)?.result||'null')?.round;check(r&&e.actor===e.user&&r.before===e.before&&r.after===e.after&&r.net===e.delta&&Math.abs(Date.parse(r.time)-Date.parse(e.time))<=1000,'Spin link mismatch');spinCount++;}
-    else if(e.kind!=='test_seed')check(usedOps.has(e.id),'Missing retry result');
+    else if(!isOpeningKind(e.kind))check(usedOps.has(e.id),'Missing retry result');
     if(e.kind==='reversal')unique(reversals,e.guild+'_'+e.reference,true);
   }
   check(usedRounds.size===rounds.size&&spinCount===rounds.size,'Round coverage');

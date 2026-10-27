@@ -2,6 +2,7 @@ import { mainArt } from './ui/main-art.js';
 import { icon } from './ui/icons.js';
 import { createPlayerBar } from './ui/player-bar.js';
 import { playerError } from './ui/player-copy.js';
+import { createWeeklyCheckin } from './ui/weekly-checkin.js';
 import { roundRecords,placeResetMarker } from './ui/player-records.js';
 import './style.css';
 import { SlotScene } from './ui/scene.js';
@@ -55,7 +56,7 @@ try { state=readState(localStorage.getItem(KEY)); } catch { state=freshState();s
 let bet=100, busy=false, presenting=false, ready=false, countAnimation=0, payoutAnimation=0, celebrationTimer=0;
 const scene=new SlotScene(), sound=new Sound({musicUrl:MUSIC_SOURCE,onStateChange:renderAudio});
 const bigWin=new BigWinPresentation($('#app'));
-let activityMode='browser', activityUser=null, walletClient=null, claiming=false, toastTimer=0, historySync=null;
+let activityMode='browser', activityUser=null, walletClient=null, claiming=false, toastTimer=0, historySync=null, checkinPanel=null;
 const controls=new SpinControls({
   isReady:()=>ready&&!claiming&&!document.hidden&&!$('#dialog').open,
   isBusy:()=>busy,
@@ -73,11 +74,11 @@ const renderSpinButton=bindSpinButton($('#spin'),controls);
 const motion=matchMedia('(prefers-reduced-motion: reduce)');scene.reduced=motion.matches;motion.addEventListener('change',()=>scene.reduced=motion.matches);
 const signed=n=>(n>0?'+':'')+fmt(n);
 function save(next) { if(walletClient){if((next.revision||0)>=(state.revision||0))state=next;return;}state=next;try{localStorage.setItem(KEY,JSON.stringify(state));}catch{storageAvailable=false;} }
-const playerBar=createPlayerBar({icon,onCheckin:claimDaily,onHistory:showHistory,onRules:showRules,onSound:toggleSound,onMusic:toggleMusic});
+const playerBar=createPlayerBar({icon,onCheckin:showCheckin,onHistory:showHistory,onRules:showRules,onSound:toggleSound,onMusic:toggleMusic});
 $('#player-header').append(playerBar.element);
 function renderAudio(){playerBar.audio(sound.state);}
 renderAudio();
-function renderPlayer(){playerBar.update({user:activityUser,connected:!!walletClient,localTest:activityMode==='local',ready,busy,claiming,claimed:state.claimed,daily:state.daily,weeklyCheckin:state.weeklyCheckin,storageAvailable});}
+function renderPlayer(){playerBar.update({user:activityUser,connected:!!walletClient,localTest:activityMode==='local',ready,busy,claiming,claimed:state.claimed,daily:state.daily,weeklyCheckin:state.weeklyCheckin,storageAvailable});if(checkinPanel?.element.isConnected&&$('#dialog').open)checkinPanel.update(state,{ready,busy,claiming});}
 function notifyPlayer(message,tone='success'){
   const toast=$('#player-toast');clearTimeout(toastTimer);
   toast.replaceChildren();const text=document.createElement('span');text.textContent=message;
@@ -222,6 +223,11 @@ function openDialog(title,body,variant='notice') {
   $('#dialog-body').scrollTop=0;
 }
 function showRules(){openDialog('遊戲規則',createGameRules(bet,state.weeklyCheckin?.rewards),'rules');}
+function showCheckin(){
+  if(!walletClient||!ready||busy||claiming)return;
+  checkinPanel=createWeeklyCheckin({onClaim:claimDaily});checkinPanel.update(state,{ready,busy,claiming});
+  openDialog('週簽到',checkinPanel.element,'checkin');
+}
 async function showHistory(){
   if(historySync){
     const syncing=historySync;
@@ -259,11 +265,17 @@ async function showHistory(){
 }
 async function claimDaily(){
   if(!walletClient||!ready||busy||claiming||state.claimed)return;
+  const panel=checkinPanel;panel?.message('');
   controls.stopAuto();claiming=true;setBusy(busy);
   try{
     const update=await walletClient.checkin();save(update.state);renderState();
-    notifyPlayer(update.duplicate?'今天的簽到已經領過囉，明天再來吧。':`簽到成功，${fmt(update.entry.delta)} 戲籌已入帳。`);
-  }catch(error){showPlayerError(error,'checkin');}
+    const message=update.duplicate?`今天已領取 ${fmt(update.entry.delta)} 戲籌，明天再來簽到吧。`:`簽到完成！${fmt(update.entry.delta)} 戲籌已加入餘額。`;
+    if(panel?.element.isConnected&&$('#dialog').open)panel.message(message,'success');else notifyPlayer(message);
+  }catch(error){
+    if(error.status===401)showPlayerError(error,'checkin');
+    else if(panel?.element.isConnected&&$('#dialog').open)panel.message(playerError(error,{context:'checkin'}).message);
+    else notifyPlayer(playerError(error,{context:'checkin'}).message,'info');
+  }
   finally{claiming=false;setBusy(busy);}
 }
 async function toggleSound(){

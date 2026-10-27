@@ -6,6 +6,7 @@ import {readAuditPage} from './firestore-history.js';
 import {ledgerIndex,ledgerRange,sequenceKey,encodeHistory,decodeHistory} from './firestore-schema.js';
 import {highlightEvent,highlightEventPath,highlightEventIndex} from './firestore-highlight-data.js';
 import {firestoreAdminWallets} from './firestore-admin-wallets.js';
+import {INITIAL_BALANCE,openingKind,openingReason,isOpeningKind} from './wallet-opening.js';
 
 const maxBalance=1_000_000_000_000,maxDocument=512*1024;
 const digest=value=>createHash('sha256').update(value).digest('hex');
@@ -161,7 +162,7 @@ export class FirestoreWalletCore {
         if(kind==='spin'){
           const retryAfterMs=wallet.last_spin+this.spinDelay-now;
           if(retryAfterMs>0)throw Object.assign(problem(429,'轉輪尚未就緒，請稍後再試。','SPIN_COOLDOWN'),{retryAfterMs});
-          if(wallet.balance+(fresh&&this.environment==='test'?10000:0)<operation.bet)throw problem(409,'戲籌不足，請降低下注、簽到或聯絡管理員。');
+          if(wallet.balance+(fresh?INITIAL_BALANCE:0)<operation.bet)throw problem(409,'戲籌不足，請降低下注、簽到或聯絡管理員。');
         }
         if(adminDay&&adminDay.used+operation.amount>this.grantDaily)throw problem(409,'已超過這位管理員今日的發放額度。','GRANT_DAILY');
         const daySummary=needsDay?(savedDay||zeroSummary()):null;
@@ -173,7 +174,7 @@ export class FirestoreWalletCore {
           const entry={id:meta.nextId,guild,user,kind:entryKind,delta,before,after,actor,reason,time:new Date(now).toISOString(),day,reference};
           wallet.balance=after;wallet.revision=entry.id;entries.push(entry);return entry;
         };
-        if(fresh&&this.environment==='test')credit(10000,'test_seed',null,'測試環境首次戲籌');
+        if(fresh)credit(INITIAL_BALANCE,openingKind(this.environment),null,openingReason(this.environment));
         let answer={},round;
         if(kind==='spin'){
           const outcome=operation.outcome,entry=credit(outcome.payout-operation.bet,'spin',user,`下注 ${operation.bet}／派彩 ${outcome.payout}`,operation.requestId);
@@ -201,7 +202,7 @@ export class FirestoreWalletCore {
         if(entries.length){
           for(const entry of entries){
             if(this.schemaVersion===1)this.record(tx,ref,entry);
-            this.write(tx,this.root.collection('ledger').doc(String(entry.id)),entry,{create:true,index:{operationKey:entry.kind==='test_seed'?null:key,
+            this.write(tx,this.root.collection('ledger').doc(String(entry.id)),entry,{create:true,index:{operationKey:isOpeningKind(entry.kind)?null:key,
               ...(this.schemaVersion===2?ledgerIndex(entry):{})}});
           }
           this.write(tx,this.meta,meta);this.write(tx,ref,wallet);
