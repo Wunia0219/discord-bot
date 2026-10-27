@@ -16,7 +16,7 @@ Discord 保留 `/戲籌` 與 `/戲籌管理` 兩個入口；查詢、發放、�
 - 10/26 已發布完整 0.2.8：戲籌文案、多玩家結算佇列、分塊加密備份與額度成本優化；最新五錢包／1,281 局備份已完整還原。測試、版本與相容回退方式見 [上線驗收](docs/launch-readiness.md)。
 - 跨日備份與原請求還原、使用者金鑰保管確認、私人 #bot維護 的雲端監控均已完成。剩餘真人手機／雙裝置、背景恢復、自然大獎與小群持續運行觀察；不以模擬器代替真人驗收。
 
-目前在 `validation` 分支，沒有提交或推送 main。雲端部署已依使用者授權完成，Git 推送／PR／合併仍另行安排。
+客戶交付準備以 `main` 作為正式程式來源，維持 0.3.0；部署前核對該分支已包含目前帳本與備份格式的相容變更。單群約 60 錢包／5 人並行、全新正式帳本與恢復程序見[客戶交付與恢復](docs/customer-handoff.md)。正式群 ID 尚未提供，實際群組切換與正式資源建立暫緩，現有測試帳本保留。
 
 ## 啟動與驗證
 
@@ -44,6 +44,8 @@ npm run dev
 | `npm run activity:serve` | Node 本機／完成交接後的回退工具；雲端 active 時不可直連現行 Firestore |
 | `npm run db:backup`／`db:status`、`firestore:backup`／`firestore:operations` | Node 備份／維運工具；雲端 active 時不對現行 Firestore 執行 |
 | `npm run backup:portable -- ...` | 完整快照加密匯出、驗證及還原到新檔 |
+| `npm run wallet:recovery -- backup/drill ...` | 下載既有有效加密備份或隔離恢復／原請求重播，可將摘要送往指定維護頻道；不切換服務 |
+| `npm run test:recovery` | 單群 60 錢包／5 人並行及全新 workerd 恢復的隔離驗證 |
 | `npm run monitor:build`／`test:monitor` | 獨立監控的 dry-run／真正 workerd 隔離測試，不部署或發真實通知 |
 | `npm run verify:math`／`verify:sessions` | 完整數學枚舉／固定 seed 回合驗算 |
 | `npm run export:model`／`audio:preview` | 匯出模型／音效試聽 |

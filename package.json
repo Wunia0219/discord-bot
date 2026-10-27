@@ -40,6 +40,8 @@
     "test:cloud": "node scripts/admin/cloud-local.js test",
     "cloud:handoff": "node scripts/admin/cloud-handoff.js",
     "cloud:control": "node scripts/admin/cloud-control.js",
+    "wallet:recovery": "node scripts/admin/wallet-recovery.js",
+    "test:recovery": "node scripts/admin/cloud-local.js recovery-test",
     "monitor:build": "node scripts/admin/cloud-local.js monitor-build",
     "test:monitor": "node scripts/admin/cloud-local.js monitor-test",
     "validation:start": "node scripts/admin/validation-server.js",

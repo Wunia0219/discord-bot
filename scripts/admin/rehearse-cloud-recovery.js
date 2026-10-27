@@ -8,6 +8,7 @@ import {decodeCloudArchive,restoreCloudSnapshot,snapshotForCloud} from '../../se
 import {WalletStore} from '../../server/wallet.js';
 import {createActivityServer} from '../../server/app.js';
 import {digest} from '../../cloud/snapshot.js';
+import {expandResetResult} from '../../server/wallet-admin.js';
 
 const flags=new Map(),args=process.argv.slice(2);
 for(let i=0;i<args.length;i+=2){if(!['--archive','--key-file','--out','--environment'].includes(args[i])||!args[i+1]||flags.has(args[i]))throw new Error('Expected --archive --key-file --out --environment');flags.set(args[i],args[i+1]);}
@@ -30,7 +31,7 @@ try{
   const expected=JSON.parse(op.result);let result;
   if(op.key.startsWith('spin:')){const [,user,id]=op.key.split(':');session={guild:op.guild,user};result=await request('/api/spin',{bet:Number(op.fingerprint),requestId:id});assert.deepEqual(result.round,expected.round);}
   else if(op.key.startsWith('daily:')){const [,user]=op.key.split(':');session={guild:op.guild,user};store.clock=()=>Date.parse(snapshot.tables.ledger.find(e=>e.id===expected.entry.id).time);result=await request('/api/checkin',{});assert.deepEqual(result.entry,expected.entry);}
-  else if(op.key.startsWith('reset:')){result=store.resetWallets(op.guild,expected.reset.actor,expected.reset.requestId);assert.deepEqual(result.entries,expected.entries);assert.deepEqual(result.reset,expected.reset);}
+  else if(op.key.startsWith('reset:')){result=store.resetWallets(op.guild,expected.reset.actor,expected.reset.requestId);const original=expandResetResult(expected,id=>snapshot.tables.ledger.find(e=>e.id===id));assert.deepEqual(result.entries,original.entries);assert.deepEqual(result.reset,original.reset);}
   else continue;
   assert.equal(result.duplicate,true);replayed++;
  }
