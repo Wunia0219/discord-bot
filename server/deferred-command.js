@@ -6,7 +6,7 @@ export const validInteractionToken=token=>typeof token==='string'&&/^[-A-Za-z0-9
 // Acknowledge before cloud I/O, then edit only the original private command reply.
 // Never re-run settlement when delivery fails; PATCH retries reuse the same result.
 export async function completeDeferredCommand(interaction,wallet,{fetchImpl=fetch,wait=delay,warn=()=>console.warn('Discord command reply unavailable')}={}){
-  const result=await handleCommand(interaction,wallet.store,wallet.adminRoles);
+  const result=await handleCommand(interaction,wallet.store,wallet.adminRoles,wallet.commandChannelIds);
   const {flags,...body}=result.data;
   const url=`https://discord.com/api/v10/webhooks/${interaction.application_id}/${interaction.token}/messages/@original`;
   for(let attempt=0;attempt<3;attempt++){

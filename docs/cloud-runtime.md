@@ -1,8 +1,18 @@
 # 零費用雲端執行與回退
 
+2026-10-27 依使用者要求更新至 **0.3.0**。目前遊戲部署 `eb2ca017-d053-4788-9a90-bdcef7815d99`，監控部署 `61bdb27b-f8aa-434c-b643-75123b028404`，兩者線上健康回覆均確認 0.3.0。遊戲 Worker 對比前一發布 bundle 僅有版本字串差異；前端版本已重新建置。原資料、DO、Secrets、額度、Cron、指令權限與已驗收停輪設定保留。37 項相關回歸及 1 項真正 workerd 監控測試通過，建置與線上資產核對通過。發布證據存於忽略 Git 的 `backups/version-0.3.0-20261027/`；資料格式及相容回退要求仍沿用下方精簡憑證說明。
+
+2026-10-27 前一版部署為 **0.2.8** `215ea0a1-955f-4b56-9006-097ba7a709b0`。僅提供「上次重設報表」，新重設憑證使用 version 2 統計與帳本編號範圍，不再保存整群明細副本；同一交易寫入筆數及遊戲熱路徑不變。資料與驗證詳見 [重設設計](wallet-reset.md)及[Discord 現況](discord-readiness.md)。
+
+**版本 2 精簡重設憑證出現後，下方歷史的 `6858f68f` 及更舊 Worker／備援不再是安全回退目標。** 最新相容備援為忽略 Git 的 `backups/latest-reset-20261027/compatible-recovery/` 與 `compatible-recovery-bundle/`，使用本次通過驗證的金融／備份核心並暫停管理變更。對應發布資產及同資源 Wrangler 設定一併保存。回復前核對當下設定，不 seed、不切資料來源或重設額度。本輪沒有清除既有交易／簽到／遊玩資料，也沒有對雲端玩家執行重設。
+
+2026-10-27 已在同一 Worker 發布 **0.2.8** `6858f68f-16f5-4283-8be8-b2739db1f491`：週簽到視窗／新獎勵、新手起始戲籌與原子全群重設，以及簡化的兩個 Discord 指令入口。指令與部署驗證見 [Discord 現況](discord-readiness.md)及[操作說明](discord-commands.md)。環境仍為 test，同一 DO、Firestore v2 namespace、Secrets、額度與公告停用設定均保留。
+
+**本次開始保存的新手 `welcome`、週簽到原結果及 `reset` 批次紀錄，需要相容的備份／驗帳程式。下方歷史的 `0c2885d3` 或其他更舊部署不再是安全的直接回退目標。** 發布前封存的原 Worker 僅供追溯；不要在已有新紀錄時直接 rollback。相容備援來源、dry-run bundle、發布資產及同資源設定保存在忽略 Git 的 `backups/command-panel-20261027/compatible-recovery/`、`compatible-recovery-bundle/` 及 `release-assets/`。備援使用已驗證的前一提交金融核心，支援新帳本格式，暫停管理變更並保留遊戲內簽到；重新發布其 `wrangler.recovery.local.jsonc` 前先核對當下設定與健康狀態，不 seed、activate 或重設額度。
+
 2026-10-26 更新，已發布版本 **0.2.8**。**Cloudflare Workers Free 已確認，Secrets、原額度與同一 v2 帳本交接、Discord 固定入口切換及雲端備份下載還原均已完成。** 現行入口為 `https://jokers-circus.nini900219.workers.dev`，本機 writer 與舊通道已停止，服務與雲端排程不依賴個人電腦開機。
 
-0.2.8 完整前後端已發布 `d8adb0d2-3d21-4252-8e3f-695946ba8205`，包括戲籌文案、有上限結算佇列、分塊備份與用量優化；沿用 [已驗收停輪基準](reel-timing-baseline.md)。相容回退版本為 `0c2885d3-9e3b-4912-902f-529fd65f393b`，**不要再直接使用下方歷史紀錄中的 format 1 舊版作為現行回退目標**。
+0.2.8 完整前後端已發布 `d8adb0d2-3d21-4252-8e3f-695946ba8205`，包括戲籌文案、有上限結算佇列、分塊備份與用量優化；沿用 [已驗收停輪基準](reel-timing-baseline.md)。當時相容回退版本為 `0c2885d3-9e3b-4912-902f-529fd65f393b`；此為 10/26 歷史紀錄，現行回退以最上方 10/27 的新帳本相容要求為準。
 
 跨日自動備份、最新進度還原、金鑰保管確認與獨立監控已完成。最新資料與測試、發布及回退細節見 [上線驗收](launch-readiness.md)；剩餘真人手機／雙裝置、自然大獎與小群持續用量觀察見 [收尾計畫](roadmap.md)。
 
@@ -43,7 +53,7 @@ Cloudflare 已登入且確認 Workers **Free / Active**、沒有付款方式；�
 | 類型 | 名稱 |
 |---|---|
 | 公開執行設定 | `CLOUD_PLAN=free`、`APP_ENV`、`FIRESTORE_PROJECT_ID`、`FIRESTORE_NAMESPACE` |
-| Discord 範圍 | `DISCORD_CLIENT_ID`、`DISCORD_PUBLIC_KEY`、`ALLOWED_GUILD_IDS`、`ADMIN_ROLE_IDS`、`DISCORD_HIGHLIGHTS_GUILD_ID` |
+| Discord 範圍 | `DISCORD_CLIENT_ID`、`DISCORD_PUBLIC_KEY`、`ALLOWED_GUILD_IDS`、`DISCORD_COMMAND_CHANNEL_IDS`、`ADMIN_ROLE_IDS`、`DISCORD_HIGHLIGHTS_GUILD_ID` |
 | 遊戲限制 | `WEEKLY_CHECKIN_REWARDS`（預設 500,500,1000,1000,1000,2000,4000）、`ADMIN_GRANT_MAX`、`ADMIN_DAILY_MAX` |
 | Wrangler Secrets | `DISCORD_CLIENT_SECRET`、`DISCORD_HIGHLIGHTS_WEBHOOK_URL`、`GOOGLE_SERVICE_ACCOUNT_JSON`、`CLOUD_ADMIN_TOKEN`、`CLOUD_ENCRYPTION_KEY` |
 

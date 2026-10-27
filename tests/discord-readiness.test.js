@@ -43,6 +43,12 @@ test('wrong static API mappings, missing commands and OAuth errors fail closed w
   const failed=await checkDiscordReadiness({...config,discord:true,fetchImpl:async()=>{throw new Error('never-output-secret');}});
   assert.equal(failed.ok,false);assert.doesNotMatch(JSON.stringify(failed),/never-output/);
 });
+
+test('Discord may omit an empty options array when returning simple command roots',async()=>{
+  const result=await checkDiscordReadiness({...config,discord:true,fetchImpl:async(url,options)=>{
+    if(url.includes('/guilds/'))return Response.json(commandDefinitions.map(({options,...rest})=>rest));return fake(url,options);
+  }});assert.equal(result.ok,true);
+});
 test('public probes require explicit HTTPS origin and cannot be combined with offline mode',async()=>{
   for(const value of ['http://game.example','https://user:secret@game.example','https://game.example/path','https://game.example/?token=x'])assert.throws(()=>publicOrigin(value));
   await assert.rejects(checkDiscordReadiness({...config,offline:true,discord:true}),/Offline/);

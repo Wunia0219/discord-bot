@@ -176,12 +176,12 @@ test('signed Discord commands await Firestore while preserving private replies a
   const server=createActivityServer({publicKey,clientId:admin,clientSecret:'fixture',wallet:{store:h.store,adminRoles:[]},
     fetchImpl:async(url,options)=>{replies.push({url,options});return new Response('{}',{status:200});}});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));h.beforeCleanup=()=>new Promise(resolve=>{server.close(resolve);server.closeAllConnections();});
-  const body=JSON.stringify({type:2,application_id:admin,id:randomUUID(),token:'fixture-token-1234567890',guild_id:guild,member:{user:{id:user},permissions:'0'},data:{name:'簽到'}}),timestamp=String(Math.floor(Date.now()/1000));
+  const body=JSON.stringify({type:2,application_id:admin,id:randomUUID(),token:'fixture-token-1234567890',guild_id:guild,member:{user:{id:user},permissions:'0'},data:{name:'戲籌'}}),timestamp=String(Math.floor(Date.now()/1000));
   const response=await fetch(`http://127.0.0.1:${server.address().port}/api/interactions`,{method:'POST',headers:{
     'x-signature-timestamp':timestamp,'x-signature-ed25519':sign(null,Buffer.concat([Buffer.from(timestamp),Buffer.from(body)]),keys.privateKey).toString('hex')},body});
   const result=await response.json();assert.equal(response.status,200);assert.equal(result.type,5);assert.equal(result.data.flags,64);
   await server.drainCommands();assert.equal(replies.length,1);assert.equal(replies[0].options.method,'PATCH');
-  const privateResult=JSON.parse(replies[0].options.body);assert.match(privateResult.embeds[0].description,/10,500/);assert.deepEqual(privateResult.allowed_mentions,{parse:[]});
+  const privateResult=JSON.parse(replies[0].options.body);assert.match(privateResult.embeds[0].description,/10,000/);assert.deepEqual(privateResult.allowed_mentions,{parse:[]});
 });
 
 test('local browser QA requires a separate namespace and retains fixture state on restart',async t=>{

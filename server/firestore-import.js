@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 import {inspectWalletDatabase} from './database.js';
 import {taipeiDay} from './wallet.js';
 import {ledgerIndex,encodeHistory} from './firestore-schema.js';
-import {resetMarker} from './wallet-admin.js';
+import {resetMarker,resetEntryIds,resetIndex} from './wallet-admin.js';
 import {highlightEventPath,highlightEventIndex,assertHighlightEvent,assertHighlightBoard,highlightEvent} from './firestore-highlight-data.js';
 
 const digest=value=>createHash('sha256').update(value).digest('hex');
@@ -22,7 +22,7 @@ export function firestoreImportPlan(filename,environment,{version=1}={}){
     const operationLinks=new Map(),spinRequests=new Map(),roundSequences=new Map(),resetLinks=new Map(),lastRounds=new Map();
     for(const row of db.prepare('SELECT * FROM operations').iterate()){
       const result=JSON.parse(row.result);
-      if(row.key.startsWith('reset:'))resetLinks.set(result.entries[0].id,row.key);
+      if(row.key.startsWith('reset:'))resetLinks.set(resetEntryIds(result)[0],row.key);
       if(result.entry)operationLinks.set(result.entry.id,row.key);
       if(result.round)spinRequests.set(row.guild+'\0'+row.key,result.round.id);
     }
@@ -72,7 +72,7 @@ export function firestoreImportPlan(filename,environment,{version=1}={}){
     for(const row of db.prepare('SELECT * FROM operations ORDER BY guild,key').iterate()){
       const result=JSON.parse(row.result),claim=/^daily:(\d{17,20}):(\d{4}-\d{2}-\d{2})$/.exec(row.key);
       if(claim){const wallet=wallets.get(`wallets/${row.guild}_${claim[1]}`);if(wallet.claimedDay===claim[2]&&result.checkin)wallet.checkin=result.checkin;}
-      put(`operations/${digest(row.guild+'\0'+row.key)}`,{fingerprint:row.fingerprint,result});
+      put(`operations/${digest(row.guild+'\0'+row.key)}`,{fingerprint:row.fingerprint,result},row.key.startsWith('reset:')?resetIndex(row.guild,result):{});
     }
     if(audit.counts.highlight_events)for(const row of db.prepare('SELECT * FROM highlight_events ORDER BY guild,round_id').iterate()){
       assertHighlightEvent(row);

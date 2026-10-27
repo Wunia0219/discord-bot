@@ -28,5 +28,6 @@ test('REST adapter preserves SDK import, all history, summaries, concurrent retr
  const post=await s.spin(guild,user,20,randomUUID(),{compact:true});assert.equal(post.round.before,10000);
  assert.deepEqual(await s.resetWallets(guild,user,resetId),{...reset,duplicate:true});assert.equal((await s.state(guild,user,{compact:true})).balance,post.round.after);
  assert.deepEqual(await s.walletResetReport(guild,user,resetId),{...reset,duplicate:true});
+ const latest=await s.walletResetReport(guild,user,undefined,{page:1});assert.equal(latest.entries.length,1);assert.equal(latest.reset.requestId,resetId);
  const readonly=new FirestoreRest({...settings,readOnly:true});await assert.rejects(readonly.runTransaction(tx=>tx.set(readonly.doc(`circus_wallet_v1/${settings.namespace}/meta/state`),{json:'{}'})));await readonly.terminate();
 });

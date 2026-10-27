@@ -5,7 +5,7 @@ import { BETS, roundFromStops, REEL_STRIPS } from '../src/game/index.js';
 import {problem,taipeiDay,nextCheckin} from './wallet-common.js';
 import {checkinRewards,checkinReceipt,weeklyCheckinState} from './weekly-checkin.js';
 import {INITIAL_BALANCE,openingKind,openingReason} from './wallet-opening.js';
-import {RESET_BALANCE,RESET_WALLET_LIMIT,RESET_REASON,resetFingerprint,resetMarker,resetResult} from './wallet-admin.js';
+import {RESET_BALANCE,RESET_WALLET_LIMIT,RESET_REASON,resetFingerprint,resetMarker,resetResult,compactResetResult,expandResetResult,resetEntryIds,resetReportRow} from './wallet-admin.js';
 export {problem,taipeiDay,nextCheckin} from './wallet-common.js';
 const MAX_BALANCE=1_000_000_000_000;
 const snowflake=value=>/^\d{17,20}$/.test(value||'');
@@ -114,22 +114,34 @@ export class WalletStore {
     const wallets=this.db.prepare('SELECT w.user,w.balance,(SELECT COUNT(*) FROM rounds r WHERE r.guild=w.guild AND r.user=w.user) rounds FROM wallets w WHERE w.guild=? AND w.user>? ORDER BY w.user LIMIT ?').all(guild,after,limit+1);
     const rows=wallets.slice(0,limit).map(w=>({...w}));return {rows,next:wallets.length>limit?rows.at(-1).user:null,time:new Date(this.clock()).toISOString()};
   }
-  walletResetReport(guild,actor,requestId){
-    this.validate(guild,actor);this.requestId(requestId);
-    const saved=this.db.prepare('SELECT result FROM operations WHERE guild=? AND key=?').get(guild,'reset:'+requestId);
+  walletResetReport(guild,actor,requestId,{page}={}){
+    this.validate(guild,actor);if(requestId)this.requestId(requestId);
+    const latest=this.db.prepare("SELECT reference FROM ledger WHERE guild=? AND kind='reset' ORDER BY id DESC LIMIT 1").get(guild);
+    if(requestId&&latest&&requestId!==latest.reference)throw problem(409,'已有較新的重設報表，請重新開啟。','RESET_REPLACED');
+    const saved=latest&&this.db.prepare('SELECT result FROM operations WHERE guild=? AND key=?').get(guild,'reset:'+latest.reference);
     if(!saved)throw problem(404,'找不到這筆重設紀錄。','RESET_MISSING');
-    return {...JSON.parse(saved.result),duplicate:true};
+    const result=JSON.parse(saved.result),entry=this.db.prepare('SELECT * FROM ledger WHERE id=?');
+    if(page!==undefined){
+      if(!Number.isInteger(page)||page<1||page>Math.ceil(result.reset.count/20))throw problem(400,'沒有此頁報表。','RESET_PAGE');
+      const ids=resetEntryIds(result).slice((page-1)*20,page*20);
+      return {reset:result.reset,entries:ids.map(id=>resetReportRow(entry.get(id))),page,duplicate:true};
+    }
+    return {...expandResetResult(result,id=>entry.get(id)),duplicate:true};
   }
   resetWallets(guild,actor,requestId){
     this.validate(guild,actor);this.requestId(requestId);
-    return this.tx(()=>this.once(guild,'reset:'+requestId,resetFingerprint(actor),()=>{
+    return this.tx(()=>{
+      const key='reset:'+requestId,fingerprint=resetFingerprint(actor),saved=this.db.prepare('SELECT * FROM operations WHERE guild=? AND key=?').get(guild,key);
+      if(saved){if(saved.fingerprint!==fingerprint)throw problem(409,'此請求編號已用於其他操作。','REQUEST_CONFLICT');return {...expandResetResult(JSON.parse(saved.result),id=>this.db.prepare('SELECT * FROM ledger WHERE id=?').get(id)),duplicate:true};}
       const wallets=this.db.prepare('SELECT user,balance FROM wallets WHERE guild=? ORDER BY user LIMIT ?').all(guild,RESET_WALLET_LIMIT+1);
       if(wallets.length>RESET_WALLET_LIMIT)throw problem(409,'玩家數量超出本次安全重設範圍，這次沒有變更任何餘額。','RESET_LIMIT');
       if(!wallets.length)throw problem(409,'本群還沒有已建立錢包的玩家。','RESET_EMPTY');
       const now=this.clock(),time=new Date(now).toISOString();
       const entries=wallets.map(w=>({user:w.user,...this.credit(guild,w.user,RESET_BALANCE-w.balance,'reset',actor,RESET_REASON,requestId,now)}));
-      return resetResult(actor,requestId,time,entries);
-    }));
+      const result=resetResult(actor,requestId,time,entries);
+      this.db.prepare('INSERT INTO operations(guild,key,fingerprint,result) VALUES(?,?,?,?)').run(guild,key,fingerprint,JSON.stringify(compactResetResult(result)));
+      return result;
+    });
   }
   reverse(guild,actor,entryId,reason,requestId){
     this.validate(guild,actor);this.reason(reason);this.requestId(requestId);

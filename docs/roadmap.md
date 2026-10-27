@@ -1,6 +1,6 @@
 # 收尾計畫與驗收條件
 
-2026-10-26 更新，工作區版本 **0.2.8**。目前 Discord 入口已運行於 Cloudflare Workers Free，沿用 Firestore Blaze v2（維持原免費用量保護）；本機 writer 與舊通道已停用。0.2.7 更新隱私頁、文件及產品版本，並補齊維運狀態、版本核對與獨立監控／通知模組；停輪沿用 [已驗收基準](reel-timing-baseline.md)。工作區版本與實際已發布版本須分別核對，發布記錄見 [雲端手冊](cloud-runtime.md)。
+2026-10-27 更新，工作區版本 **0.3.0**。目前 Discord 入口已運行於 Cloudflare Workers Free，沿用 Firestore Blaze v2（維持原免費用量保護）；本機 writer 與舊通道已停用。0.2.7 更新隱私頁、文件及產品版本，並補齊維運狀態、版本核對與獨立監控／通知模組；停輪沿用 [已驗收基準](reel-timing-baseline.md)。工作區版本與實際已發布版本須分別核對，發布記錄見 [雲端手冊](cloud-runtime.md)。
 
 ## 現況盤點
 

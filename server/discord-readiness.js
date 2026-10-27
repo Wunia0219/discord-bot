@@ -1,11 +1,11 @@
 import {discordConfigurationReady} from './discord-config.js';
-import {commandDefinitions} from './commands.js';
+import {commandDefinitions,retiredCommandNames} from './commands.js';
 import {highlightSettings} from './highlights.js';
 import {MODEL_VERSION} from '../src/game/slot-math.js';
 
 const snowflake=value=>/^\d{17,20}$/.test(value||'');
 const list=value=>(value||'').split(',').map(s=>s.trim()).filter(Boolean);
-const matches=(actual,expected)=>Array.isArray(expected)?Array.isArray(actual)&&actual.length===expected.length&&expected.every((v,i)=>matches(actual[i],v))
+const matches=(actual,expected)=>Array.isArray(expected)?(actual==null&&expected.length===0)||(Array.isArray(actual)&&actual.length===expected.length&&expected.every((v,i)=>matches(actual[i],v)))
   :expected&&typeof expected==='object'?!!actual&&Object.entries(expected).every(([key,value])=>matches(actual[key],value)):actual===expected;
 export function publicOrigin(value){
   let url;try{url=new URL(value);}catch{throw new Error('Invalid public HTTPS origin');}
@@ -61,11 +61,13 @@ export async function checkDiscordReadiness({env,frontend={},built=false,offline
       const token=response.ok?(await response.json()).access_token:null;if(typeof token!=='string'||!token)throw new Error('auth');
       add('DISCORD_AUTH',true,'應用程式授權有效');const headers={Authorization:'Bearer '+token};
       const global=await request(`https://discord.com/api/v10/applications/${env.DISCORD_CLIENT_ID}/commands`,{headers});
-      const entries=global.ok?(await global.json()).filter(row=>row.type===4):[];
+      const globalCommands=global.ok?await global.json():[],entries=globalCommands.filter(row=>row.type===4);
       add('ACTIVITY_ENTRY',entries.length===1&&entries[0].handler===1,'唯一 Activity 入口使用 APP_HANDLER 安靜啟動');
+      add('GLOBAL_RETIRED_COMMANDS',global.ok&&!globalCommands.some(row=>row.type===1&&retiredCommandNames.includes(row.name)),'全域簽到指令已移除');
       for(let i=0;i<guilds.length;i++){
         const response=await request(`https://discord.com/api/v10/applications/${env.DISCORD_CLIENT_ID}/guilds/${guilds[i]}/commands`,{headers});
         const commands=response.ok?await response.json():[];
+        add(`RETIRED_COMMANDS:${i+1}`,response.ok&&!commands.some(row=>row.type===1&&retiredCommandNames.includes(row.name)),'群組簽到指令已移除');
         for(const definition of commandDefinitions)add(`COMMAND:${i+1}:${definition.name}`,
           Array.isArray(commands)&&commands.some(row=>matches(row,definition)),'已安裝的指令定義與程式一致');
       }

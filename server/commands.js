@@ -1,27 +1,13 @@
 import { createPublicKey, verify } from 'node:crypto';
 import { problem } from './wallet-common.js';
 import { privateReply, commandError } from './bot-replies.js';
+import {adminPanel,handlePanel,launchControls,parsePanel,panelId} from './discord-panel.js';
 
 export const commandDefinitions = [
-  {name:'簽到',description:'週簽到：連續七天獎勵循環，中斷從第 1 天重新開始',type:1},
-  {name:'戲籌',description:'看看你在這個群有多少戲籌',type:1},
-  {name:'戲籌管理',description:'幫群友發戲籌、收回誤發或查紀錄',type:1,default_member_permissions:'0',options:[
-    {type:1,name:'玩家戲籌',description:'查看本群所有已建立錢包的玩家與目前戲籌',options:[{type:3,name:'起始玩家',description:'接續上一頁：填入上一頁提供的玩家編號',min_length:17,max_length:20}]},
-    {type:1,name:'重設戲籌',description:'將本群已有錢包的玩家重設為 10000，保存重設前實際餘額',options:[
-      {type:5,name:'確認',description:'執行新一筆重設時請選 True；簽到與歷史均會保留'},
-      {type:3,name:'紀錄編號',description:'查看已完成的重設報表，填入先前提供的編號，不會再次重設',min_length:16,max_length:80},
-      {type:4,name:'頁碼',description:'重設報表頁碼，每頁 20 位玩家',min_value:1,max_value:5},
-    ]},
-    {type:1,name:'發放',description:'送戲籌給群友，順便留個原因',options:[{type:6,name:'成員',description:'要送給哪位群友？',required:true},{type:4,name:'數量',description:'要送多少戲籌？',required:true,min_value:1,max_value:100000},{type:3,name:'原因',description:'留個原因，之後查紀錄才記得',required:true,max_length:200}]},
-    {type:1,name:'紀錄',description:'看看群友的戲籌紀錄，沒選分類就先看發放與收回',options:[
-      {type:6,name:'成員',description:'想看哪位群友的紀錄？',required:true},
-      {type:3,name:'分類',description:'想看哪一種？沒選就先看發放與收回',choices:[{name:'發放與收回',value:'rewards'},{name:'週簽到',value:'checkin'},{name:'遊戲摘要',value:'summary'},{name:'遊戲明細',value:'game'},{name:'全部戲籌紀錄',value:'all'}]},
-      {type:4,name:'期間',description:'想看多久以前的？日期都按台灣時間算',choices:[{name:'今天',value:1},{name:'近 7 天',value:7},{name:'近 30 天',value:30},{name:'全部期間',value:0}]},
-      {type:4,name:'早於編號',description:'想接著看更早的紀錄？填上上一頁提供的編號',min_value:1},
-    ]},
-    {type:1,name:'更正',description:'收回一筆誤發的戲籌，原本的紀錄會保留',options:[{type:4,name:'紀錄編號',description:'要收回哪筆發放？填那筆的紀錄編號',required:true,min_value:1},{type:3,name:'原因',description:'這筆為什麼要收回？',required:true,max_length:200}]},
-  ]},
+  {name:'戲籌',description:'查看自己的戲籌，或直接開啟遊戲',type:1,options:[]},
+  {name:'戲籌管理',description:'開啟私人管理面板：玩家戲籌、發放、紀錄與全群重設',type:1,default_member_permissions:'0',options:[]},
 ];
+export const retiredCommandNames=['簽到'];
 export function validSignature(publicKey, headers, raw, now=Date.now()) {
   const signature=headers['x-signature-ed25519'], timestamp=headers['x-signature-timestamp'];
   if(!/^[a-f\d]{64}$/i.test(publicKey||'')||!/^[a-f\d]{128}$/i.test(signature||'')||!/^\d{10}$/.test(timestamp||'')||Math.abs(now-Number(timestamp)*1000)>300000)return false;
@@ -30,28 +16,33 @@ export function validSignature(publicKey, headers, raw, now=Date.now()) {
     return verify(null,Buffer.concat([Buffer.from(timestamp),raw]),key,Buffer.from(signature,'hex'));
   }catch{return false;}
 }
-export async function handleCommand(interaction, store, adminRoles=[]) {
+export async function handleCommand(interaction, store, adminRoles=[],commandChannelIds=[]) {
   const reply=(...args)=>privateReply(store.environment,...args);
   try {
     if(interaction.type===1)return {type:1};
-    if(interaction.type!==2||interaction.member?.user?.bot||!interaction.guild_id||!interaction.member?.user?.id)throw problem(403,'請在已啟用的伺服器內使用指令。','COMMAND_SCOPE');
+    if(![2,3,5].includes(interaction.type)||interaction.member?.user?.bot||!interaction.guild_id||!interaction.member?.user?.id)throw problem(403,'請在已啟用的伺服器內使用指令。','COMMAND_SCOPE');
     const guild=interaction.guild_id,user=interaction.member.user.id;
     store.validate(guild,user);
+    if(commandChannelIds.length&&!commandChannelIds.includes(interaction.channel_id||interaction.channel?.id))throw Object.assign(problem(403,'請到指定頻道使用指令。','COMMAND_CHANNEL'),{channel:commandChannelIds[0]});
+    const panel=[3,5].includes(interaction.type)?parsePanel(interaction):null;
+    if(panel?.action==='go')return {type:12};
     // APP_HANDLER opens the Activity without Discord's automatic channel invite.
     if(interaction.data?.type===4)return {type:12};
     if(interaction.data.name==='簽到'){
-      const r=await store.checkin(guild,user,{compact:true});
-      const progress=r.state.weeklyCheckin,cycle=r.checkin?`週簽到第 ${r.checkin.cycleDay} 天，`:'';
-      return reply(`${cycle}${r.duplicate?`今天的 **${number(r.entry.delta)} 戲籌**已經領過囉。`:`今天的 **${number(r.entry.delta)} 戲籌**領到了！`}\n你現在有 **${number(r.state.balance)} 戲籌**。\n\n明天第 ${progress.nextDay} 天可領 **${number(progress.nextReward)} 戲籌**。\n連續七天循環，中斷從第 1 天重新開始；台灣時間午夜換日。`,r.duplicate?'今天已經領過囉':'今天的簽到領到了',r.duplicate?'warning':'success');
+      const result=reply('簽到獎勵已移至遊戲內。\n請開啟遊戲，點上方「週簽到」查看進度並領取獎勵。','請在遊戲內簽到');
+      result.data.components=launchControls(interaction);return result;
     }
     if(['戲籌','\u7c4c\u78bc'].includes(interaction.data.name)){
       const state=await store.state(guild,user,{compact:true});
-      return reply(`**${number(state.balance)} 戲籌**\n\n${state.claimed?`今天的週簽到已經領過了，明天可領 **${number(state.weeklyCheckin.nextReward)} 戲籌**。`:`週簽到第 ${state.weeklyCheckin.day} 天，輸入 /簽到 就能領 **${number(state.daily)} 戲籌**。`}\n連續七天循環，中斷從第 1 天重新開始。`);
+      const result=reply(`**${number(state.balance)} 戲籌**\n\n${state.claimed?`今天的週簽到已經領過了，明天可領 **${number(state.weeklyCheckin.nextReward)} 戲籌**。`:`週簽到第 ${state.weeklyCheckin.day} 天，可在遊戲內領取 **${number(state.daily)} 戲籌**。`}\n連續七天循環，中斷從第 1 天重新開始。`);
+      result.data.components=launchControls(interaction);return result;
     }
-    if(!['戲籌管理','\u7c4c\u78bc管理'].includes(interaction.data.name))throw problem(400,'不支援此指令。','COMMAND_UNKNOWN');
+    if(!panel&&!['戲籌管理','\u7c4c\u78bc管理'].includes(interaction.data.name))throw problem(400,'不支援此指令。','COMMAND_UNKNOWN');
     const permissions=BigInt(interaction.member.permissions || '0');
     if(!(permissions&8n)&&!interaction.member.roles?.some(id=>adminRoles.includes(id)))throw problem(403,'只有伺服器管理員或指定的戲籌管理身分組可以操作。','COMMAND_ADMIN');
+    if(panel)return await handlePanel(interaction,store,recordField,panel);
     const sub=interaction.data.options?.[0];
+    if(!sub)return adminPanel(interaction,store.environment);
     const args=Object.fromEntries((sub?.options||[]).map(option=>[option.name,option.value]));
     if(sub?.name==='玩家戲籌'){
       const page=await store.playerWallets(guild,{after:args['起始玩家']??''});
@@ -113,7 +104,14 @@ export async function handleCommand(interaction, store, adminRoles=[]) {
       return reply(description,labels[category],'info',rows.map(recordField));
     }
     throw problem(400,'不支援此操作。','COMMAND_UNKNOWN');
-  }catch(error){const copy=commandError(error,{store,subcommand:interaction.data?.options?.[0]?.name});return reply(copy.message,copy.title,'error');}
+  }catch(error){
+    const copy=commandError(error,{store,subcommand:interaction.data?.custom_id?.split('|')[1]==='vs'?'更正':interaction.data?.options?.[0]?.name}),result=reply(copy.message,copy.title,'error');
+    // PATCH leaves omitted components unchanged. Replace the old confirmation
+    // controls explicitly when a component/form fails, including an empty report.
+    if([3,5].includes(interaction.type))result.data.components=/^\d{17,20}$/.test(interaction.guild_id||'')&&/^\d{17,20}$/.test(interaction.member?.user?.id||'')
+      ?[{type:1,components:[{type:2,style:2,label:'返回管理面板',custom_id:panelId(interaction,'home')}]}]:[];
+    return result;
+  }
 }
 
 const number=value=>value.toLocaleString('en-US');

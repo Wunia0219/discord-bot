@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import {problem,taipeiDay} from './wallet-common.js';
 import {ledgerIndex,decodeHistory} from './firestore-schema.js';
-import {RESET_BALANCE,RESET_WALLET_LIMIT,RESET_REASON,resetFingerprint,resetMarker,resetResult} from './wallet-admin.js';
+import {RESET_BALANCE,RESET_WALLET_LIMIT,RESET_REASON,resetFingerprint,resetMarker,resetResult,compactResetResult,resetEntryIds,resetReportRow,resetIndex} from './wallet-admin.js';
 
 const digest=s=>createHash('sha256').update(s).digest('hex');
 const unpack=doc=>JSON.parse(doc.get('json'));
@@ -21,12 +21,45 @@ export const firestoreAdminWallets={
       return {rows,next:wallets.length>limit?rows.at(-1).user:null,time:new Date(this.clock()).toISOString()};
     }catch(error){throw this.safe(error);}
   },
-  async walletResetReport(guild,actor,requestId){
-    this.validate(guild,actor);this.requestId(requestId);if(this.closed)throw this.safe({});
+  async readResetResult(result,{page,tx,guild}={}){
+    if(page!==undefined&&(!Number.isInteger(page)||page<1||page>Math.ceil(result.reset.count/20)))throw problem(400,'沒有此頁報表。','RESET_PAGE');
+    let entries;
+    if(Array.isArray(result.entries))entries=page===undefined?result.entries:result.entries.slice((page-1)*20,page*20);
+    else{
+      let ids=resetEntryIds(result);if(page!==undefined)ids=ids.slice((page-1)*20,page*20);
+      if(!ids.length)throw problem(503,'報表資料需要核對。','RESET_INVALID');
+      const read=async refs=>{if(tx)return this.readMany(refs,tx);this.quota.reserve({reads:6*refs.length});const docs=await this.db.getAll(...refs);return docs.map(doc=>{const row=unpack(doc);this.quota.observe(Buffer.byteLength(JSON.stringify(row)));return row;});};
+      const rows=await read(ids.map(id=>this.root.collection('ledger').doc(String(id))));
+      entries=rows.map((e,n)=>{
+        if(!e||e.id!==ids[n]||e.guild!==guild||e.kind!=='reset'||e.reference!==result.reset.requestId||e.actor!==result.reset.actor||e.time!==result.reset.time||e.after!==RESET_BALANCE||e.delta!==e.after-e.before)throw problem(503,'報表資料需要核對。','RESET_INVALID');
+        return resetReportRow(e);
+      });
+    }
+    return {reset:result.reset,entries,...(page!==undefined?{page}:{})};
+  },
+  async latestWalletReset(guild){
+    const query=this.root.collection('operations').where('resetKey','>=',guild+'_').where('resetKey','<',guild+'_\uffff').orderBy('resetKey','desc').limit(1);
+    this.quota.reserve({reads:6});const page=await query.get();
+    if(page.docs.length){const saved=unpack(page.docs[0]);this.quota.observe(Buffer.byteLength(JSON.stringify(saved)));return saved;}
+    // Pre-upgrade receipts have no resetKey. Read only the reset links (never
+    // spins/history), so an existing last report remains available without a
+    // bulk migration. New receipts and restored backups use the bounded index.
+    let cursor,latest=null;
+    for(;;){
+      let q=this.root.collection('ledger').where('operationKey','>=','reset:').where('operationKey','<','reset;').orderBy('operationKey');if(cursor)q=q.startAfter(cursor);
+      this.quota.reserve({reads:6*21});const old=await q.limit(21).get();
+      for(const doc of old.docs){const e=unpack(doc);this.quota.observe(Buffer.byteLength(JSON.stringify(e)));if(e.guild===guild&&(!latest||e.id>latest.id))latest=e;}
+      if(old.docs.length<21)break;cursor=old.docs.at(-1).get('operationKey');
+    }
+    return latest?this.read(this.root.collection('operations').doc(digest(guild+'\0reset:'+latest.reference))):null;
+  },
+  async walletResetReport(guild,actor,requestId,{page}={}){
+    this.validate(guild,actor);if(requestId)this.requestId(requestId);if(this.closed)throw this.safe({});
     try{
-      const saved=await this.read(this.root.collection('operations').doc(digest(guild+'\0reset:'+requestId)));
+      const saved=await this.latestWalletReset(guild);
       if(!saved?.result?.reset)throw problem(404,'找不到這筆重設紀錄。','RESET_MISSING');
-      return {...saved.result,duplicate:true};
+      if(requestId&&saved.result.reset.requestId!==requestId)throw problem(409,'已有較新的重設報表，請重新開啟。','RESET_REPLACED');
+      return {...await this.readResetResult(saved.result,{page,guild}),duplicate:true};
     }catch(error){throw this.safe(error);}
   },
   resetWallets(guild,actor,requestId){
@@ -40,7 +73,7 @@ export const firestoreAdminWallets={
     try{
       const result=await this.db.runTransaction(async tx=>{
         const [meta,existing]=await this.readMany([this.meta,opRef],tx);this.checkMeta(meta);
-        if(existing){if(existing.fingerprint!==fingerprint)throw problem(409,'此請求編號已用於其他操作。','REQUEST_CONFLICT');return {...existing.result,duplicate:true,wallets:[]};}
+        if(existing){if(existing.fingerprint!==fingerprint)throw problem(409,'此請求編號已用於其他操作。','REQUEST_CONFLICT');return {...await this.readResetResult(existing.result,{tx,guild}),duplicate:true,wallets:[]};}
         const limit=this.schemaVersion===1?60:RESET_WALLET_LIMIT;
         this.quota.reserve({reads:6*(limit+1)});
         const page=await tx.get(guildQuery(this,guild).limit(limit+1)),wallets=page.docs.map(unpack);
@@ -69,7 +102,7 @@ export const firestoreAdminWallets={
             operationKey:i===0?key:null,...(this.schemaVersion===2?ledgerIndex(entry):{})}});
           this.write(tx,ref,wallets[i]);
         }
-        this.write(tx,this.meta,meta);this.write(tx,opRef,{fingerprint,result:answer},{create:true});
+        this.write(tx,this.meta,meta);this.write(tx,opRef,{fingerprint,result:compactResetResult(answer)},{create:true,index:resetIndex(guild,answer)});
         return {...answer,wallets};
       },{maxAttempts:3});
       for(const wallet of result.wallets)this.cacheWallet(wallet);delete result.wallets;return result;

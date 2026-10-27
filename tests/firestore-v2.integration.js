@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,rmSync,writeFileSync} from 'node:fs';
 import {resolve,join,sep} from 'node:path';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 import {FirestoreWalletStore} from '../server/firestore-wallet.js';
 import {firestoreSettings} from '../server/firestore-settings.js';
 import {firestoreImportPlan,importFirestore} from '../server/firestore-import.js';
@@ -86,6 +86,25 @@ test('v2 reset writes only two documents per existing player plus one receipt an
   assert.equal(list.rows.length,20);assert.equal(next.rows.length,1);assert.equal(next.next,null);assert.equal(s.quota.status().used.writes,used);
   const reset=await s.resetWallets(guild,admin,randomUUID());assert.equal((s.quota.status().used.writes-used)/2,44);assert.equal(reset.reset.changed,0);
   assert.equal(reset.entries.length,21);assert.ok(reset.entries.every(e=>e.delta===0));
+  const saved=await s.read(s.root.collection('operations').doc(createHash('sha256').update(guild+'\0reset:'+reset.reset.requestId).digest('hex')));
+  assert.ok(!Object.hasOwn(saved.result,'entries'));assert.equal(saved.result.reset.version,2);assert.ok(JSON.stringify(saved.result).length<600);
+  const writes=s.quota.status().used.writes,report=await s.walletResetReport(guild,admin,undefined,{page:1}),page2=await s.walletResetReport(guild,admin,reset.reset.requestId,{page:2});
+  assert.equal(report.entries.length,20);assert.equal(page2.entries.length,1);assert.deepEqual([...report.entries,...page2.entries],reset.entries);assert.equal(s.quota.status().used.writes,writes);
+  const second=await s.resetWallets(guild,admin,randomUUID());
+  await assert.rejects(s.walletResetReport(guild,admin,reset.reset.requestId,{page:2}),{code:'RESET_REPLACED'});
+  assert.equal((await s.walletResetReport(guild,admin)).reset.requestId,second.reset.requestId);
+  assert.deepEqual(await s.resetWallets(guild,admin,reset.reset.requestId),{...reset,duplicate:true});
+});
+
+test('latest report preserves pre-index full receipts without scanning ordinary spin history or writing a migration',async t=>{
+  const h=await fixture(t),s=h.s;
+  await assert.rejects(s.walletResetReport(guild,admin),{code:'RESET_MISSING'});
+  await s.state(guild,user,compact);const id=randomUUID(),first=await s.resetWallets(guild,admin,id),legacy={...first,reset:{...first.reset,version:1}};
+  const ref=s.root.collection('operations').doc(createHash('sha256').update(guild+'\0reset:'+id).digest('hex'));
+  await s.db.runTransaction(async tx=>{const saved=JSON.parse((await tx.get(ref)).get('json'));tx.set(ref,{json:JSON.stringify({...saved,result:legacy})});});
+  const writes=s.quota.status().used.writes;assert.deepEqual(await s.walletResetReport(guild,admin),{...legacy,duplicate:true});assert.equal(s.quota.status().used.writes,writes);
+  const second=await s.resetWallets(guild,admin,randomUUID());assert.equal((await s.walletResetReport(guild,admin)).reset.requestId,second.reset.requestId);
+  assert.deepEqual(await s.resetWallets(guild,admin,id),{...legacy,duplicate:true});
 });
 
 for(const version of [1,2])test(`v${version} empty and excessive guild resets refuse atomically before changing any records`,async t=>{

@@ -8,6 +8,7 @@ import { discordConfigurationReady } from './discord-config.js';
 import { LoginRateLimit } from './login-rate-limit.js';
 import { randomUUID } from 'node:crypto';
 import {completeDeferredCommand,validInteractionToken} from './deferred-command.js';
+import {deferWalletInteraction} from './discord-panel.js';
 
 const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.webp':'image/webp', '.png':'image/png', '.svg':'image/svg+xml', '.json':'application/json', '.woff2':'font/woff2', '.mp3':'audio/mpeg' };
 const json = (res, status, data) => {
@@ -96,13 +97,13 @@ export function createActivityHandler({ clientId, clientSecret, publicKey, walle
         if(interaction.type===1)return json(res,200,{type:1});
         if(interaction.application_id!==clientId)return json(res,403,{error:'應用程式不符。'});
         if(!wallet)return json(res,200,privateReply(null,'過一會兒再試試。如果一直連不上，請找管理員幫忙看看。','戲籌暫時連不上','warning'));
-        if(wallet.store.backend==='firestore'&&interaction.type===2&&interaction.data?.type!==4){
+        if(wallet.store.backend==='firestore'&&deferWalletInteraction(interaction)){
           if(!validInteractionToken(interaction.token))return json(res,400,{error:'無效的互動憑證。'});
-          json(res,200,{type:5,data:{flags:64}});
+          json(res,200,interaction.type===3&&((interaction.message?.flags||0)&64)?{type:6}:{type:5,data:{flags:64}});
           const work=completeDeferredCommand(interaction,wallet,{fetchImpl}).catch(()=>console.warn('Discord command reply unavailable'));
           deferredCommands.add(work);defer(work);void work.finally(()=>deferredCommands.delete(work));return;
         }
-        return json(res,200,await handleCommand(interaction,wallet.store,wallet.adminRoles));
+        return json(res,200,await handleCommand(interaction,wallet.store,wallet.adminRoles,wallet.commandChannelIds));
       }
       if (path === '/api/token') {
         if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return json(res, 405, { error:'請使用 POST。' }); }

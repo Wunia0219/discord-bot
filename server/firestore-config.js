@@ -7,8 +7,10 @@ import {LocalTestSessions,LOCAL_TEST_PROFILES} from './local-test-wallet.js';
 import {LOCAL_TEST_CASES} from './local-test-plan.js';
 import {APP_VERSION} from '../src/version.js';
 import {firestoreHighlightsConfig} from './firestore-highlights.js';
+import {commandChannels} from './discord-channel-scope.js';
 
 export async function firestoreWalletConfig(env){
+  const commandChannelIds=commandChannels(env);
   if(env.HOST!=='127.0.0.1')throw new Error('Firestore integration currently requires HOST=127.0.0.1');
   const localTest=env.LOCAL_WALLET_TEST==='true';
   if(localTest&&env.APP_ENV!=='test')throw new Error('Local Firestore testing requires APP_ENV=test');
@@ -23,7 +25,7 @@ export async function firestoreWalletConfig(env){
   try{
     highlights=firestoreHighlightsConfig(env,store);
     await store.initialize();
-    if(!localTest)return {store,service:new WalletService(store),adminRoles,highlights};
+    if(!localTest)return {store,service:new WalletService(store),adminRoles,commandChannelIds,highlights};
     const guild=guildIds[0];
     for(const profile of LOCAL_TEST_PROFILES)await store.ensureFixture(guild,profile.user,profile.balance,profile.key);
     const localOverview=async()=>({ok:await store.isReady(),environment:'test',version:APP_VERSION,

@@ -56,8 +56,10 @@ test('cards preserve privacy, colors, empty states and Discord text limits',asyn
  assert.ok(size<=6000);assert.ok(card.fields.every(f=>f.value.length<=1024));assert.equal(card.color,0xd6b775);
  const invalid=(await handleCommand(historyCommand([{name:'分類',value:'summary'},{name:'早於編號',value:1}]),s)).data.embeds[0];assert.equal(invalid.color,0xc85c76);
  const checkin=historyCommand();checkin.data={name:'簽到'};
- assert.equal((await handleCommand(checkin,s)).data.embeds[0].color,0x68a880);
- assert.equal((await handleCommand(checkin,s)).data.embeds[0].color,0xc99456);
+ const count=s.db.prepare('SELECT COUNT(*) n FROM ledger').get().n;
+ assert.equal((await handleCommand(checkin,s)).data.embeds[0].title,'請在遊戲內簽到');
+ assert.equal((await handleCommand(checkin,s)).data.embeds[0].color,0xd6b775);
+ assert.equal(s.db.prepare('SELECT COUNT(*) n FROM ledger').get().n,count);
 });
 test('admin command permissions are enforced on the server, including configured roles and guild isolation',async t=>{
  const s=new WalletStore({guildIds:[guild],environment:'production'});t.after(()=>s.close());

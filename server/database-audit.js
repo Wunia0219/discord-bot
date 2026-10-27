@@ -1,7 +1,7 @@
 import {isDeepStrictEqual} from 'node:util';
 import {BETS,MODEL_VERSION,LEGACY_MODELS,gridFromStops,evaluateGrid} from '../src/game/index.js';
 import {previousDay,validCheckinTransition} from './weekly-checkin.js';
-import {validResetOperation} from './wallet-admin.js';
+import {validResetOperation,resetEntryIds} from './wallet-admin.js';
 import {validWelcomeEntry} from './wallet-opening.js';
 
 const MAX_BALANCE=1_000_000_000_000;
@@ -66,7 +66,7 @@ export function inspectSettlements(db){
     if(!object(result)){add('Operation result errors');continue;}
     if(row.key.startsWith('reset:')){
       if(!validResetOperation(row,result,id=>entryById.get(id)))add('Reset operation errors');
-      entryOperations+=Array.isArray(result.entries)?result.entries.length:0;continue;
+      entryOperations+=resetEntryIds(result).length;continue;
     }
     const spin=/^spin:(\d{17,20}):([-a-zA-Z0-9]{16,80})$/.exec(row.key);
     if(spin){
@@ -125,7 +125,7 @@ export function inspectSettlements(db){
       }
       if(entry.kind==='reset'){
         const result=parse(operationByKey.get(entry.guild,'reset:'+entry.reference)?.result);
-        if(!Array.isArray(result?.entries)||!result.entries.some(e=>e?.id===entry.id&&e.user===entry.user))add('Reset ledger operation errors');
+        if(!resetEntryIds(result).includes(entry.id))add('Reset ledger operation errors');
       }
       if(entry.kind==='reversal'){
         const original=/^[1-9]\d*$/.test(entry.reference??'')?entryById.get(entry.reference):null;

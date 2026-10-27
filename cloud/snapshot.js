@@ -5,7 +5,7 @@ import {assertHighlightEvent,assertHighlightBoard} from '../server/firestore-hig
 import {highlightEvent} from '../server/firestore-highlight-data.js';
 import {auditRows} from './snapshot-audit.js';
 import {previousDay,validCheckinTransition} from '../server/weekly-checkin.js';
-import {validResetOperation} from '../server/wallet-admin.js';
+import {validResetOperation,resetEntryIds} from '../server/wallet-admin.js';
 import {isOpeningKind,validWelcomeEntry} from '../server/wallet-opening.js';
 
 export const TABLES=['settings','wallets','ledger','operations','rounds','highlight_events','highlight_boards'];
@@ -31,7 +31,7 @@ export function auditSnapshot(snapshot,environment){
     requireValue(typeof o.fingerprint==='string'&&typeof o.result==='string','Operation format');const r=JSON.parse(o.result),spin=/^spin:(\d{17,20}):([-a-zA-Z0-9]{16,80})$/.exec(o.key),key=o.guild+'\0'+o.key;
     if(o.key.startsWith('reset:')){
       requireValue(validResetOperation(o,r,id=>entries.get(id)),'Reset mismatch');
-      for(const e of r.entries){requireValue(!usedOps.has(e.id),'Duplicate entry result');usedOps.add(e.id);}continue;
+      for(const id of resetEntryIds(r)){requireValue(!usedOps.has(id),'Duplicate entry result');usedOps.add(id);}continue;
     }
     if(spin){const row=rounds.get(o.guild+'_'+spin[1]+'_'+r.round?.id);requireValue(row&&validRound(row,r.round)&&isDeepStrictEqual(JSON.parse(row.data),r.round)&&o.fingerprint===String(r.round.bet),'Original round mismatch');requireValue(!usedRounds.has(row),'Duplicate round result');usedRounds.add(row);}
     else{const e=entries.get(r.entry?.id);requireValue(e&&e.guild===o.guild&&['id','before','after','delta'].every(k=>r.entry[k]===e[k]),'Original entry mismatch');

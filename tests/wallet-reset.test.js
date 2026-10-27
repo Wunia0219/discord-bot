@@ -47,13 +47,41 @@ test('reset snapshots current existing wallets atomically, retains weekly progre
     assert.equal(rows.filter(x=>x.index.operationKey===`reset:${request}`).length,1);assert.equal(rows.filter(x=>x.index.operationKey===null).length,2);
     assert.equal(plan.resources.find(x=>x.path===`wallets/${guild}_${user}`).data.balanceReset.roundId,prior.round.id);
   }
-  for(const mutate of [r=>r.reset.count++,r=>r.entries[0].before++,r=>r.entries.pop(),r=>r.entries[0].user=admin,r=>r.entries=[null],r=>r.entries={}]){
+  for(const mutate of [r=>r.reset.count++,r=>r.range.first++,r=>r.range.last--,r=>r.reset.actor=admin+'0',r=>r.entries=[null],r=>r.entries={}]){
     const bad=structuredClone(snapshot),op=bad.tables.operations.find(o=>o.key===`reset:${request}`),data=JSON.parse(op.result);mutate(data);op.result=JSON.stringify(data);
     assert.throws(()=>auditSnapshot(bad,'test'),/Reset|Missing/);assert.throws(()=>auditStream(bad),/Reset|Missing/);
   }
   reopened.db.prepare('UPDATE operations SET result=? WHERE guild=? AND key=?').run(JSON.stringify({...r,entries:{}}),guild,'reset:'+request);
   assert.equal(inspectWalletDatabase(filename,'test').ok,false);
   reopened.db.prepare('UPDATE operations SET result=? WHERE guild=? AND key=?').run(JSON.stringify(r),guild,'reset:'+request);
+});
+
+test('latest-only reports use compact receipts, bounded pages and reject old page links without weakening retry protection',t=>{
+  const {s,filename,dir}=fixture(t);
+  assert.throws(()=>s.walletResetReport(guild,admin),{code:'RESET_MISSING'});
+  for(let i=0;i<23;i++)s.state(guild,String(100000000000000100n+BigInt(i)));
+  const id=randomUUID(),first=s.resetWallets(guild,admin,id),writes=s.db.prepare('SELECT COUNT(*) n FROM ledger').get().n;
+  const receipt=JSON.parse(s.db.prepare('SELECT result FROM operations WHERE guild=? AND key=?').get(guild,'reset:'+id).result);
+  assert.equal(receipt.reset.version,2);assert.ok(!Object.hasOwn(receipt,'entries'));assert.ok(JSON.stringify(receipt).length<600);
+  assert.equal(receipt.range.last-receipt.range.first+1,23);
+  assert.deepEqual(s.walletResetReport(guild,admin,undefined,{page:1}).entries,first.entries.slice(0,20));
+  assert.deepEqual(s.walletResetReport(guild,admin,id,{page:2}).entries,first.entries.slice(20));
+  assert.equal(s.db.prepare('SELECT COUNT(*) n FROM ledger').get().n,writes);
+  // Legacy full receipts are readable without rewriting or deleting history.
+  const legacy={...first,reset:{...first.reset,version:1}};
+  s.db.prepare('UPDATE operations SET result=? WHERE guild=? AND key=?').run(JSON.stringify(legacy),guild,'reset:'+id);
+  assert.deepEqual(s.walletResetReport(guild,admin),{...legacy,duplicate:true});
+  const secondId=randomUUID(),second=s.resetWallets(guild,admin,secondId);assert.equal(s.walletResetReport(guild,admin).reset.requestId,secondId);
+  assert.throws(()=>s.walletResetReport(guild,admin,id,{page:2}),{code:'RESET_REPLACED'});
+  const played=s.spin(guild,first.entries[0].user,20,randomUUID());
+  assert.deepEqual(s.resetWallets(guild,admin,id),{...legacy,duplicate:true});assert.equal(s.state(guild,first.entries[0].user).balance,played.state.balance);
+  assert.deepEqual(s.resetWallets(guild,admin,secondId),{...second,duplicate:true});
+  assert.equal(inspectWalletDatabase(filename,'test').ok,true);const snapshot=snapshotForCloud(filename,'test');assert.deepEqual(auditStream(snapshot),auditSnapshot(snapshot,'test'));
+  const restored=join(dir,'compact-restored.sqlite');assert.equal(restoreCloudSnapshot(snapshot,restored,'test').ok,true);
+  for(const version of [1,2]){
+    const plan=firestoreImportPlan(restored,'test',{version}),ops=plan.resources.filter(r=>r.path.startsWith('operations/')&&r.data.result.reset);
+    assert.equal(ops.length,2);assert.ok(ops.every(o=>o.index.resetKey.startsWith(guild+'_')));
+  }
 });
 
 test('roster is read only, guild scoped and paginated; empty and oversize resets leave every wallet untouched',t=>{
@@ -79,7 +107,7 @@ test('a failure while writing the second reset rolls back the first player and b
 
 test('two admin subcommands enforce permissions/confirmation and render exact before/after without reset deltas',async t=>{
   const {s}=fixture(t);s.checkin(guild,user);s.grant(guild,admin,user,500,'reward',randomUUID());
-  const subcommands=commandDefinitions.find(c=>c.name==='戲籌管理').options.map(c=>c.name);assert.ok(subcommands.includes('玩家戲籌')&&subcommands.includes('重設戲籌'));
+  assert.deepEqual(commandDefinitions.map(c=>c.name),['戲籌','戲籌管理']);assert.ok(commandDefinitions.every(c=>c.options.length===0));
   for(const name of ['玩家戲籌','重設戲籌'])assert.match((await handleCommand(command(name,{'確認':true},'0'),s)).data.embeds[0].description,/需要管理員/);
   const list=(await handleCommand(command('玩家戲籌'),s)).data;assert.equal(list.flags,64);assert.deepEqual(list.allowed_mentions,{parse:[]});assert.match(list.embeds[0].fields[0].value,/11,000/);
   assert.match((await handleCommand(command('重設戲籌'),s)).data.embeds[0].title,/確認/);assert.equal(s.state(guild,user).balance,11000);
