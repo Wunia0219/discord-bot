@@ -1,86 +1,56 @@
-# 現行架構
+# 架構與資料契約
 
-2026-10-24 更新，工作區版本 **0.2.7**。目前 Discord 服務使用 Cloudflare Workers Free／SQLite Durable Object 與原 Firestore Spark v2；本版更新隱私頁與文件，並補齊唯讀維運摘要、版本核對及獨立監控／通知模組，停輪依 [已驗收基準](reel-timing-baseline.md)維持。收尾條件見 [實作計畫](roadmap.md)，現行雲端操作見 [雲端手冊](cloud-runtime.md)，Node／SQLite 設定見 [部署說明](deployment.md)。
+版本 0.3.0。前端使用 PixiJS／Vite；Node 與 Cloudflare 共用驗證及錢包核心。線上由單一 Durable Object 管理專案額度、登入與排程，Firestore v2 是權威帳本。
 
-## 模組與邊界
+## 模組
 
-| 層次 | 入口 | 責任 |
-|---|---|---|
-| 頁面組合 | `src/main.js` | 登入、操作狀態、視窗、背景切換、15 秒前景刷新 |
-| 玩家介面 | `src/ui/` | Pixi 場景、荷官動畫、規則、紀錄、音效；不決定伺服器餘額 |
-| 平台連線 | `src/platform/` | Discord 驗證、錢包 HTTP、保留未確認旋轉的原請求編號 |
-| 遊戲模型 | `src/game/` | 當前規則、輪帶、算獎、歷史規則重播 |
-| HTTP／指令 | `server/app.js`、`commands.js` | 簽章、登入、權限、私密回覆、錢包 API |
-| 身分與錢包 | `wallet-service.js`、`config.js` | 驗證玩家與群、選擇後端、建立 session |
-| SQLite | `wallet.js`、`database*.js` | 本機開發／可回退的帳本實作、驗帳 |
-| Firestore | `firestore-wallet.js`、`firestore-history.js` | 雲端權威結算、按需分頁、既有資料相容 |
-| 得獎公告 | `highlights.js`、`firestore-highlights.js`、`highlight-card.js` | 共用設定與卡片格式；SQLite／Firestore 各自持久化、去重及發送恢復 |
-| 額度／維運 | `firestore-quota.js`、`operations.js`、`maintenance-worker.js` | 持久預算、worker 排程、就緒及私有告警 |
-| 備份／移入 | `firestore-backup.js`、`firestore-import.js` | 一致快照、完整驗證、空白命名空間還原 |
-| 可攜式備份 | `portable-backup.js` | 已驗帳快照加密、驗證及離線還原到新檔，不存取雲端 |
-| 雲端入口／傳輸 | `cloud/worker.js`、`cloud/firestore-rest.js`、`server/app-handler.js` | Worker HTTP、共用授權與結算核心、受 namespace 限制的 REST 原子交易 |
-| 雲端狀態／備份 | `cloud/storage.js`、`quota.js`、`backup.js`、`snapshot.js` | 單一 DO 持久額度、加密 session、alarm、可接續一致快照及還原驗證 |
-| 維運摘要／獨立監控 | `cloud/operations-health.js`、`monitor/` | 備份／排程／額度摘要、獨立監控 DO 與告警恢復；目前未啟用，只有唯讀遊戲權限 |
-
-## 一次旋轉如何保存
-
-1. 前端建立請求編號並暫存；回應不明時沿用同一編號。
-2. 後端驗證 session、群及下注，產生權威結果。
-3. Firestore 交易以同一次 `getAll` 批次讀取 metadata、錢包、原請求及每日摘要；已完成的請求回傳原結果，新請求檢查冷卻與餘額後再寫入。REST 透過 `batchGet.newTransaction.readWrite` 在首批讀取時開啟交易，正常新局共兩次往返（開啟並讀取、提交），仍讀四份文件並原子寫入六份；拒絕或重播也先讀四份，較前版多讀每日摘要，但不寫入，且沿用原每份文件的保守重試額度與總額度上限。
-4. 在同一交易內更新餘額、帳本、回合、去重結果及摘要。任何錯誤中止整筆交易。
-5. 提交成功後更新本程序的 5 秒短快取。v1 回傳完整快照；v2 新 client 回傳本局及輕量狀態。前端的結果請求與空轉動畫並行，取得本局及權威餘額後即可停輪、呈現得獎；較舊歷史在背景補齊，開啟紀錄時等待同步或重試，不阻擋本局演出。
-
-快取只減少讀取，不代替交易。跨程序或跨裝置的扣款與簽到仍讀取權威狀態；前景刷新維持 15 秒，其他程序的短快取可能再增加約 5 秒可見延遲。前端重疊刷新及後端相同玩家讀取會合併，但不延長快取時間。
-
-## Firestore 資料契約
-
-根路徑為 `circus_wallet_v1/<namespace>`。文件主體以 `json` 保存，查詢欄位另外存放。目前服務已採用結構版本 2；Node 範本預設仍為 1 以保留相容性，不能直接套到現行服務。新遷移仍須完整快照與空白命名空間驗證，見 [Firestore v2](firestore-v2.md)。
-
-| 資料 | 用途與保留範圍 |
+| 位置 | 責任 |
 |---|---|
-| `meta/state` | 環境、結構版本、移入狀態、全域遞增帳本編號 |
-| `wallets/<guild>_<user>` | 餘額、簽到日期與週簽到進度快取、revision、完整累計摘要；v1 是原始 100 局快取，v2 是帶序號的無損壓縮快取及 historyRevision |
-| 根 `ledger/<id>` | 完整權威流水及原請求連結；v2 同文件另存四個查詢鍵，提供玩家／分類／日期索引 |
-| 玩家 `ledger`、`entries-<category>`、兩種每日分類集合 | v1 保留四份查詢副本；v2 不建立這些副本 |
-| 玩家 `rounds` | 全部原始回合，包含規則、停點與得獎明細；v2 另有 sequence 欄位供穩定分頁 |
-| `operations` | 全部請求指紋及原結果，供重送去重 |
-| 玩家 `days` | 每日簽到及遊戲統計；以台灣日期作文件 ID |
-| `adminDays`、`reversals` | 管理員每日限額與更正連結 |
-| `highlightEvents`、`highlightBoards` | 啟用公告後的持久事件、訊息 ID、合併卡片、等待時間與短期派送鎖；事件跟大獎結算原子保存 |
+| `src/main.js` | 啟動、操作狀態與畫面協調 |
+| `src/game/` | 現行規則、輪帶、算獎及歷史規則 |
+| `src/platform/` | Discord 登入、錢包請求及歷史同步 |
+| `src/ui/reels/` | 場景、停輪、快停與自動旋轉 |
+| `src/ui/dealer/`、`audio/`、`wins/` | 荷官、聲音、得獎演出 |
+| `src/ui/player/`、`dialogs/`、`shared/` | 玩家資訊、視窗及共用畫面元件 |
+| `server/index.js`、`config.js` | Node 啟動與後端選擇 |
+| `server/http/`、`discord/` | API、簽章、權限及私人指令回覆 |
+| `server/wallet/` | 共用錢包規則、session、SQLite 結算 |
+| `server/sqlite/`、`firestore/` | 儲存、查詢、驗帳、遷移 |
+| `server/recovery/`、`operations/` | 備份恢復、交接及維運 |
+| `server/testing/` | 僅限 loopback 的本機假帳號 |
+| `cloud/` | REST 傳輸、DO 狀態、加密備份及 HTTP 入口 |
+| `monitor/` | 獨立唯讀監控及通知 |
+| `scripts/admin/`、`assets/`、`audio/`、`game/` | 維護、素材及驗算工具 |
 
-最近 100 局是畫面與錢包的快取上限，並非完整歷史的保存上限。v2 玩家可載入更早的回合；v1／SQLite 維持原本畫面範圍。管理查帳已有分頁。完整歷史、請求去重及摘要不會因這次優化被截短或清除。
+## 結算與同步
 
-### 週簽到資料設計（2026-10-26）
+1. 前端保留 request ID，先送結算請求，同步開始動畫；未確認結果時重用原 ID。
+2. 後端由 session 決定群與玩家，驗證下注、冷卻及餘額。Firestore 同批讀 metadata、錢包、原請求、每日摘要，再原子提交。
+3. v2 一局寫六份文件：metadata、錢包、根帳本、每日摘要、完整回合、原請求結果。重播原請求不新增寫入；未知 commit 結果不盲目重送。
+4. 本局與權威餘額回傳後即可停輪；歷史分頁在背景補齊。較舊 revision 不能覆蓋新狀態。
+5. 每玩家讀取合併，伺服器快取 5 秒；前景每 15～20 秒刷新。快取不代替交易，也不延長原期限。
 
-週簽到按每群每玩家分別累積，以 Asia/Taipei 的日曆日判定連續。預設七天依序領 500／500／1,000／1,000／1,000／2,000／4,000，第 7 天隔天回到第 1 天；漏簽後下次從第 1 天開始，不綁週一或滾動 24 小時。獎勵表由 `WEEKLY_CHECKIN_REWARDS` 設定七個正整數，舊的固定 `DAILY_CHIPS` 設定已移除。
+單一結算佇列最多 32 筆含執行中工作；尚未開始的請求最多等待 10 秒，逾時可沿原 ID 重試，已開始交易不取消。停輪與兩秒冷卻依[基準](reel-timing-baseline.md)。
 
-2026-10-27 新增遊戲內七日簽到視窗，每輪合計 10,000。開啟視窗只呈現既有錢包狀態，玩家再按領取才呼叫原簽到 API；今日已領仍可查看。視窗關閉時不更新其隱藏節點，不新增開啟查詢或輪詢。調整獎勵不補發同日舊款，仍以原去重結果為準；畫面必要時標示今日已按原獎勵金額領取的實際數量。
+## 儲存契約
 
-同日依使用者要求，正式模式新錢包首次也改為 10,000，以 `welcome` 記錄新手戲籌；測試模式保留 `test_seed`。SQLite 只在 INSERT 真正新增錢包時發放，Firestore 只在交易讀取不到錢包時發放，與新錢包及 metadata 同交易提交。既有零餘額與非零餘額錢包都不補發；沒有資料遷移或批次更新。一般既有錢包的讀寫次數不變，新錢包才新增一次初始帳本。完整／增量備份均將此項視為一次性的建立記錄，無額外重試操作；驗帳要求它是該錢包第一筆帳本、金額由 0 到 10,000，還原及重開不再次發放。
+Firestore 根路徑 `circus_wallet_v1/<namespace>`，主體為 `json`，查詢鍵另存。SQLite schema 3，Firestore schema 2，均有明確 test／production 環境檢查。
 
-保留既有 `daily:<user>:<台灣日期>` 去重鍵、`daily` 指紋及 `checkin` 帳本分類。新的原請求結果增加 `checkin: {version:1, cycleDay, rewards:[七天金額]}`，與入帳同交易提交，保存當時規則，調整設定後重送仍回傳原金額與原天數。Firestore 在原錢包文件保留最新 `claimedDay` 與 `checkin` 快取，直接判斷今日／昨天；一般簽到不查詢歷史。SQLite 利用既有 `(guild,key)` 主鍵範圍查詢最新一筆簽到結果，不掃描遊戲帳本，不新增資料表或遷移版本。
+| 資料 | 保存內容 |
+|---|---|
+| `meta/state` | schema、環境、移入狀態、全域帳本序號 |
+| `wallets` | 餘額、週簽到、摘要、revision、最近重設標記 |
+| `ledger` | 完整流水與原請求連結；v2 四個純量查詢鍵取代 v1 四份副本 |
+| 玩家 `rounds`、`operations` | 原始回合、規則、結果與永久去重 |
+| 玩家 `days`、`adminDays`、`reversals` | 每日統計、管理額度與更正關聯 |
+| `highlightEvents`、`highlightBoards` | 得獎公告事件、訊息 ID 及派送狀態 |
 
-既有玩家的 Firestore v2 簽到仍讀 4 份文件、原子寫 5 份文件，兩次往返；v1 仍寫 9 份，因為保留四份舊查帳副本。首次測試錢包的初始戲籌另沿用原寫入成本。重複領取沿用原讀取且零寫入。一般錢包讀取仍只讀原文件，5 秒快取及 15 秒前景刷新頻率不變；不增加輪詢、排程、索引或集合。成本差異僅為現有 JSON 多出少量進度／規則位元組及 HTTP 狀態欄位。
+v2 錢包的 `historyCache` 是最近 100 局的無損 DEFLATE／Base64 快取，解壓上限 2 MiB；完整歷史及去重資料另存。冷登入只讀一份錢包。`compact-v1` 回傳輕量狀態，`/api/rounds` 以固定 `through` 版本補齊；更早歷史每頁最多 50 局。舊 client／v1／SQLite 仍支援完整快照。
 
-既有 SQLite／雲端七表備份原樣保存 `operations.result`，還原或 v1／v2 匯入時由最新原結果重建錢包進度，不依當前獎勵設定重算舊款。驗帳檢查每筆新制金額、天數及前一台灣日期的接續關係。舊固定獎勵紀錄仍保留，已領當天不可重領；新制首次領取從第 1 天開始，不回補差額。上架前清除資料為另行操作，本次不清除玩家或歷史。
+週簽到依群、玩家及台灣日期去重，連續七天循環，中斷回第 1 天；原領取憑證保存實際發放金額，設定更動不改寫舊獎勵。新手戲籌與錢包首次建立原子提交。全群重設保留歷史，見[管理操作](discord-commands.md)。
 
-既有玩家的一般新旋轉仍為 4 次文件讀取；v1 寫 10 份文件，v2 寫 6 份，SDK／交易重試另計。啟用公告時，指定群的 SUPER／MEGA 每局額外寫入 1 份事件，背景派送另計且有獨立子額度；普通局與未啟用公告者成本不變。所有玩家更新同一份 metadata，流量成長後可能出現競爭。v2 的 100 局快取在後端無損壓縮，HTTP 依版本增量同步；冷登入及近期歷史仍只需一份錢包讀取，舊紀錄分頁才額外讀取回合文件。
+## 遷移與相容性
 
-## 運作與恢復界線
+`FIRESTORE_SCHEMA_VERSION` 須與 metadata 相符；不能只改版本數字或原地轉換。`scripts/admin/import-firestore.js --from <完整快照> --dry-run` 先產生本機規劃；實際移入只接受空白 namespace，分批原子保存進度，逐份驗證後才 ready。沿用原專案額度，不建立第二份計數器。
 
-玩家戲籌查詢與整群原子重設的指令、容量、保存及備份關聯見 [戲籌重設設計](wallet-reset.md)。重設保存權威的逐人原餘額，不清除簽到或遊玩歷史；未執行管理指令時，不增加一般雲端讀寫次數。
-
-- 目前唯一現行 writer 在固定 Worker 入口；4188 Node writer 與舊通道已停用，4189 僅供獨立 SQLite QA。實際運行狀態以雲端私有 status 為準，文件不代表服務此刻在線。
-- 原全專案、維護及公告三組持久額度已交接同一 DO；本機保留原檔與 `FIRESTORE_LIVE_ENABLED=false`。雲端 active 時不能另開 Node 或管理 CLI 直連同一 Firestore；多主機不能複製預算後各自消費。
-- 雲端 alarm 一般每 10 分鐘檢查，每 24 小時嘗試一致備份。固定 Firestore readTime，分批取得增量與可變資料，驗帳後發布可獨立還原的加密完整快照，保留最近三份有效副本；超過 48 小時未成功會暫停玩家 API。
-- Cloudflare 保存與 Google Firestore 分開的加密備份，已完成下載、隔離還原與七表逐列比對。首次跨日自動備份含新增進度的驗收、恢復金鑰獨立保管及外部故障通知仍待收尾；額外 Google Drive 副本尚未接入。雲端排程不依賴個人電腦開機。
-- SQLite／Firestore 公告佇列均已實作；Firestore 空佇列不持續輪詢雲端，公告狀態納入完整備份與 v1／v2 還原。現有服務已啟用專用 Webhook，使用者確認明確標示的測試公告正常；細節見 [Discord 啟動驗收](discord-readiness.md)。
-- 主遊戲荷官 idle／win 與背景音樂均已接入並發布；`MUSIC_SOURCE` 指向精簡 MP3，音樂預設關閉、手動開啟才載入，與音效獨立控制。手機固定 PORTRAIT。
-
-資料保存完整不等於任何故障下都零損失：尚未備份的新進度仍有恢復落差，金鑰也須獨立保管。達到額度時會拒絕新的操作，保留已提交資料與原請求，不提供假成功或離線扣款。
-
-## Worker 執行路徑（已上線）
-
-`firestore-wallet-core.js` 與 `firestore-highlights-core.js` 共用結算／公告邏輯；Node wrapper 使用 Google SDK，`cloud/firestore-rest.js` 使用受 namespace 限制的 REST 交易。`app-handler.js` 共用 OAuth／簽章／API，Node HTTP 與 Worker Request/Response 分別接入。
-
-`cloud/worker.js` 每個專案綁定唯一 SQLite Durable Object，持久保存原全域及子額度、加密 session／限流、公告提示與備份 checkpoint。Firestore v2 仍是權威帳本；未 seed／paused／released 一律拒絕玩家寫入。`cloud/backup.js` 固定 readTime 分批取得全歷史增量與可變表，驗帳後加密發布；不確定公告 POST 與原去重資料一起保留。詳細部署門檻及額度回傳見 [cloud-runtime.md](cloud-runtime.md)。
+v2 接受新進度後，不能直接回到舊 v1 帳本。停止 writer、備份驗帳，再匯入另一個空白目的地。回退程式必須支援 welcome、週簽到、reset version 2、archive format 2；[恢復程序](recovery.md)集中管理。

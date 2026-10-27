@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {dealerFrameSequence} from '../src/ui/dealer-motion.js';
+import {dealerFrameSequence} from '../src/ui/dealer/dealer-motion.js';
 const root=new URL('../',import.meta.url);
 const manifest=JSON.parse(readFileSync(new URL('images/dealer/v4/dealer.json',root),'utf8'));
 

@@ -5,7 +5,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { WalletStore, taipeiDay } from '../server/wallet.js';
+import { WalletStore, taipeiDay } from '../server/wallet/wallet.js';
 const v1=LEGACY_MODELS['kemet-20-v1'];
 const v2=LEGACY_MODELS['kemet-20-v2'];
 const v4=LEGACY_MODELS['circus-20-v4'];

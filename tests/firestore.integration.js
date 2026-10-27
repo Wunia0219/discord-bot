@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,rmSync} from 'node:fs';
 import {resolve,join,sep} from 'node:path';
 import {randomUUID,generateKeyPairSync,sign} from 'node:crypto';
-import {FirestoreWalletStore} from '../server/firestore-wallet.js';
-import {firestoreSettings} from '../server/firestore-settings.js';
+import {FirestoreWalletStore} from '../server/firestore/wallet.js';
+import {firestoreSettings} from '../server/firestore/settings.js';
 import {walletConfig} from '../server/config.js';
-import {createActivityServer} from '../server/app.js';
+import {createActivityServer} from '../server/http/app.js';
 import {MODEL_VERSION,roundFromStops} from '../src/game/index.js';
-import {WalletStore} from '../server/wallet.js';
-import {firestoreImportPlan,importFirestore} from '../server/firestore-import.js';
+import {WalletStore} from '../server/wallet/wallet.js';
+import {firestoreImportPlan,importFirestore} from '../server/firestore/import.js';
 import {APP_VERSION} from '../src/version.js';
 
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8787','Integration tests require the isolated local emulator');

@@ -1,4 +1,4 @@
-import {problem} from '../server/wallet-common.js';
+import {problem} from '../server/wallet/wallet-common.js';
 export const QUOTA_LIMITS=Object.freeze({
   global:{reads:40000,writes:15000,egressBytes:128*1024**2,storageBytes:128*1024**2},
   maintenance:{reads:6000,writes:1,egressBytes:32*1024**2,storageBytes:128*1024**2},

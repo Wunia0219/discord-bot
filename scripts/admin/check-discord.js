@@ -1,6 +1,6 @@
 import {readFileSync,existsSync} from 'node:fs';
 import {parseEnv} from 'node:util';
-import {checkDiscordReadiness} from '../../server/discord-readiness.js';
+import {checkDiscordReadiness} from '../../server/discord/discord-readiness.js';
 const args=process.argv.slice(2);let offline=false,discord=false,origin,cloud=false;
 for(let i=0;i<args.length;i++){
   if(args[i]==='--offline')offline=true;

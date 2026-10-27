@@ -32,7 +32,8 @@
     "test:firestore": "node scripts/admin/test-firestore.js",
     "test": "node --test tests/*.test.js",
     "test:bot": "node --test tests/bot-interactions.test.js tests/commands.test.js tests/entry-point.test.js tests/highlights.test.js tests/activity-server.test.js tests/wallet.test.js tests/wallet-service.test.js tests/database.test.js tests/database-audit.test.js tests/operations.test.js tests/firestore-quota.test.js tests/deferred-command.test.js",
-    "assets:webp": "python scripts/assets/optimize-images.py",
+    "assets:webp": "python scripts/assets/optimize-images.py --write",
+    "assets:audit": "python scripts/assets/optimize-images.py",
     "verify:math": "node scripts/game/verify-math.js",
     "verify:sessions": "node scripts/game/verify-sessions.js",
     "export:model": "node scripts/game/export-model.js",
@@ -45,7 +46,11 @@
     "monitor:build": "node scripts/admin/cloud-local.js monitor-build",
     "test:monitor": "node scripts/admin/cloud-local.js monitor-test",
     "validation:start": "node scripts/admin/validation-server.js",
-    "validation:test": "node --test tests/local-wallet.test.js tests/wallet-client.test.js tests/spin-controls.test.js tests/spin-shortcut.test.js"
+    "validation:test": "node --test tests/local-wallet.test.js tests/wallet-client.test.js tests/spin-controls.test.js tests/spin-shortcut.test.js",
+    "test:reset": "node scripts/admin/cloud-local.js reset-test",
+    "test:experience": "node scripts/qa/reel-experience.js",
+    "test:security": "node scripts/qa/security-smoke.js",
+    "testdata:reset": "node scripts/admin/reset-test-data.js"
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "2.5.0",

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { WalletStore } from '../server/wallet.js';
-import { WalletService } from '../server/wallet-service.js';
+import { WalletStore } from '../server/wallet/wallet.js';
+import { WalletService } from '../server/wallet/wallet-service.js';
 const guild='1441097301685698703',user='1561284960986599626';
 test('sessions bind identity verified by Discord to an allowed guild, expire and recheck membership',async t=>{
  let now=Date.now(),member=true;

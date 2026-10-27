@@ -1,7 +1,7 @@
 import {createWalletSync} from './wallet-sync.js';
 
 export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.sessionStorage,{clock=()=>performance.now(),wait=delay=>new Promise(resolve=>globalThis.setTimeout(resolve,delay))}={}){
-  const key=`kemet-pending:${session.guildId}:${session.userId}`;
+  const key=`kemet-pending:${session.guildId}:${session.userId}${session.walletEpoch?":"+session.walletEpoch:""}`;
   let pending,nextSpinAt=0,spinPromise=null,statePromise=null,latestState=null;
   const validDelay=value=>Number.isFinite(value)&&value>0&&value<=60000;
   try{pending=JSON.parse(storage?.getItem(key)||'null');}catch{pending=null;}
@@ -9,8 +9,8 @@ export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.se
   const persist=()=>{try{if(pending)storage?.setItem(key,JSON.stringify(pending));else storage?.removeItem(key);}catch{}};
   async function request(path,body,{deferHistory=false}={}){
     let response;
-    try{response=await fetchImpl(path,{method:body?'POST':'GET',headers:{Authorization:`Bearer ${session.token}`,'X-Wallet-View':'compact-v1',...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(20000),cache:'no-store'});}
-    catch{throw new Error('網路暫時中斷。下一次按 SPIN 會先確認上一筆結果，不會重複下注。');}
+    try{response=await fetchImpl(path,{method:body?'POST':'GET',headers:{Authorization:`Bearer ${session.token}`,'X-Wallet-View':'compact-v1',...(session.walletEpoch?{'X-Wallet-Epoch':session.walletEpoch}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(20000),cache:'no-store'});}
+    catch{throw new Error('網路中斷，請再按 SPIN 確認上一局，不會重複下注。');}
     let data;try{data=await response.json();}catch{throw new Error('服務回應中斷，請稍後重試。');}
     if(!response.ok){
       const error=new Error(data.error||'服務暫時無法使用。');error.status=response.status;

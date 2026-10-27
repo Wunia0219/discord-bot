@@ -6,8 +6,8 @@ import {join,resolve} from 'node:path';
 import {randomBytes,randomUUID} from 'node:crypto';
 import {SnapshotVault,auditSnapshot,digest,manifestDigest} from '../cloud/snapshot.js';
 import {CloudState,Sealer} from '../cloud/storage.js';
-import {WalletStore} from '../server/wallet.js';
-import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot} from '../server/cloud-handoff.js';
+import {WalletStore} from '../server/wallet/wallet.js';
+import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot} from '../server/recovery/cloud-handoff.js';
 
 function fixture(t){
   const root=resolve('test-results/segmented');mkdirSync(root,{recursive:true});const dir=mkdtempSync(join(root,'case-')),sql=new DatabaseSync(join(dir,'vault.sqlite'));t.after(()=>sql.close());let nesting=0;

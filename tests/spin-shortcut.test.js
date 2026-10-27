@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { installSpinShortcut } from '../src/ui/spin-shortcut.js';
-import { SpinControls } from '../src/ui/spin-controls.js';
+import { installSpinShortcut } from '../src/ui/reels/spin-shortcut.js';
+import { SpinControls } from '../src/ui/reels/spin-controls.js';
 
 function fixture(){
   const target=new EventTarget();target.defaultView=new EventTarget();

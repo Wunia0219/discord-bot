@@ -1,5 +1,5 @@
-import {operationsSettings} from '../../server/operations-settings.js';
-import {checkOperationsStatus} from '../../server/operations-status.js';
+import {operationsSettings} from '../../server/operations/operations-settings.js';
+import {checkOperationsStatus} from '../../server/operations/operations-status.js';
 
 const port=Number(process.env.PORT||4188);
 if(!Number.isInteger(port)||port<1||port>65535)throw new Error('Invalid PORT');

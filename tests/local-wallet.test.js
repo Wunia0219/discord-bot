@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createActivityServer } from '../server/app.js';
-import { localTestWalletConfig, isLocalTestRequest } from '../server/local-test-wallet.js';
+import { createActivityServer } from '../server/http/app.js';
+import { localTestWalletConfig, isLocalTestRequest } from '../server/testing/local-test-wallet.js';
 import { connectLocalWallet } from '../src/platform/local-wallet.js';
-import { inspectWalletDatabase } from '../server/database.js';
+import { inspectWalletDatabase } from '../server/sqlite/database.js';
 
 test('local sessions are unavailable unless explicitly enabled on a test database and loopback host',()=>{
   for(const env of [ {},{APP_ENV:'production',HOST:'127.0.0.1',WALLET_ENABLED:'true',DATABASE_PATH:':memory:'},
@@ -53,6 +53,8 @@ test('acceptance fixtures stay isolated and never reset balances or checkins on 
   const initial=wallet.localOverview();
   assert.deepEqual(initial.profiles.map(profile=>profile.balance),[10000,10000,50,0]);
   assert.ok(initial.profiles.every(profile=>profile.claimed===false&&profile.rounds===0));
+  assert.ok(initial.profiles.every(profile=>profile.created===false));
+  assert.equal(wallet.store.db.prepare('SELECT COUNT(*) n FROM wallets').get().n,0);
   const sessions={};
   for(const key of ['qa-a','qa-b','qa-low','qa-zero']){
     const login=wallet.service.createLocal(key);sessions[key]=await wallet.service.authorize('Bearer '+login.session.token);
@@ -98,7 +100,7 @@ test('local game uses persisted server wallets, daily idempotency and saved roun
   assert.equal((await request('/api/wallet')).status,401);
   const activity=await (await request('/api/local-session',loginOptions)).json();
   assert.equal(activity.mode,'local');assert.equal(activity.session.userId,'100000000000000002');
-  const headers={Origin:origin,'Content-Type':'application/json',Authorization:'Bearer '+activity.session.token};
+  const headers={Origin:origin,'Content-Type':'application/json',Authorization:'Bearer '+activity.session.token,'X-Wallet-Epoch':activity.session.walletEpoch};
   assert.equal((await request('/api/wallet',{headers:{...headers,'x-forwarded-for':'1.2.3.4'}})).status,403);
   const initial=await (await request('/api/wallet',{headers})).json();assert.equal(initial.state.balance,10000);
   for(let i=0;i<2;i++)assert.equal((await request('/api/checkin',{method:'POST',headers,body:'{}'})).status,200);
@@ -112,7 +114,7 @@ test('local game uses persisted server wallets, daily idempotency and saved roun
   wallet.store=restored.store;wallet.service=restored.service;
   assert.equal((await request('/api/wallet',{headers})).status,401);
   const second=await (await request('/api/local-session',loginOptions)).json();
-  const saved=await (await request('/api/wallet',{headers:{Authorization:'Bearer '+second.session.token}})).json();
+  const saved=await (await request('/api/wallet',{headers:{Authorization:'Bearer '+second.session.token,'X-Wallet-Epoch':second.session.walletEpoch}})).json();
   assert.equal(saved.state.balance,spin.state.balance);assert.equal(saved.state.claimed,true);
   assert.equal(saved.state.history[0].id,spin.round.id);
 });

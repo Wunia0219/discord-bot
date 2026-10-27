@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { configureQuietLaunch } from '../server/entry-point.js';
+import { configureQuietLaunch } from '../server/discord/entry-point.js';
 
 const clientId = '100000000000000001', entryId = '100000000000000002';
 test('quiet launch patches only the global Activity handler and verifies the result', async () => {

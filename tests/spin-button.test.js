@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {bindSpinButton} from '../src/ui/spin-button.js';
-import {SpinControls} from '../src/ui/spin-controls.js';
+import {bindSpinButton} from '../src/ui/reels/spin-button.js';
+import {SpinControls} from '../src/ui/reels/spin-controls.js';
 
 class Button extends EventTarget{
   disabled=true;attributes={};classList={toggle(){}};

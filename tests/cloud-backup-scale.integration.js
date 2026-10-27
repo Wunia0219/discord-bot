@@ -5,17 +5,17 @@ import {mkdirSync,mkdtempSync,writeFileSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {randomUUID,randomBytes} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
-import {WalletStore} from '../server/wallet.js';
-import {FirestoreWalletStore} from '../server/firestore-wallet.js';
-import {firestoreImportPlan,importFirestore} from '../server/firestore-import.js';
-import {FirestoreWalletCore} from '../server/firestore-wallet-core.js';
+import {WalletStore} from '../server/wallet/wallet.js';
+import {FirestoreWalletStore} from '../server/firestore/wallet.js';
+import {firestoreImportPlan,importFirestore} from '../server/firestore/import.js';
+import {FirestoreWalletCore} from '../server/firestore/wallet-core.js';
 import {FirestoreRest} from '../cloud/firestore-rest.js';
 import {CloudState,Sealer} from '../cloud/storage.js';
 import {CloudQuota,QUOTA_LIMITS} from '../cloud/quota.js';
 import {SnapshotVault} from '../cloud/snapshot.js';
-import {SettlementQueue} from '../server/settlement-queue.js';
+import {SettlementQueue} from '../server/wallet/settlement-queue.js';
 import {CloudBackup} from '../cloud/backup.js';
-import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot} from '../server/cloud-handoff.js';
+import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot} from '../server/recovery/cloud-handoff.js';
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8787');
 
 test('20-player 1000-round incremental backup fits unchanged maintenance cap and restores every original result',async t=>{

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readAuditPage} from '../server/firestore-history.js';
+import {readAuditPage} from '../server/firestore/history.js';
 
 const days=Array.from({length:30},(_,i)=>`2026-09-${String(30-i).padStart(2,'0')}`);
 function fixture(entries,category='game'){

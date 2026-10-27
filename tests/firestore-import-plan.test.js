@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,rmSync,existsSync} from 'node:fs';
 import {resolve,join,sep} from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {WalletStore} from '../server/wallet.js';
-import {firestoreImportPlan} from '../server/firestore-import.js';
-import {decodeHistory} from '../server/firestore-schema.js';
-import {firestoreSettings} from '../server/firestore-settings.js';
-import {assertHighlightEvent,assertHighlightBoard} from '../server/firestore-highlight-data.js';
+import {WalletStore} from '../server/wallet/wallet.js';
+import {firestoreImportPlan} from '../server/firestore/import.js';
+import {decodeHistory} from '../server/firestore/schema.js';
+import {firestoreSettings} from '../server/firestore/settings.js';
+import {assertHighlightEvent,assertHighlightBoard} from '../server/firestore/highlight-data.js';
 
 function source(t){
   const root=resolve('test-results/firestore-plans');mkdirSync(root,{recursive:true});const directory=mkdtempSync(join(root,'case-'));

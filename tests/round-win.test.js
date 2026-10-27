@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { presentRoundWin } from '../src/ui/round-win.js';
+import { presentRoundWin } from '../src/ui/wins/round-win.js';
 import { BETS } from '../src/game/index.js';
 
 test('whole-round winnings select one matching sound and presentation at every payout boundary',()=>{

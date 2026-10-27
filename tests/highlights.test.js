@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { WalletStore } from '../server/wallet.js';
-import { Highlights, highlightsConfig } from '../server/highlights.js';
-import { highlightCard, highlightTier, HIGHLIGHT_WINDOW_MS, HIGHLIGHT_INTERVAL_MS, HIGHLIGHT_MAX_AGE_MS } from '../server/highlight-card.js';
+import { WalletStore } from '../server/wallet/wallet.js';
+import { Highlights, highlightsConfig } from '../server/discord/highlights.js';
+import { highlightCard, highlightTier, HIGHLIGHT_WINDOW_MS, HIGHLIGHT_INTERVAL_MS, HIGHLIGHT_MAX_AGE_MS } from '../server/discord/highlight-card.js';
 import { roundFromStops } from '../src/game/index.js';
 import { readFileSync } from 'node:fs';
 

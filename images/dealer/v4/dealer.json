@@ -5101,7 +5101,7 @@
     "newWinRuntimeReport": "test-results/dealer-win/r6/runtime-review.json",
     "postCleanupVerification": "test-results/dealer-win/r6/post-cleanup-verification.json",
     "summary": "test-results/dealer-win/r6/review-summary.json",
-    "limitations": "Historical R6 regional art/playback review retained. Main-game integration is recorded in docs/dealer-animation.md; no physical mobile device QA or deployment.",
+    "limitations": "Historical R6 regional art/playback review retained. Main-game integration is recorded in docs/assets.md; no physical mobile device QA or deployment.",
     "calibrationReason": "R5 frame-seam checks did not establish natural gesture cadence; user rejected the hand motion. R6 removes reverse preparation/flat extension, reduces 15 to 6.5 degrees and replaces separate ramps with a continuous arm-after-body arc."
   },
   "motionRevision": 6,

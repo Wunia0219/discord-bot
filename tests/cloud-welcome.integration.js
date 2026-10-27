@@ -4,17 +4,17 @@ import {DatabaseSync} from 'node:sqlite';
 import {mkdirSync,mkdtempSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {randomBytes,randomUUID} from 'node:crypto';
-import {WalletStore} from '../server/wallet.js';
-import {FirestoreWalletStore} from '../server/firestore-wallet.js';
-import {FirestoreWalletCore} from '../server/firestore-wallet-core.js';
-import {firestoreImportPlan,importFirestore} from '../server/firestore-import.js';
-import {SettlementQueue} from '../server/settlement-queue.js';
+import {WalletStore} from '../server/wallet/wallet.js';
+import {FirestoreWalletStore} from '../server/firestore/wallet.js';
+import {FirestoreWalletCore} from '../server/firestore/wallet-core.js';
+import {firestoreImportPlan,importFirestore} from '../server/firestore/import.js';
+import {SettlementQueue} from '../server/wallet/settlement-queue.js';
 import {FirestoreRest} from '../cloud/firestore-rest.js';
 import {CloudBackup} from '../cloud/backup.js';
 import {CloudQuota,QUOTA_LIMITS} from '../cloud/quota.js';
 import {CloudState,Sealer} from '../cloud/storage.js';
 import {SnapshotVault} from '../cloud/snapshot.js';
-import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot} from '../server/cloud-handoff.js';
+import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot} from '../server/recovery/cloud-handoff.js';
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8787');
 
 test('production REST opening credits back up and restore without refilling legacy zero wallets or issuing a second welcome',async t=>{

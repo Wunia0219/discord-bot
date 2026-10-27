@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { gameLayoutMode, desktopGameScale } from '../src/ui/responsive-layout.js';
+import { gameLayoutMode, desktopGameScale } from '../src/ui/shared/responsive-layout.js';
 
 test('Discord platform determines composition independently of window size or input hardware', () => {
   assert.equal(gameLayoutMode('?platform=desktop', true), 'desktop');

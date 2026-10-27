@@ -21,7 +21,7 @@ test('cancelled consent never calls the backend and never exposes raw SDK errors
   await assert.rejects(authenticateActivity({commands:{authorize:async()=>{throw new Error('sensitive-provider-detail');}}},id,()=>assert.fail('must not fetch')),error=>/授權尚未完成/.test(error.message)&&!error.message.includes('sensitive'));
 });
 test('backend failures cannot proceed to SDK authenticate or leak response details', async () => {
-  await assert.rejects(authenticateActivity({commands:{authorize:async()=>({code:'test'}),authenticate:()=>assert.fail('must not authenticate')}},id,async()=>Response.json({error:'private'}, {status:503})),/登入服務暫時無法使用/);
+  await assert.rejects(authenticateActivity({commands:{authorize:async()=>({code:'test'}),authenticate:()=>assert.fail('must not authenticate')}},id,async()=>Response.json({error:'private'}, {status:503})),/暫時無法登入/);
 });
 test('SDK must return a valid identity before login is accepted', async () => {
   await assert.rejects(authenticateActivity({commands:{authorize:async()=>({code:'test'}),authenticate:async()=>null}},id,async()=>Response.json({access_token:'token'})),/身分驗證失敗/);

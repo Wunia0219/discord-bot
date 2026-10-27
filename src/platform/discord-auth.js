@@ -1,4 +1,4 @@
-// Phase 2 authenticates identity only. Wallets and history are still local test data.
+// Exchange Discord identity for a server-owned wallet session when enabled.
 export async function authenticateActivity(sdk, clientId, fetchImpl = fetch, walletEnabled=false) {
   if(walletEnabled&&!sdk.guildId)throw new Error('請從伺服器頻道開啟遊戲；伺服器錢包不支援私訊。');
   let code;
@@ -15,7 +15,7 @@ export async function authenticateActivity(sdk, clientId, fetchImpl = fetch, wal
     if (!response.ok) throw new Error('Token exchange failed');
     ({ access_token:accessToken, session } = await response.json());
     if (typeof accessToken !== 'string' || !accessToken) throw new Error('Missing token');
-  } catch { throw new Error('登入服務暫時無法使用，請確認後端已啟動，再重新開啟活動。'); }
+  } catch { throw new Error('暫時無法登入，請稍後重新開啟遊戲。'); }
   try {
     const auth = await sdk.commands.authenticate({ access_token:accessToken });
     if (!/^\d{17,20}$/.test(auth?.user?.id || '') || typeof auth.user.username !== 'string') throw new Error('Missing identity');

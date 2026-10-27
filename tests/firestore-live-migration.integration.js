@@ -4,14 +4,14 @@ import {DatabaseSync} from 'node:sqlite';
 import {mkdtempSync,mkdirSync,rmSync,writeFileSync} from 'node:fs';
 import {resolve,join,sep} from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {FirestoreWalletStore} from '../server/firestore-wallet.js';
-import {FirestoreQuota} from '../server/firestore-quota.js';
-import {firestoreSettings} from '../server/firestore-settings.js';
-import {firestoreImportPlan,importFirestore} from '../server/firestore-import.js';
-import {operationsSettings} from '../server/operations-settings.js';
-import {performFirestoreMaintenance,MaintenanceQuota} from '../server/firestore-backup.js';
-import {checksum} from '../server/automatic-backup.js';
-import {taipeiDay} from '../server/wallet.js';
+import {FirestoreWalletStore} from '../server/firestore/wallet.js';
+import {FirestoreQuota} from '../server/firestore/quota.js';
+import {firestoreSettings} from '../server/firestore/settings.js';
+import {firestoreImportPlan,importFirestore} from '../server/firestore/import.js';
+import {operationsSettings} from '../server/operations/operations-settings.js';
+import {performFirestoreMaintenance,MaintenanceQuota} from '../server/firestore/backup.js';
+import {checksum} from '../server/recovery/automatic-backup.js';
+import {taipeiDay} from '../server/wallet/wallet.js';
 
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8787');
 

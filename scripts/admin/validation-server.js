@@ -1,7 +1,7 @@
 import {build} from 'vite';
 import {resolve} from 'node:path';
-import {createActivityServer} from '../../server/app.js';
-import {localTestWalletConfig} from '../../server/local-test-wallet.js';
+import {createActivityServer} from '../../server/http/app.js';
+import {localTestWalletConfig} from '../../server/testing/local-test-wallet.js';
 
 // Never load .env files or forward inherited credentials to the test backend.
 const port=4192,distDir=resolve('test-results/validation-dist');

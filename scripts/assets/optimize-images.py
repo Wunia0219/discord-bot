@@ -1,95 +1,73 @@
-"""Migrate project PNGs to compressed WebP and remove verified PNG originals.
-
-Art/QA sources use exact lossless RGBA. The game background uses quality 90
-with exact alpha. Dependencies and Git internals are never touched.
-Run: npm run assets:webp
-"""
+"""Audit tracked artwork; --write keeps smaller files after exact RGBA comparison."""
+import argparse
 from concurrent.futures import ThreadPoolExecutor
+from io import BytesIO
 import hashlib
 import json
-import os
 from pathlib import Path
-from PIL import Image, features
+import subprocess
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
-EXCLUDED = {'.git', 'node_modules', '.venv', 'venv'}
-REPORT = ROOT / 'test-results/image-compression.json'
 
+def digest(data):
+    return hashlib.sha256(data).hexdigest()
 
-def png_files():
-    for directory, children, names in os.walk(ROOT):
-        children[:] = [name for name in children if name not in EXCLUDED]
-        for name in names:
-            path = Path(directory) / name
-            if path.suffix.lower() == '.png':
-                yield path
-
-
-def encode(source):
-    source = source.resolve()
-    source.relative_to(ROOT)  # Refuse any resolved target outside the project.
-    target = source.with_suffix('.webp').resolve()
-    target.relative_to(ROOT)
-    lossless = source.relative_to(ROOT).as_posix() != 'images/jokers-circus/circus-background.png'
-    before = source.stat().st_size
-    digest = hashlib.sha256(source.read_bytes()).hexdigest()
-    with Image.open(source) as image:
-        original = image.convert('RGBA')
-    size = original.size
-
-    def verify():
-        if not target.exists():
-            return False
-        with Image.open(target) as decoded:
-            if decoded.format != 'WEBP' or decoded.size != size:
-                return False
-            rgba = decoded.convert('RGBA')
-            return (rgba.tobytes() == original.tobytes() if lossless else
-                    rgba.getchannel('A').tobytes() == original.getchannel('A').tobytes())
-
-    if not verify():
-        temporary = target.with_name(target.name + '.tmp')
-        try:
-            original.save(temporary, format='WEBP', lossless=lossless,
-                          quality=100 if lossless else 90, method=6, exact=True)
-            temporary.replace(target)
-        finally:
-            temporary.unlink(missing_ok=True)
-    if not verify():
-        raise ValueError(f'WebP verification failed; PNG retained: {source}')
-    original.close()
-    after = target.stat().st_size
-    source.unlink()
-    return {'source': source.relative_to(ROOT).as_posix(),
-            'webp': target.relative_to(ROOT).as_posix(), 'size': list(size),
-            'lossless': lossless, 'quality': None if lossless else 90,
-            'alphaExact': True, 'rgbaExact': lossless,
-            'sourceSha256': digest, 'beforeBytes': before, 'afterBytes': after,
-            'pngRemoved': True}
-
+def audit(name, write):
+    path = ROOT / name
+    path.resolve().relative_to(ROOT)
+    if path.is_symlink():
+        raise ValueError(f'Refusing linked asset: {name}')
+    original = path.read_bytes()
+    with Image.open(BytesIO(original)) as image:
+        frames = getattr(image, 'n_frames', 1)
+        metadata = any(image.info.get(key) for key in ('icc_profile', 'exif', 'xmp'))
+        rgba = image.convert('RGBA')
+        pixels = rgba.tobytes()
+        record = dict(file=name, format=image.format, size=list(image.size), frames=frames,
+                      beforeBytes=len(original), afterBytes=len(original), sha256=digest(original),
+                      rgbaSha256=digest(pixels), changed=False)
+    record['lossySource'] = b'VP8 ' in original if path.suffix == '.webp' else False
+    # Preserve animated files' frame timing and disposal metadata.
+    if frames != 1 or metadata:
+        record['status'] = 'metadata-preserved' if metadata else 'animated-preserved'
+        return record
+    candidate = BytesIO()
+    if path.suffix == '.webp':
+        rgba.save(candidate, 'WEBP', lossless=True, exact=True, quality=75, method=4)
+    else:
+        rgba.save(candidate, 'PNG', optimize=True)
+    encoded = candidate.getvalue()
+    with Image.open(BytesIO(encoded)) as check:
+        if check.size != rgba.size or check.convert('RGBA').tobytes() != pixels:
+            raise ValueError(f'Pixel mismatch: {name}')
+    record['candidateBytes'] = len(encoded)
+    record['status'] = 'already-smaller' if len(encoded) >= len(original) else 'smaller-verified'
+    if write and len(encoded) < len(original):
+        path.write_bytes(encoded)
+        record.update(afterBytes=len(encoded), sha256=digest(encoded), changed=True)
+    return record
 
 def main():
-    if not features.check('webp'):
-        raise RuntimeError('Pillow must include WebP support')
-    paths = sorted(png_files())
-    if not paths:
-        print('No project PNGs remain; existing WebP files preserved.')
-        return
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--write', action='store_true')
+    args = parser.parse_args()
+    tracked = subprocess.check_output(['git', 'ls-files', '-z', '--', 'images', 'art'], cwd=ROOT).decode().split('\0')
+    names = sorted(name for name in tracked if Path(name).suffix.lower() in {'.png', '.webp'})
     records = []
-    REPORT.parent.mkdir(exist_ok=True)
+    report = ROOT / 'test-results/image-compression.json'
+    report.parent.mkdir(exist_ok=True)
     try:
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            for record in pool.map(encode, paths):
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            for record in pool.map(lambda name: audit(name, args.write), names):
                 records.append(record)
-                if len(records) % 20 == 0:
-                    print(f'Verified and removed {len(records)}/{len(paths)} PNGs', flush=True)
+                if len(records) % 5 == 0:
+                    print(f'Verified {len(records)}/{len(names)}', flush=True)
     finally:
-        REPORT.write_text(json.dumps(records, indent=2) + '\n', encoding='utf8')
-    print(json.dumps({'pngRemoved': len(records),
-                      'beforeBytes': sum(row['beforeBytes'] for row in records),
-                      'webpBytes': sum(row['afterBytes'] for row in records),
-                      'remainingPng': len(list(png_files())), 'report': str(REPORT)}))
-
+        report.write_text(json.dumps(records, indent=2) + '\n', encoding='utf8')
+    print(json.dumps(dict(verified=len(records), changed=sum(r['changed'] for r in records),
+                         savedBytes=sum(r['beforeBytes']-r['afterBytes'] for r in records),
+                         lossySources=[r['file'] for r in records if r['lossySource']], report=str(report))))
 
 if __name__ == '__main__':
     main()

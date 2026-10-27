@@ -1,5 +1,5 @@
 import {resolve} from 'node:path';
-import {createBackupKey,exportPortableBackup,verifyPortableBackup,restorePortableBackup} from '../../server/portable-backup.js';
+import {createBackupKey,exportPortableBackup,verifyPortableBackup,restorePortableBackup} from '../../server/recovery/portable-backup.js';
 
 const usage='Usage: backup:portable -- keygen --key-file <private file> | export --from <sqlite> --to <archive> --key-file <file> --environment test|production | verify --from <archive> --key-file <file> --environment test|production | restore --from <archive> --to <new sqlite> --key-file <file> --environment test|production';
 try{

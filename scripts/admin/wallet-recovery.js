@@ -5,7 +5,7 @@ import {parseEnv} from 'node:util';
 import {resolve,join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {downloadRecoveryArchive,recoverySummary,sendRecoveryNotification} from '../../server/wallet-recovery.js';
+import {downloadRecoveryArchive,recoverySummary,sendRecoveryNotification} from '../../server/recovery/wallet-recovery.js';
 
 const [operation,...args]=process.argv.slice(2),flags=new Map();
 const allowed=['--env','--archive','--key-file','--out','--environment','--project','--namespace','--guild','--notify-webhook-file','--notify-guild','--notify-channel'];

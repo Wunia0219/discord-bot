@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BETS, PAYTABLE, BET_DIVISOR } from '../src/game/index.js';
-import { rulesExample } from '../src/ui/rules-example.js';
+import { rulesExample } from '../src/ui/dialogs/rules-example.js';
 import { waysOracle } from './helpers/ways-oracle.js';
 import { SYMBOLS } from '../src/game/symbols.js';
 

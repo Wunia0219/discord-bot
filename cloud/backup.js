@@ -1,8 +1,8 @@
 import {randomUUID} from 'node:crypto';
-import {isOpeningKind} from '../server/wallet-opening.js';
+import {isOpeningKind} from '../server/wallet/wallet-opening.js';
 import {isDeepStrictEqual} from 'node:util';
 import {digest} from './snapshot.js';
-import {highlightBoardRecord} from '../server/firestore-highlight-data.js';
+import {highlightBoardRecord} from '../server/firestore/highlight-data.js';
 import {FirestoreRest} from './firestore-rest.js';
 const unpack=d=>{if(!d.exists)throw new Error('Backup document missing');return JSON.parse(d.get('json'));};
 // Each step uses at most 20 new ledger entries and the SAME Firestore readTime.

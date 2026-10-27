@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {generateKeyPairSync,sign} from 'node:crypto';
-import {completeDeferredCommand} from '../server/deferred-command.js';
-import {createActivityServer} from '../server/app.js';
+import {completeDeferredCommand} from '../server/discord/deferred-command.js';
+import {createActivityServer} from '../server/http/app.js';
 const application='100000000000000001',user='100000000000000002';
 const interaction=()=>({type:2,id:'100000000000000003',application_id:application,token:'private-fixture-token-12345',guild_id:application,
   member:{user:{id:user},permissions:'0'},data:{name:'戲籌'}});
@@ -28,7 +28,7 @@ test('rate limits respect bounded retry waits and permanent failures do not retr
 test('asynchronous provider failures produce a private natural reply without diagnostic text',async()=>{
   const w=wallet();w.store.state=async()=>{throw new Error('credential-private-path provider-token');};let body;
   await completeDeferredCommand(interaction(),w,{fetchImpl:async(url,options)=>{body=options.body;return new Response('{}',{status:200});}});
-  assert.doesNotMatch(body,/credential-private-path|provider-token/);assert.match(body,/再試一次/);
+  assert.doesNotMatch(body,/credential-private-path|provider-token/);assert.match(body,/再試/);
 });
 test('signed cloud commands acknowledge before a delayed database call completes',async t=>{
   let finish,calls=0;const w=wallet();w.store.state=()=>new Promise(resolve=>{finish=resolve;});

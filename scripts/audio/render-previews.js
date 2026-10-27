@@ -1,5 +1,5 @@
 import {mkdirSync,writeFileSync} from 'node:fs';
-import {cueVoices,EFFECTS_VOLUME,EFFECTS_PITCH_RATIO} from '../../src/ui/audio-cues.js';
+import {cueVoices,EFFECTS_VOLUME,EFFECTS_PITCH_RATIO} from '../../src/ui/audio/audio-cues.js';
 
 const sampleRate=44100;
 const output='test-results/audio';

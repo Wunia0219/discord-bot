@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {mkdtempSync,mkdirSync,rmSync,writeFileSync,readFileSync,existsSync} from 'node:fs';
 import {resolve,join,sep} from 'node:path';
-import {operationsSettings} from '../server/operations-settings.js';
-import {MaintenanceQuota,performFirestoreMaintenance} from '../server/firestore-backup.js';
-import {FirestoreQuota} from '../server/firestore-quota.js';
-import {WalletStore} from '../server/wallet.js';
-import {checksum} from '../server/automatic-backup.js';
-import {Operations} from '../server/operations.js';
+import {operationsSettings} from '../server/operations/operations-settings.js';
+import {MaintenanceQuota,performFirestoreMaintenance} from '../server/firestore/backup.js';
+import {FirestoreQuota} from '../server/firestore/quota.js';
+import {WalletStore} from '../server/wallet/wallet.js';
+import {checksum} from '../server/recovery/automatic-backup.js';
+import {Operations} from '../server/operations/operations.js';
 
 function fixture(t,extra={}){
   const root=resolve('test-results/firestore-operations');mkdirSync(root,{recursive:true});const directory=mkdtempSync(join(root,'case-'));

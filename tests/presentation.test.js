@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reelAnimation, reelOffset, reelSpeed, reelBounceOffset, REEL_BOUNCE_MS, roundFeedbackTiming, REEL_SETTLE_MS, WIN_HOLD_MS, WinCycle } from '../src/ui/presentation.js';
+import { reelAnimation, reelOffset, reelSpeed, reelBounceOffset, REEL_BOUNCE_MS, roundFeedbackTiming, REEL_SETTLE_MS, WIN_HOLD_MS, WinCycle } from '../src/ui/reels/presentation.js';
 import { REEL_STRIPS, INITIAL_STOPS, gridFromStops } from '../src/game/slot-math.js';
-import { WinSymbolPop, SYMBOL_POP_MS } from '../src/ui/presentation.js';
+import { WinSymbolPop, SYMBOL_POP_MS } from '../src/ui/reels/presentation.js';
 
 test('winning symbols pop twice, settle, and restart on every line display',()=>{
   const pop = new WinSymbolPop();

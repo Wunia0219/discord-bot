@@ -1,5 +1,5 @@
-import { databaseSettings } from '../../server/database-maintenance.js';
-import { inspectWalletDatabase } from '../../server/database.js';
+import { databaseSettings } from '../../server/sqlite/database-maintenance.js';
+import { inspectWalletDatabase } from '../../server/sqlite/database.js';
 
 const settings = databaseSettings();
 const result = inspectWalletDatabase(settings.filename, settings.environment);

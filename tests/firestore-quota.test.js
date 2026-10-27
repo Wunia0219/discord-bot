@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,rmSync,writeFileSync} from 'node:fs';
 import {resolve,join,sep} from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {FirestoreQuota} from '../server/firestore-quota.js';
-import {firestoreSettings} from '../server/firestore-settings.js';
-import {operationsSettings} from '../server/operations-settings.js';
+import {FirestoreQuota} from '../server/firestore/quota.js';
+import {firestoreSettings} from '../server/firestore/settings.js';
+import {operationsSettings} from '../server/operations/operations-settings.js';
 
 function directory(t){const root=resolve('test-results/firestore-quota');mkdirSync(root,{recursive:true});const path=mkdtempSync(join(root,'case-'));
   t.after(()=>{assert.ok(path.startsWith(root+sep));rmSync(path,{recursive:true,force:true});});return path;}
@@ -25,7 +25,7 @@ test('multiple local quota connections share reservations, including uncertain f
 test('a separate Node process cannot bypass a shared quota reservation',t=>{
   const filename=join(directory(t),'quota.sqlite'),quota=new FirestoreQuota({filename,projectId:'demo-test',writes:10});quota.reserve({writes:8});
   const child=spawnSync(process.execPath,['--input-type=module','-e',
-    "import {FirestoreQuota} from './server/firestore-quota.js';const q=new FirestoreQuota({filename:process.env.TASK_QUOTA_FILE,projectId:'demo-test',writes:10});try{q.reserve({writes:3});process.exitCode=2;}catch(e){console.log(e.code);}finally{q.close();}"],
+    "import {FirestoreQuota} from './server/firestore/quota.js';const q=new FirestoreQuota({filename:process.env.TASK_QUOTA_FILE,projectId:'demo-test',writes:10});try{q.reserve({writes:3});process.exitCode=2;}catch(e){console.log(e.code);}finally{q.close();}"],
     {env:{...process.env,TASK_QUOTA_FILE:filename},encoding:'utf8',windowsHide:true});
   assert.equal(child.status,0);assert.match(child.stdout,/FIRESTORE_BUDGET/);assert.equal(quota.status().used.writes,8);quota.close();
 });

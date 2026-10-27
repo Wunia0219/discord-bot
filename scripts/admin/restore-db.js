@@ -1,5 +1,5 @@
 import { parseArgs } from 'node:util';
-import { copyWalletDatabase, databaseSettings } from '../../server/database-maintenance.js';
+import { copyWalletDatabase, databaseSettings } from '../../server/sqlite/database-maintenance.js';
 
 const { values } = parseArgs({ options: { from: { type: 'string' }, to: { type: 'string' } }, allowPositionals: false });
 if (!values.from || !values.to) throw new Error('Usage: restore-db.js --from <backup.sqlite> --to <new-database.sqlite>');

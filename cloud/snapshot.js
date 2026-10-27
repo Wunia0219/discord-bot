@@ -1,12 +1,12 @@
 import {createHash} from 'node:crypto';
 import {isDeepStrictEqual} from 'node:util';
-import {validRound} from '../server/database-audit.js';
-import {assertHighlightEvent,assertHighlightBoard} from '../server/firestore-highlight-data.js';
-import {highlightEvent} from '../server/firestore-highlight-data.js';
+import {validRound} from '../server/sqlite/database-audit.js';
+import {assertHighlightEvent,assertHighlightBoard} from '../server/firestore/highlight-data.js';
+import {highlightEvent} from '../server/firestore/highlight-data.js';
 import {auditRows} from './snapshot-audit.js';
-import {previousDay,validCheckinTransition} from '../server/weekly-checkin.js';
-import {validResetOperation,resetEntryIds} from '../server/wallet-admin.js';
-import {isOpeningKind,validWelcomeEntry} from '../server/wallet-opening.js';
+import {previousDay,validCheckinTransition} from '../server/wallet/weekly-checkin.js';
+import {validResetOperation,resetEntryIds} from '../server/wallet/wallet-admin.js';
+import {isOpeningKind,validWelcomeEntry} from '../server/wallet/wallet-opening.js';
 
 export const TABLES=['settings','wallets','ledger','operations','rounds','highlight_events','highlight_boards'];
 export const digest=value=>createHash('sha256').update(value).digest('hex');

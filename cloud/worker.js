@@ -1,12 +1,14 @@
+import {TestDataReset} from './test-data-reset.js';
 import {DurableObject} from 'cloudflare:workers';
+import {secureResponse} from '../server/http/security-headers.js';
 import {timingSafeEqual,randomUUID} from 'node:crypto';
 import {FirestoreRest} from './firestore-rest.js';
-import {FirestoreWalletCore} from '../server/firestore-wallet-core.js';
-import {FirestoreHighlights} from '../server/firestore-highlights-core.js';
-import {SettlementQueue} from '../server/settlement-queue.js';
-import {WalletService} from '../server/wallet-service.js';
-import {highlightSettings} from '../server/highlights.js';
-import {createActivityHandler} from '../server/app-handler.js';
+import {FirestoreWalletCore} from '../server/firestore/wallet-core.js';
+import {FirestoreHighlights} from '../server/firestore/highlights-core.js';
+import {SettlementQueue} from '../server/wallet/settlement-queue.js';
+import {WalletService} from '../server/wallet/wallet-service.js';
+import {highlightSettings} from '../server/discord/highlights.js';
+import {createActivityHandler} from '../server/http/app-handler.js';
 import {CloudState,CloudSessions,CloudLoginLimit,Sealer} from './storage.js';
 import {CloudQuota} from './quota.js';
 import {auditSnapshot,SnapshotVault,BACKUP_MAX_PARTS} from './snapshot.js';
@@ -16,7 +18,7 @@ import {MODEL_VERSION} from '../src/game/slot-math.js';
 import {audioAsset} from './audio-asset.js';
 import {handleFetch} from './http-bridge.js';
 import {APP_VERSION} from '../src/version.js';
-import {commandChannels} from '../server/discord-channel-scope.js';
+import {commandChannels} from '../server/discord/discord-channel-scope.js';
 import {operationsHealth} from './operations-health.js';
 
 // Workers supports manual redirects; every caller rejects non-2xx responses.
@@ -46,7 +48,7 @@ export class CircusProject extends DurableObject {
     const transport=()=>new FirestoreRest({...settings,credentials,fetchImpl:cloudFetch,endpoint:this.env.FIRESTORE_ENDPOINT}),options={guildIds,weeklyRewards:this.env.WEEKLY_CHECKIN_REWARDS,grantMax:Number(this.env.ADMIN_GRANT_MAX||100000),grantDaily:Number(this.env.ADMIN_DAILY_MAX||1000000)};
     const store=new FirestoreWalletCore(settings,{...options,db:transport(),quota:this.quota,settlementQueue:new SettlementQueue()});
     // Never initialize an empty remote namespace from a public request.
-    store.checkMeta(await store.read(store.meta));store.ready=true;store.readyAt=Date.now();
+    const meta=await store.read(store.meta);store.checkMeta(meta);store.walletEpoch=meta.walletEpoch;store.resetAt=meta.resetAt;store.ready=true;store.readyAt=Date.now();
     const service=new WalletService(store,{fetchImpl:cloudFetch,sessions:new CloudSessions(this.ctx.storage,sealer)}),hs=highlightSettings(this.env,store);
     const highlights=hs?new FirestoreHighlights(new FirestoreWalletCore(settings,{...options,db:transport(),quota:new CloudQuota(this.ctx.storage,this.state,{scope:'highlights'})}),{...hs,fetchImpl:cloudFetch}):null;
     if(hs)store.highlightsGuild=hs.guild;
@@ -62,7 +64,7 @@ export class CircusProject extends DurableObject {
     if(url.pathname.startsWith('/__ops/')){
       const monitorRead=url.pathname==='/__ops/status'&&request.method==='GET'&&authorized(request,this.env,'CLOUD_MONITOR_TOKEN');
       if(!authorized(request,this.env)&&!monitorRead)return json({error:'Forbidden'},403);
-      try{const operation=this.opsTail.then(()=>this.admin(url.pathname,request));this.opsTail=operation.catch(()=>{});return await operation;}catch{return json({error:'Cloud operation refused; existing data retained'},409);}
+      try{const operation=this.opsTail.then(()=>this.admin(url.pathname,request));this.opsTail=operation.catch(()=>{});return await operation;}catch{return json({error:'Cloud operation refused; inspect status before retrying'},409);}
     }
     if(url.pathname==='/healthz')return json({ok:true,version:APP_VERSION,model:MODEL_VERSION});
     if(!apiPaths.has(url.pathname))return json({error:'找不到此功能。'},404);
@@ -81,6 +83,14 @@ export class CircusProject extends DurableObject {
       return json({...status,operations:operationsHealth(status)});
     }
     if(request.method!=='POST')return json({error:'POST required'},405);
+    if(path==='/__ops/test-reset'){
+      if(settings.environment!=='test'||!this.env.TEST_DATA_RESET_ID||this.state.get('mode')!=='paused'||this.active.size)throw new Error('Test reset unavailable');
+      const input=await body(request,2*1024**2),vault=new SnapshotVault(this.ctx.storage,this.state,new Sealer(this.env.CLOUD_ENCRYPTION_KEY));
+      const reset=new TestDataReset({state:this.state,storage:this.ctx.storage,db:new FirestoreRest({...settings,credentials:JSON.parse(this.env.GOOGLE_SERVICE_ACCOUNT_JSON),fetchImpl:cloudFetch,endpoint:this.env.FIRESTORE_ENDPOINT}),quota:this.quota,vault,settings,enabledId:this.env.TEST_DATA_RESET_ID});
+      const result=input.action==='prepare'?await reset.start(input):input.action==='step'?await reset.step(input):null;
+      if(!result)throw new Error('Unknown reset action');this.instance=null;return json(result);
+    }
+    if(this.state.get('test-reset')&&this.state.get('test-reset').phase!=='complete')throw new Error('Finish test reset before other mutations');
     if(path==='/__ops/seed'){
       if(this.state.get('source'))throw new Error('Already seeded');const input=await body(request);
       if(input.projectId!==settings.projectId||input.namespace!==settings.namespace||input.writersStopped!==true)throw new Error('Stopped source required');
@@ -140,7 +150,7 @@ export class CircusProject extends DurableObject {
   }
 }
 
-export default {async fetch(request,env){
+async function routeRequest(request,env){
   const path=new URL(request.url).pathname;
   if(path.startsWith('/api/')||path.startsWith('/__ops/')||apiPaths.has(path)){
     try{const settings=identity(env);return await env.CIRCUS_PROJECT.get(env.CIRCUS_PROJECT.idFromName(settings.projectId)).fetch(request);}catch{return json({error:'服務尚未就緒。'},503);}
@@ -148,4 +158,6 @@ export default {async fetch(request,env){
   if(!['GET','HEAD'].includes(request.method))return json({error:'不支援此操作。'},405);
   if(path.startsWith('/assets/')&&path.endsWith('.mp3'))return audioAsset(request,env.ASSETS);
   return env.ASSETS.fetch(request);
-}};
+}
+
+export default {async fetch(request,env){return secureResponse(await routeRequest(request,env));}};
