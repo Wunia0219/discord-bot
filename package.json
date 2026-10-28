@@ -50,6 +50,7 @@
     "test:reset": "node scripts/admin/cloud-local.js reset-test",
     "test:experience": "node scripts/qa/reel-experience.js",
     "test:dealer": "node scripts/qa/dealer-resources.js",
+    "test:startup": "node scripts/qa/startup-resources.js",
     "test:security": "node scripts/qa/security-smoke.js",
     "testdata:reset": "node scripts/admin/reset-test-data.js"
   },

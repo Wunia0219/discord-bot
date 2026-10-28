@@ -319,6 +319,15 @@ def inspect_manifest(path, exporter, require=False):
         if missing:
             errors.append(f'Manifest missing required clips: {missing}')
     checks = {}
+    packing = manifest.get('runtimePacking')
+    region = packing['region'] if packing else {'x': 0, 'y': 0, 'w': 576, 'h': 832}
+    cell_w, cell_h = region['w'], region['h']
+    if (any(not isinstance(region.get(k), int) for k in ('x', 'y', 'w', 'h'))
+            or min(region.values()) < 0 or min(cell_w, cell_h) <= 0
+            or region['x'] + cell_w > 576 or region['y'] + cell_h > 832):
+        errors.append('Invalid shared runtime storage rectangle')
+    if packing and (packing.get('type') != 'shared-transparent-border-v1' or packing.get('grid') != [2, 2] or packing.get('padding', 0) < 8):
+        errors.append('Invalid shared runtime packing contract')
     for name, clip in manifest.get('clips', {}).items():
         keys, durations, page_checks = [], {}, []
         for page in clip.get('pages', []):
@@ -327,7 +336,7 @@ def inspect_manifest(path, exporter, require=False):
             if Path(file).name != file:
                 errors.append(f'{name}: atlas filename must be local, got {file}')
                 continue
-            expected_size = [1152, 1664]
+            expected_size = [cell_w * 2, cell_h * 2]
             actual_size = None
             atlas = path.parent / file
             if not atlas.exists():
@@ -343,13 +352,13 @@ def inspect_manifest(path, exporter, require=False):
             for key, drawing in page.get('frames', {}).items():
                 rect = drawing.get('frame', {})
                 x, y, width, height = [rect.get(field, -1) for field in ('x', 'y', 'w', 'h')]
-                if (width, height) != (576, 832) or x not in (0, 576) or y not in (0, 832):
+                if (width, height) != (cell_w, cell_h) or x not in (0, cell_w) or y not in (0, cell_h):
                     errors.append(f'{name}: invalid atlas rectangle for {key}')
                 if (x, y) in used_cells:
                     errors.append(f'{name}: overlapping atlas cell for {key}')
                 used_cells.add((x, y))
                 if (drawing.get('sourceSize') != {'w': 576, 'h': 832}
-                        or drawing.get('spriteSourceSize') != {'x': 0, 'y': 0, 'w': 576, 'h': 832}):
+                        or drawing.get('spriteSourceSize') != region):
                     errors.append(f'{name}: inconsistent full-canvas texture metadata for {key}')
                 value = drawing.get('durationMs')
                 if not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
@@ -360,7 +369,7 @@ def inspect_manifest(path, exporter, require=False):
                         errors.append(f'{name}: frame {key} duration differs from fixed 30 fps')
                 keys.append(key)
             page_checks.append({'file': file, 'size': actual_size,
-                                'estimatedRgbaBytesNoMipmaps': 1152 * 1664 * 4})
+                                'estimatedRgbaBytesNoMipmaps': expected_size[0] * expected_size[1] * 4})
         order = clip.get('order', keys)
         if len(keys) != len(set(keys)) or any(key not in durations for key in order):
             errors.append(f'{name}: duplicate drawing keys or invalid playback references')

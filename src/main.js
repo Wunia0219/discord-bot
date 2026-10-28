@@ -336,6 +336,8 @@ async function startGame() {
     if(stageProgress)loading.update(...stageProgress);
   } catch(error) {
     console.error(error);
+    showStageProgress=false;bigWin.hide();
+    void scene.destroy().catch(cleanup=>console.warn('Stage cleanup unavailable:',cleanup.message));
     const copy=playerError(error,{context:'connect'});loading.fail(copy.message);
     result(copy.title,copy.message);
     return;
@@ -350,6 +352,7 @@ async function startGame() {
     setTimeout(()=>scene.preloadDealer(),0);
   } catch(error) {
     showStageProgress=false;
+    bigWin.hide();void scene.destroy().catch(cleanup=>console.warn('Stage cleanup unavailable:',cleanup.message));
     console.error(error);const copy=playerError(error,{context:'load'});loading.fail(copy.message);result(copy.title,copy.message);
   }
 }

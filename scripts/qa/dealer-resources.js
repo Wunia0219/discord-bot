@@ -9,7 +9,7 @@ const baseline=process.argv.includes('--baseline'),out='test-results/dealer-reso
 await mkdir(out,{recursive:true});
 const observe={name:'isolated-dealer-resources',enforce:'pre',transform(source,id){
  const path=id.replaceAll('\\','/');
- if(path.endsWith('/src/ui/reels/scene.js'))return source.replace('await this.app.init(','globalThis.__qaScene=this; await this.app.init(');
+ if(path.endsWith('/src/ui/reels/scene.js'))return source.replace('await this.app.init(','globalThis.__qaScene=this; globalThis.__qaFrame=Rectangle; await this.app.init(');
  if(path.endsWith('/src/ui/dealer/dealer.js'))return source.replace('await this.uploadTextures(','globalThis.__qaResources.uploads++; await this.uploadTextures(')+`
 globalThis.__qaDealer=Dealer;globalThis.__qaAssets=Assets;
 const originalLoad=Assets.load.bind(Assets),originalUnload=Assets.unload.bind(Assets);
@@ -44,7 +44,9 @@ try{
     await d.play(name);d.sprite.stop();const clip=d.cache.get(name);pixels[name]=[];
     for(let i=0;i<clip.frames;i++){
      d.sprite.gotoAndStop(i);
-     const {pixels:rgba,width,height}=scene.app.renderer.extract.pixels({target:d.sprite,resolution:1});
+     const orig=d.sprite.texture.orig,anchor=d.sprite.anchor;
+     const frame=new __qaFrame(-anchor.x*orig.width,-anchor.y*orig.height,orig.width,orig.height);
+     const {pixels:rgba,width,height}=scene.app.renderer.extract.pixels({target:d.sprite,frame,resolution:1});
      const digest=await crypto.subtle.digest('SHA-256',rgba);
      pixels[name].push({width,height,sha256:Array.from(new Uint8Array(digest),n=>n.toString(16).padStart(2,'0')).join(''),time:clip.textures[i].time});
     }
@@ -146,7 +148,7 @@ try{
     const original=before.views.find(item=>item.name===view.name);
     assert.deepEqual(view.pixels,original.pixels,view.name+' all 204 rendered frames must match');
     assert.deepEqual(view.layout,original.layout,view.name+' anchor, placement and scale must match');
-    assert.equal(view.peakRgbaBytes,original.peakRgbaBytes,'peak atlas footprint must not increase');
+    assert.ok(view.peakRgbaBytes<=original.peakRgbaBytes,'peak atlas footprint must not increase');
     assert.deepEqual(view.cycles.map(c=>c.ticks),original.cycles.map(c=>c.ticks));
    }
    assert.equal(view.changes.winLoads,0);assert.equal(view.changes.uploads,0);assert.equal(view.changes.winUnloads,0);

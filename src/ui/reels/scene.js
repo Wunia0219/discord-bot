@@ -39,8 +39,17 @@ export class SlotScene {
   symbolPop = new WinSymbolPop();
   winningSymbols = [];
   presentationPaused = false;
+  assetUrls = new Set();
+  disposed = false;
   async init(host, onProgress = () => {}) {
+    if(this.disposed)throw new Error('Scene disposed');
+    this.initTask ||= this.prepareScene(host,onProgress);
+    return this.initTask;
+  }
+  async prepareScene(host,onProgress) {
     await this.app.init({ width: W, height: H, backgroundAlpha: 0, antialias: true, preference: 'webgl', resolution: Math.min(devicePixelRatio || 1, 2), autoDensity: true });
+    this.appInitialized=true;
+    if(this.disposed){this.app.stop();throw new Error('Scene disposed');}
     onProgress(28, '正在點亮馬戲團');
     host.append(this.app.canvas);
     this.app.canvas.setAttribute('aria-hidden', 'true');
@@ -55,8 +64,14 @@ export class SlotScene {
       uploadTextures:textures=>this.app.renderer.prepare.upload(textures),
       canRelease:()=>!this.active,
     });
-    const dealerReady=this.dealer.init().catch(error=>console.warn('Dealer artwork unavailable:',error.message));
-    const [main, symbols, winFrame] = await Promise.all([Assets.load(mainUrl).then(loaded), Assets.load(symbolsUrl).then(loaded), Assets.load(winFrameUrl), background.decode().then(loaded)]);
+    const dealerReady=this.dealer.init().catch(error=>{if(!this.disposed)console.warn('Dealer artwork unavailable:',error.message);});
+    const loadAsset=async url=>{const texture=await Assets.load(url);this.assetUrls.add(url);return texture;};
+    // Collect late successes too, so startup failure can release the entire batch.
+    const resources=await Promise.allSettled([loadAsset(mainUrl).then(loaded),loadAsset(symbolsUrl).then(loaded),loadAsset(winFrameUrl),background.decode().then(loaded),dealerReady]);
+    const failed=resources.find(resource=>resource.status==='rejected');
+    if(failed)throw failed.reason;
+    if(this.disposed)throw new Error('Scene disposed');
+    const [main,symbols,winFrame]=resources.map(resource=>resource.value);
     this.winFrameTexture = winFrame;
     this.art = textures(main, mainAtlas);
     const sheet = textures(symbols, symbolAtlas, true);
@@ -66,7 +81,6 @@ export class SlotScene {
       return [s, texture];
     }));
     this.app.stage.addChild(new Graphics().rect(GRID.x, GRID.y, GRID.w, GRID.h).fill(0x10172d));
-    await dealerReady;
     const frame = this.addArt('circus-reel-frame.png', GRID.x - 80 * GRID.w / 607, GRID.y - 90 * GRID.h / 335, 768 * GRID.w / 607);
     frame.height = 483 * GRID.h / 335;
     const ornament = new Graphics();
@@ -120,6 +134,23 @@ export class SlotScene {
     fitViewport();
     this.app.ticker.add(t => this.tick(t));
     onProgress(96, '即將進入馬戲團');
+  }
+  destroy() {
+    if(this.destroyTask)return this.destroyTask;
+    this.disposed=true;this.app.stop?.();this.resizeObserver?.disconnect();
+    this.destroyTask=(async()=>{
+      await Promise.allSettled([this.initTask].filter(Boolean));
+      this.app.stop?.();this.resizeObserver?.disconnect();
+      await this.dealer?.destroy();
+      for(const reel of this.reels)for(const spare of reel.spare||[])spare.destroy();
+      const views=new Set([...Object.values(this.art||{}),...Object.values(this.textures||{})]);
+      if(this.appInitialized)this.app.destroy({removeView:true,releaseGlobalResources:true},{children:true,texture:false,textureSource:false});
+      else {this.app.stage?.destroy({children:true});this.app.renderer?.destroy({removeView:true,releaseGlobalResources:true});}
+      for(const texture of views)texture.destroy(false);
+      await Promise.allSettled([...this.assetUrls].map(url=>Assets.unload(url)));
+      this.assetUrls.clear();this.art={};this.textures={};this.reels=[];this.particles=[];this.winningSymbols=[];this.winFrameTexture=null;
+    })();
+    return this.destroyTask;
   }
   addArt(name, x, y, width) {
     const s = new Sprite(this.art[name]); s.position.set(x, y); s.scale.set(width / s.texture.width); this.app.stage.addChild(s); return s;

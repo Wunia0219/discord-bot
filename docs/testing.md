@@ -14,6 +14,7 @@
 | `npm run test:reset` | 測試帳本清除、未知提交結果、重啟續作、舊登入拒絕 |
 | `npm run test:experience` | Edge：正常／快停、慢結果、慢歷史、慢幀與手機觸控 |
 | `npm run test:dealer` | Edge：荷官完整影格、短期重用、背景／到期釋放及故障清理 |
+| `npm run test:startup` | Edge：六種啟動失敗、立即停止渲染、晚到素材回收與重試畫面 |
 | `npm run test:security` | 先 build；Edge：CSP、腳本注入阻擋、SQLite 結算 |
 | `npm run test:monitor` | scheduled handler、持久去重、故障與恢復通知 |
 | `npm run build`、`cloud:build`、`monitor:build` | 前端與 Worker dry-run，不部署 |
