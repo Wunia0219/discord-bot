@@ -316,14 +316,24 @@ setBusy(false);
 async function startGame() {
   const loading = createLoadingScreen();
   loading.update(8, '正在連線…');
+  let stageProgress, showStageProgress=false;
+  const activityReady=connectLocalWallet(window.location).then(activity=>activity||connectActivity());
+  const stageReady=Promise.all([scene.init($('#canvas-host'),(...progress)=>{
+    stageProgress=progress;
+    if(showStageProgress)loading.update(...progress);
+  }),bigWin.prepare()]);
+  // Stage preparation may fail before login finishes; report it after connection.
+  stageReady.catch(()=>{});
   try {
-    const activity=await connectLocalWallet(window.location)||await connectActivity();
+    const activity=await activityReady;
     activityMode=activity.mode;
     activityUser=activity.user || null;
     if(activity.session){walletClient=createWalletClient(activity.session);state=(await walletClient.state()).state;renderState();}
     if(activityMode==='discord'&&import.meta.env.VITE_DISCORD_WALLET_ENABLED==='true'&&!walletClient)throw new Error('帳號錢包尚未連接，請重新開啟活動。');
     renderPlayer();
     loading.update(20, '正在準備舞台');
+    showStageProgress=true;
+    if(stageProgress)loading.update(...stageProgress);
   } catch(error) {
     console.error(error);
     const copy=playerError(error,{context:'connect'});loading.fail(copy.message);
@@ -331,7 +341,7 @@ async function startGame() {
     return;
   }
   try {
-    await Promise.all([scene.init($('#canvas-host'),loading.update),bigWin.prepare()]);
+    await stageReady;
     renderState();
     scene.setStops(restoredStops(state));
     scene.app.render();
@@ -339,6 +349,7 @@ async function startGame() {
     ready=true;setBusy(false);
     setTimeout(()=>scene.preloadDealer(),0);
   } catch(error) {
+    showStageProgress=false;
     console.error(error);const copy=playerError(error,{context:'load'});loading.fail(copy.message);result(copy.title,copy.message);
   }
 }
