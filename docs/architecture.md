@@ -25,6 +25,7 @@
 | `scripts/game/` | 數學驗算與模型匯出 |
 | `scripts/qa/`、`scripts/qa/helpers/` | 完整驗證入口、瀏覽器情境與共用啟動設定 |
 | `scripts/lib/` | 跨 CLI 的 Node 執行工具，不進產品 bundle |
+| `scripts/security/` | 鎖定版本的依賴安全回移、雜湊及建置檢查 |
 
 ## 檔案分類
 

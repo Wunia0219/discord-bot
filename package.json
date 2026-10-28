@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "postinstall": "node scripts/security/patch-discord-sdk.js",
     "dev": "vite --host 127.0.0.1 --port 4187 --strictPort",
     "build": "vite build",
     "audio:preview": "node scripts/audio/render-previews.js",
@@ -55,6 +56,7 @@
     "verify": "node scripts/qa/verify.js",
     "verify:full": "node scripts/qa/verify.js --full",
     "test:security": "node scripts/qa/security-smoke.js",
+    "test:discord-sdk": "node scripts/qa/discord-sdk.js",
     "testdata:reset": "node scripts/admin/reset-test-data.js"
   },
   "engines": {"node":"24.x"},
@@ -70,6 +72,9 @@
     "wrangler": "4.152.0"
   },
   "overrides": {
+    "@discord/embedded-app-sdk": {
+      "zod": "4.6.7"
+    },
     "undici": "7.30.1"
   }
 }

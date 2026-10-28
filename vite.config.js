@@ -1,5 +1,8 @@
 import {defineConfig} from 'vite';
 import {securityHeaders,contentSecurityPolicy} from './server/http/security-headers.js';
+import {checkDiscordSdk} from './scripts/security/patch-discord-sdk.js';
+
+checkDiscordSdk();
 
 // Static HTML may bypass the Worker; emit the same policy for the asset service.
 export default defineConfig({plugins:[{

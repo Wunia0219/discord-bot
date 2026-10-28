@@ -25,10 +25,16 @@ Client Secret、Google 私鑰、管理 token、Webhook、備份金鑰不得出�
 
 HTTPS、平台帳號 MFA、最小 IAM 權限及供應商存取紀錄由部署帳戶核對。程式回歸不等於滲透測試或供應商稽核；線上保護須以實際部署驗證。
 
-## 依賴限制
+## Discord SDK／Zod 修補
 
-2026-10-28 的 `npm audit --omit=dev` 仍回報 Discord SDK 2.5.0 使用的 Zod 3.25.76 有[大型集合驗證耗盡記憶體風險](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5)：2 個 high 相依警示，屬同一漏洞，`fixAvailable=false`。SDK 要求 Zod 3，公告修復版為 4.6.6；跨主版本替換需另驗相容性。此結果是當日紀錄，後續以重新執行 audit 為準。
+2026-10-28 修補 [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5)。保留官方 SDK **2.5.0**，其外部 Zod 相依透過 scoped override 固定為 **4.6.7**。SDK 的發布檔另內含舊 Zod，不能只靠 override 或零警示宣稱修復。
 
-SDK 在瀏覽器處理 Discord 訊息並檢查來源；後端錢包不使用 Zod，HTTP 大小限制不能修補 SDK 解析。待 SDK 相容修補後重驗 Discord 登入，此警示仍未解決。
+`npm ci` 的專案 `postinstall` 執行 `scripts/security/patch-discord-sdk.js`，對 SDK 內含的 ESM／CommonJS 驗證器回移[上游的集合大小先行檢查](https://github.com/colinhacks/zod/commit/a0ebf97)：超過 array 的 `.max()`／`.length()` 或 set 的 `.max()`／`.size()` 時，在走訪元素前拒絕。原有合法輸入、轉換、較小集合的診斷及 SDK 通訊介面保留；沒有新增玩法限制。Zod 3 的 map 沒有大小上限 API，不套用不存在的 v4 方法。
+
+SDK 的 `.d.ts` 改指向官方 `zod/v3` 相容型別；實際 JavaScript 仍使用已修補的內含驗證器，不切換到 Zod 4 API，也不將外部套件的 v3 runtime 打入遊戲。
+
+修補清單 `scripts/security/discord-sdk-patch.json` 鎖定兩份原始／修補後 SHA-256。未知版本或內容拒絕套用；Vite 建置及完整驗證入口會再次檢查，跳過安裝 scripts 時不能默默產生未修補的正式建置。這是本專案維護的安全回移，並非 Discord 已發布修正版；未來 SDK 升級須重新確認內含程式與型別，再移除或更新回移。
+
+`tests/discord-sdk-security.test.js` 驗證大量非法集合在同步／非同步模式下不走訪元素、兩種模組格式、合法資料、真實 SDK 的 READY／方向鎖定／OAuth／錢包身分與錯誤處理。稽核結果仍需定期重跑，零警示不能取代內含程式的回歸測試；未發布前，線上服務仍使用原建置。
 
 依據：[OWASP HTTP Headers](https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html)、[CSP](https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html)。

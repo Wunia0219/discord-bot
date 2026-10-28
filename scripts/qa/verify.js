@@ -1,5 +1,6 @@
 import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
 import {cloudNode,runNode} from '../lib/node-runtime.js';
+import {checkDiscordSdk} from '../security/patch-discord-sdk.js';
 
 const full=process.argv.includes('--full'),list=process.argv.includes('--list');
 if(process.argv.slice(2).some(arg=>!['--full','--list'].includes(arg)))throw new Error('Use --full and/or --list');
@@ -10,6 +11,7 @@ const steps=[
  ['前端建置',node,['node_modules/vite/bin/vite.js','build']],
  ['遊戲 Worker dry-run',node,['scripts/admin/cloud-local.js','build']],
  ['監控 Worker dry-run',node,['scripts/admin/cloud-local.js','monitor-build']],
+ ['Discord SDK 安全與登入',node,['scripts/qa/discord-sdk.js']],
  ['啟動失敗回收',node,['scripts/qa/startup-resources.js']],
  ['荷官資源與影格',node,['scripts/qa/dealer-resources.js']],
  ['數字繪製像素',node,['scripts/qa/number-rendering.js']],
@@ -23,6 +25,7 @@ if(full)steps.push(
  ['監控 workerd',integrationNode,['--test','tests/monitor-runtime.integration.js']],
 );
 if(list){for(const [label,,args] of steps)console.log(label+': node '+args.join(' '));process.exit(0);}
+checkDiscordSdk();
 if(Number(process.versions.node.split('.')[0])!==24)throw new Error('Verification requires Node.js 24; see .node-version');
 if(!existsSync(integrationNode))throw new Error('Windows ARM cloud validation requires .tools/node-x64; see docs/deployment.md');
 if(full&&!existsSync('.tools/cloud-firestore-emulator-v1.22.0.jar'))throw new Error('Run npm run firestore:emulator:setup before full verification');

@@ -1,10 +1,14 @@
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
 COPY package*.json ./
+COPY scripts/security ./scripts/security
 RUN npm ci
 COPY index.html ./
+COPY vite.config.js ./
+COPY server/http/security-headers.js ./server/http/security-headers.js
 COPY src ./src
 COPY images ./images
+COPY audio ./audio
 COPY public ./public
 ARG VITE_DISCORD_CLIENT_ID=1561284960986599626
 ENV VITE_DISCORD_CLIENT_ID=$VITE_DISCORD_CLIENT_ID
@@ -21,6 +25,8 @@ COPY server ./server
 COPY src/game ./src/game
 COPY src/version.js ./src/version.js
 COPY scripts/admin ./scripts/admin
+COPY scripts/lib ./scripts/lib
+COPY scripts/security ./scripts/security
 RUN mkdir -p /app/data /app/backups && chown -R node:node /app
 USER node
 ENV HOST=0.0.0.0 PORT=4188 APP_ENV=production DATABASE_PATH=/app/data/production.sqlite

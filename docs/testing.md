@@ -19,11 +19,14 @@
 | `npm run test:startup` | Edge：六種啟動失敗、立即停止渲染、晚到素材回收與重試畫面 |
 | `npm run test:numbers` | 數字、符號、空值與後備文字的像素／尺寸／無障礙基準，以及 Canvas 重設次數 |
 | `npm run test:security` | 先 build；Edge：CSP、腳本注入阻擋、SQLite 結算 |
+| `npm run test:discord-sdk` | 隔離父頁／iframe：真實 SDK 握手、OAuth、方向鎖定及大型非法集合拒絕 |
 | `npm run test:monitor` | scheduled handler、持久去重、故障與恢復通知 |
 | `npm run build`、`cloud:build`、`monitor:build` | 前端與 Worker dry-run，不部署 |
 | `npm run verify:math`、`verify:sessions` | 完整枚舉與固定 seed 回合驗算 |
 
 需要 Node.js 24、Java 21；首次以 `npm run firestore:emulator:setup` 準備模擬器。Windows 還原測試使用 NTFS 硬連結，沙箱禁止時須允許隔離測試的檔案操作，不能改成覆寫目的檔。
+
+`npm ci` 會執行 Discord SDK 的相容安全修補；不可略過專案 `postinstall`。使用 `--ignore-scripts` 安裝時，必須另執行 `node scripts/security/patch-discord-sdk.js`，再以 `--check` 核對。完整驗證與正式建置會拒絕未修補或未知的 SDK 內容；細節見[資料保護](security.md#discord-sdkzod-修補)。
 
 瀏覽器測試使用鎖定的 Playwright 開發相依；Windows 預設 Edge，Linux 預設 Chromium（先執行 `npx playwright install --with-deps chromium`）。可用 `PLAYWRIGHT_MODULE_PATH` 指定既有模組目錄、`PLAYWRIGHT_BROWSER_CHANNEL` 指定測試通道。數字的固定像素基準位於 `tests/fixtures/number-rendering.json`；僅在有意更改字型／外觀時用 `npm run test:numbers -- --baseline` 更新。
 
