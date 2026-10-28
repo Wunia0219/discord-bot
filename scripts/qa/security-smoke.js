@@ -22,7 +22,7 @@ try{
  for(const mobile of [false,true]){
   const context=await browser.newContext({viewport:mobile?{width:375,height:812}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile});
   const page=await context.newPage();page.on('pageerror',e=>report.errors.push(e.message));
-  await page.addInitScript(()=>{window.__cspViolations=[];document.addEventListener('securitypolicyviolation',e=>__cspViolations.push({directive:e.effectiveDirective,blocked:e.blockedURI}));});
+  await page.addInitScript(()=>{window.__cspViolations=[];document.addEventListener('securitypolicyviolation',e=>__cspViolations.push({directive:e.effectiveDirective,blocked:e.blockedURI,disposition:e.disposition}));});
   const started=Date.now(),response=await page.goto(`http://127.0.0.1:${port}/?wallet=local&player=qa-a`);
   assert.match(response.headers()['content-security-policy'],/script-src 'self';/);
   await page.waitForFunction(()=>document.querySelector('#spin')?.disabled===false,{},{timeout:60000});
@@ -32,8 +32,9 @@ try{
   await page.locator('#close-dialog').click();
   const violations=await page.evaluate(()=>__cspViolations);assert.deepEqual(violations,[],'game loads under CSP');
   await page.evaluate(()=>{const s=document.createElement('script');s.textContent='window.__injected=true';document.body.append(s);});
+  // CSP blocks immediately, but its violation notification is queued as a separate task.
+  await page.waitForFunction(()=>__cspViolations.some(v=>v.directive==='script-src-elem'&&v.blocked==='inline'&&v.disposition==='enforce'),null,{timeout:10000});
   assert.equal(await page.evaluate(()=>window.__injected),undefined,'inline script is rejected');
-  assert.ok((await page.evaluate(()=>__cspViolations)).some(v=>v.directive==='script-src-elem'));
   const before=await page.locator('#balance').textContent();
   const spinResponse=page.waitForResponse(r=>r.url().endsWith('/api/spin'));
   await page.locator('#spin').click();const spin=await spinResponse;
@@ -50,4 +51,7 @@ try{
  assert.deepEqual(report.errors,[]);
  report.checks.push(`production UI version ${APP_VERSION}`,'production build renders under CSP on desktop/mobile','inline script blocked','real SQLite settlement and history','private API no-store','game still works after rejected injection');
  writeFileSync(join(dir,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify({directory:dir,...report},null,2));
+}catch(error){
+ report.failure={message:error.message,pages:await Promise.all((browser?.contexts()??[]).flatMap(context=>context.pages()).map(page=>page.evaluate(()=>({url:location.href,violations:window.__cspViolations,injected:window.__injected===true})).catch(()=>({unavailable:true}))))};
+ writeFileSync(join(dir,'failure.json'),JSON.stringify(report,null,2));console.error(JSON.stringify(report.failure,null,2));throw error;
 }finally{await browser?.close();await new Promise(done=>{server.close(done);server.closeAllConnections();});await server.drainCommands();await wallet.store.close();}

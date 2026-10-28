@@ -36,6 +36,8 @@
 
 快停案例以動畫階段同步原按鈕／觸控操作：早期與晚期案例暫停測試 ticker，排隊案例暫扣模擬回應，並斷言輸入確實發生於指定階段；晚期快停必須保留全部落地時間。`npm run test:experience -- --slow-frames --slow-input` 再將第二次操作延後兩秒，驗證 CI 輸入延遲不會改變測試情境。這些案例的牆鐘時間包含測試等待，不作效能基準。
 
+CSP 注入測試等待非同步違規通知，確認 `script-src-elem` 對 `inline` 執行實際阻擋（`enforce`），再檢查注入腳本未執行；通知未到仍會逾時失敗，不更改正式安全政策。
+
 `node scripts/qa/verify.js --full --list` 只列出步驟；驗證結果保存在 `test-results/verification.json`，第一個失敗即停止，不執行部署。Windows ARM 的 workerd 步驟使用 `.tools/node-x64/` 中與 `.node-version` 一致的 Node；其他步驟使用啟動驗證的 Node。
 
 ### 從零重驗
