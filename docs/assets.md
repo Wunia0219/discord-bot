@@ -22,6 +22,8 @@ MP3 已用 stream copy 移除封面／標籤，4,342,331→4,317,696 bytes，未
 
 Python 工具需 Pillow；`build-circus-font.py` 使用 Windows Georgia Bold，字型檔不打包。Python 模組採底線，CLI 與 JS 檔採連字號；`__pycache__` 不進版控。
 
+建置為帶內容雜湊的資源逐檔產生長期瀏覽器快取規則，減少再次開啟時的重複請求。內容更新會換檔名；HTML、固定網址與錢包 API 不套用長期快取。這不減少首次下載量，也不改變圖片、音效或遊戲流程。
+
 ## 荷官動畫
 
 | 動作 | 格數／時長 | runtime 圖集 |
