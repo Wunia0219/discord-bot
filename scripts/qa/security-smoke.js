@@ -1,9 +1,16 @@
 import assert from 'node:assert/strict';
-import {mkdirSync,mkdtempSync,writeFileSync} from 'node:fs';
+import {mkdirSync,mkdtempSync,writeFileSync,readFileSync,readdirSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {createActivityServer} from '../../server/http/app.js';
 import {localTestWalletConfig} from '../../server/testing/local-test-wallet.js';
 import {launchBrowser} from './helpers/browser.js';
+import {contentSecurityPolicy} from '../../server/http/security-headers.js';
+import {APP_VERSION} from '../../src/version.js';
+const staticHeaders=readFileSync('dist/_headers','utf8');
+assert.ok(staticHeaders.includes(`Content-Security-Policy: ${contentSecurityPolicy}`),'static assets use the server CSP');
+for(const name of readdirSync('dist/assets')){
+ assert.ok(staticHeaders.includes(`/assets/${name}\n  Cache-Control: public, max-age=31536000, immutable`),`hashed asset cache policy: ${name}`);
+}
 mkdirSync('test-results/security-smoke',{recursive:true});
 const dir=mkdtempSync('test-results/security-smoke/run-'),port=4193;
 const wallet=localTestWalletConfig({APP_ENV:'test',HOST:'127.0.0.1',WALLET_ENABLED:'true',LOCAL_WALLET_TEST:'true',DATABASE_PATH:resolve(dir,'wallet.sqlite')});
@@ -20,6 +27,9 @@ try{
   assert.match(response.headers()['content-security-policy'],/script-src 'self';/);
   await page.waitForFunction(()=>document.querySelector('#spin')?.disabled===false,{},{timeout:60000});
   const readyMs=Date.now()-started;
+  await page.locator('#help').click();
+  assert.equal(await page.locator('.rules-version span').last().textContent(),`v${APP_VERSION}`,'built UI matches the package release');
+  await page.locator('#close-dialog').click();
   const violations=await page.evaluate(()=>__cspViolations);assert.deepEqual(violations,[],'game loads under CSP');
   await page.evaluate(()=>{const s=document.createElement('script');s.textContent='window.__injected=true';document.body.append(s);});
   assert.equal(await page.evaluate(()=>window.__injected),undefined,'inline script is rejected');
@@ -38,6 +48,6 @@ try{
   await context.close();
  }
  assert.deepEqual(report.errors,[]);
- report.checks.push('production build renders under CSP on desktop/mobile','inline script blocked','real SQLite settlement and history','private API no-store','game still works after rejected injection');
+ report.checks.push(`production UI version ${APP_VERSION}`,'production build renders under CSP on desktop/mobile','inline script blocked','real SQLite settlement and history','private API no-store','game still works after rejected injection');
  writeFileSync(join(dir,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify({directory:dir,...report},null,2));
 }finally{await browser?.close();await new Promise(done=>{server.close(done);server.closeAllConnections();});await server.drainCommands();await wallet.store.close();}

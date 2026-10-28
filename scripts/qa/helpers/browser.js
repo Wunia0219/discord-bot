@@ -1,5 +1,4 @@
 import {createRequire} from 'node:module';
-import {createServer} from 'vite';
 
 const require=createRequire(import.meta.url);
 export const browserOptions=()=>({
@@ -12,7 +11,8 @@ export function launchBrowser(){
   return chromium.launch(browserOptions());
 }
 
-export function createQaServer(port,plugins,ignored=['**/test-results/**','**/data/**','**/backups/**']){
+export async function createQaServer(port,plugins,ignored=['**/test-results/**','**/data/**','**/backups/**']){
+  const {createServer}=await import('vite');
   return createServer({configFile:false,envDir:false,plugins,server:{
     host:'127.0.0.1',port,strictPort:true,hmr:false,watch:{ignored},
   }});

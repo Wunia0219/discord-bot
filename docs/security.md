@@ -25,6 +25,12 @@ Client Secret、Google 私鑰、管理 token、Webhook、備份金鑰不得出�
 
 HTTPS、平台帳號 MFA、最小 IAM 權限及供應商存取紀錄由部署帳戶核對。程式回歸不等於滲透測試或供應商稽核；線上保護須以實際部署驗證。
 
+## 相依套件維護
+
+Node 使用 `.node-version` 的 24 LTS 安全版本；npm 12 的 `allowScripts` 僅允許鎖定版本的 esbuild／workerd 安裝原生執行檔，停用 protobufjs 的提示腳本與可選 fsevents 編譯。`.npmrc` 拒絕舊工具鏈及未審核的安裝腳本；新增或更新含腳本的相依時，須先檢查腳本再更新允許清單，勿使用全部允許。專案本身的 Discord `postinstall` 照常執行。
+
+Vite 8 的 Rolldown／Oxc 建置保留原 Chrome／Edge 107、Firefox 104、Safari 16 編譯目標；Vite 歸為開發相依，Docker 建置後移除開發工具。Miniflare 版本配合穩定 Wrangler 的官方依賴，即使其標籤帶 beta 也不獨立降回舊 runtime。Undici 保留受維護的 7.x 安全修正版，避免強制替換相依套件未採用的 8.x API。
+
 ## Discord SDK／Zod 修補
 
 2026-10-28 修補 [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5)。保留官方 SDK **2.5.0**，其外部 Zod 相依透過 scoped override 固定為 **4.6.7**。SDK 的發布檔另內含舊 Zod，不能只靠 override 或零警示宣稱修復。

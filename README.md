@@ -1,10 +1,12 @@
 # Joker’s Circus
 
-Discord Activity：5×3 轉輪、243 路，後端負責算獎、戲籌、週簽到及請求去重，各群錢包獨立。產品版本 **0.3.1**，唯一版本來源為 `package.json`；玩法識別碼 `circus-243-v2` 另行維護。
+Discord Activity：5×3 轉輪、243 路，後端負責算獎、戲籌、週簽到及請求去重，各群錢包獨立。產品版本 **0.3.2**，唯一版本來源為 `package.json`；玩法識別碼 `circus-243-v2` 另行維護。
 
 ## 開發與驗證
 
-需要 Node.js 24；圖片工具另需 Python／Pillow，Firestore 模擬器需 Java 21。
+需要 Node.js **24.22.1+（24 LTS）**、npm **12.2.1+（12.x）**；圖片工具另需 Python／Pillow，Firestore 模擬器需 Java 21。
+
+Windows PowerShell 先執行 `. ./scripts/admin/setup-toolchain.ps1`，下載經 SHA-256 核對的專案專用 Node x64／npm，並設定目前 shell 的 PATH。其他系統依 `.node-version` 安裝 Node，再執行 `npm install --global npm@12.2.1`。
 
 ```sh
 npm ci

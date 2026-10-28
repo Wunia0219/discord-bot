@@ -32,7 +32,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      - run: npm install --global npm@12.2.1
       - run: npm ci
+      - run: npm audit --audit-level=high
       - run: npx playwright install --with-deps chromium
       - run: npm run firestore:emulator:setup
       - run: npm run verify:full

@@ -1,9 +1,12 @@
 import {spawn} from 'node:child_process';
 import {dirname,resolve} from 'node:path';
+import {readFileSync} from 'node:fs';
+
+export const nodeVersion=readFileSync(new URL('../../.node-version',import.meta.url),'utf8').trim();
 
 export function cloudNode(){
   return process.platform==='win32'&&process.arch==='arm64'
-    ?resolve('.tools/node-x64/node-v24.21.0-win-x64/node.exe'):process.execPath;
+    ?resolve(`.tools/node-x64/node-v${nodeVersion}-win-x64/node.exe`):process.execPath;
 }
 
 export function runNode(executable,args,env={}){

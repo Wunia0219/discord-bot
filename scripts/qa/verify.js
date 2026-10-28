@@ -1,5 +1,5 @@
 import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
-import {cloudNode,runNode} from '../lib/node-runtime.js';
+import {cloudNode,nodeVersion,runNode} from '../lib/node-runtime.js';
 import {checkDiscordSdk} from '../security/patch-discord-sdk.js';
 
 const full=process.argv.includes('--full'),list=process.argv.includes('--list');
@@ -26,7 +26,8 @@ if(full)steps.push(
 );
 if(list){for(const [label,,args] of steps)console.log(label+': node '+args.join(' '));process.exit(0);}
 checkDiscordSdk();
-if(Number(process.versions.node.split('.')[0])!==24)throw new Error('Verification requires Node.js 24; see .node-version');
+const [major,minor,patch]=process.versions.node.split('.').map(Number),[requiredMajor,requiredMinor,requiredPatch]=nodeVersion.split('.').map(Number);
+if(major!==requiredMajor||minor<requiredMinor||(minor===requiredMinor&&patch<requiredPatch))throw new Error(`Verification requires Node.js ${nodeVersion} or a newer patch/minor in the same major; see .node-version`);
 if(!existsSync(integrationNode))throw new Error('Windows ARM cloud validation requires .tools/node-x64; see docs/deployment.md');
 if(full&&!existsSync('.tools/cloud-firestore-emulator-v1.22.0.jar'))throw new Error('Run npm run firestore:emulator:setup before full verification');
 mkdirSync('test-results',{recursive:true});const report={full,steps:[]};

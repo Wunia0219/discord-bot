@@ -5,7 +5,10 @@ import {checkDiscordSdk} from './scripts/security/patch-discord-sdk.js';
 checkDiscordSdk();
 
 // Static HTML may bypass the Worker; emit the same policy for the asset service.
-export default defineConfig({plugins:[{
+export default defineConfig({
+ // Preserve the Vite 7 browser baseline when changing bundlers.
+ build:{target:['chrome107','edge107','firefox104','safari16']},
+ plugins:[{
  name:'static-security-headers',
  generateBundle(_,bundle){
   const headers={...securityHeaders,'Content-Security-Policy':contentSecurityPolicy};
