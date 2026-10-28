@@ -5,6 +5,7 @@ import {launchBrowser,createQaServer} from './helpers/browser.js';
 import {assertFirstDueFrame,assertReelCadence} from './helpers/reel-timing.js';
 
 const slowFrames=process.argv.includes('--slow-frames');
+const slowInput=process.argv.includes('--slow-input');
 const out='test-results/reel-experience';await mkdir(out,{recursive:true});
 const stops=JSON.parse(await readFile('docs/data/math-report.json','utf8')).examples.none.stops;
 const observe={name:'local-reel-observation',enforce:'pre',transform(source,id){
@@ -13,7 +14,7 @@ const observe={name:'local-reel-observation',enforce:'pre',transform(source,id){
     .replace('await this.app.init(', 'globalThis.__qaScene=this; await this.app.init(')
     .replace('beginSpin() {',"beginSpin() { globalThis.__qaTimeline?.push({kind:'visual-start',at:performance.now()});")
     .replace('spin(stops, onStop) {',"spin(stops, onStop) { globalThis.__qaTimeline?.push({kind:'result-ready',at:performance.now()});")
-    .replace('requestQuickStop() {',"requestQuickStop() { globalThis.__qaTimeline?.push({kind:'quick-request',at:performance.now()});")
+    .replace('requestQuickStop() {',"requestQuickStop() { globalThis.__qaTimeline?.push({kind:'quick-request',at:performance.now(),clock:this.active?.time,waiting:this.active?.waiting===true,plannedStops:this.active&&!this.active.waiting?this.reels.map(r=>r.stopAt):null});")
     .replace('const a = this.active; a.time +=', 'const a = this.active; this.__qaPreviousClock=a.time; a.time +=')
     .replace('const landingElapsed = a.time - r.stopAt;',"const landingElapsed = a.time - r.stopAt;if(i===0&&!a.__qaBraking&&landingElapsed>=-160){a.__qaBraking=true;globalThis.__qaTimeline?.push({kind:'braking-start',at:performance.now(),clock:a.time,previousClock:this.__qaPreviousClock,scheduled:r.stopAt-160,start:r.start});}")
     .replaceAll('a.resolve();',"globalThis.__qaTimeline?.push({kind:'reels-settled',at:performance.now()});a.resolve();");
@@ -23,16 +24,17 @@ const observe={name:'local-reel-observation',enforce:'pre',transform(source,id){
 }};
 const vite=await createQaServer(4194,[observe]);
 let browser;
-const report={slowFrames,checks:[],timings:[],errors:[],clientTelemetry:[]};
+const report={slowFrames,slowInput,checks:[],timings:[],errors:[],clientTelemetry:[]};
 try{
   await vite.listen();browser=await launchBrowser();
   const context=await browser.newContext({viewport:{width:1440,height:900}}),page=await context.newPage();
   await page.addInitScript(()=>{
     window.__qaTimeline=[];const nativeFetch=window.fetch;
+    document.addEventListener('click',event=>{if(event.target.closest('#spin'))__qaTimeline.push({kind:'spin-input',at:performance.now()});});
     window.fetch=function(input,...args){if(String(input).startsWith('/api/spin'))window.__qaTimeline.push({kind:'request-start',at:performance.now()});return nativeFetch.call(this,input,...args);};
   });
   page.on('pageerror',error=>report.errors.push(error.message));
-  let state={...freshState(),revision:0,historyRevision:0},delayMs=0,requests=0,releaseHistory=null,gap=false,historyLoaded=true;
+  let state={...freshState(),revision:0,historyRevision:0},delayMs=0,requests=0,releaseHistory=null,gap=false,historyLoaded=true,spinResponseGate=Promise.resolve();
   await page.route('**/api/local-session',route=>route.fulfill({json:{mode:'local',user:{id:'100000000000000004',username:'QA 玩家'},session:{environment:'test',token:'isolated-memory-only',guildId:'100000000000000002',userId:'100000000000000004'}}}));
   await page.route('**/api/wallet',route=>route.fulfill({json:{state}}));
   await page.route('**/api/rounds?*',async route=>{
@@ -45,6 +47,7 @@ try{
     const update=createRound(state,body.bet,stops,body.requestId);
     state={...update.state,revision:state.revision+1,historyRevision:state.historyRevision+1};
     await new Promise(resolve=>setTimeout(resolve,delayMs));
+    await spinResponseGate;
     if(gap){const {history,...compact}=state;await route.fulfill({json:{round:update.round,state:compact,historyBase:state.historyRevision-1,historyRevision:state.historyRevision}});}
     else await route.fulfill({json:{...update,state}});
   });
@@ -52,10 +55,28 @@ try{
   await page.waitForFunction(()=>document.querySelector('#spin')?.disabled===false);
   await page.click('#sound');await page.waitForFunction(()=>__qaSound.enabled);
   if(slowFrames)await page.evaluate(()=>{__qaScene.app.ticker.maxFPS=5;});
-  for(const [name,delay,quickAt] of [['normal',0,null],['early-quick',0,100],['queued-quick',1500,80],['late-quick',0,1300]]){
+  for(const [name,delay] of [['normal',0],['early-quick',0],['queued-quick',1500],['late-quick',0]]){
+    report.currentCase=name;
+    let releaseSpin;
+    spinResponseGate=name==='queued-quick'?new Promise(resolve=>{releaseSpin=resolve;}):Promise.resolve();
     delayMs=delay;await page.evaluate(()=>{__qaTimeline=[];});
+    // Hold the animation phase while Playwright waits for the real button to be actionable.
+    if(name==='early-quick'||name==='late-quick')await page.evaluate(()=>__qaScene.app.stop());
     await page.click('#spin');
-    if(quickAt!==null){await page.waitForTimeout(quickAt);await page.click('#spin');}
+    if(name==='early-quick'||name==='late-quick'){
+      await page.waitForFunction(()=>__qaTimeline.some(event=>event.kind==='result-ready'));
+      if(name==='late-quick')await page.evaluate(()=>{
+        const elapsed=__qaScene.reels[0].stopAt-80;
+        __qaScene.tick({elapsedMS:elapsed,deltaMS:Math.min(elapsed,100)});
+      });
+    }
+    if(name!=='normal'){
+      if(slowInput)await page.waitForTimeout(2000);
+      await page.click('#spin');
+      await page.waitForFunction(()=>__qaTimeline.some(event=>event.kind==='quick-request'));
+      releaseSpin?.();
+      if(name!=='queued-quick')await page.evaluate(()=>__qaScene.app.start());
+    }
     assert.equal(await page.locator('#player-toast').isVisible(),false,'quick stop must not open any text UI');
     assert.equal(await page.locator('#dialog').evaluate(dialog=>dialog.open),false);
     await page.waitForFunction(()=>__qaTimeline.filter(event=>event.kind==='stop').length===5);
@@ -65,14 +86,22 @@ try{
     assertReelCadence(sounds,name);
     const gaps=sounds.slice(1).map((event,i)=>event.clock-sounds[i].clock);
     const ready=events.find(e=>e.kind==='result-ready'),braking=events.find(e=>e.kind==='braking-start'),quick=events.find(e=>e.kind==='quick-request');
+    assert.equal(events.filter(e=>e.kind==='spin-input').length,name==='normal'?1:2,`${name}: exactly the intended button input`);
+    if(name==='queued-quick')assert.ok(quick.waiting&&quick.at<=ready.at,'queued quick must arrive before the authoritative result');
+    if(name==='early-quick')assert.ok(!quick.waiting&&ready.at<=quick.at&&quick.clock<quick.plannedStops[0]-160,'early quick must arrive before braking');
+    if(name==='late-quick'){
+      assert.ok(!quick.waiting&&braking.at<=quick.at&&quick.clock>=quick.plannedStops[0]-160,'late quick must arrive during braking');
+      assert.deepEqual(sounds.map(event=>event.scheduled),quick.plannedStops,'late quick must preserve all planned impacts');
+    }
     const responseToBrakingMs=braking.at-Math.max(ready.at,quick?.at||0);
     const finished=events.find(e=>e.kind==='reels-settled');
     assertFirstDueFrame(braking,`${name}: braking`);
     if(name==='early-quick'||name==='queued-quick')assert.ok(braking.scheduled-braking.start<=200,'quick braking is scheduled promptly once its result is ready');
     assert.deepEqual(await page.evaluate(()=>__qaScene.currentStops),stops);
-    report.timings.push({case:name,requestBeforeVisualMs:visual.at-request.at,responseToBrakingMs:Math.round(responseToBrakingMs),impactGapsMs:gaps.map(Math.round),impacts:sounds,lastImpactAfterVisualMs:Math.round(sounds[4].at-visual.at),allReelsSettledAfterVisualMs:Math.round(finished.at-visual.at),readyToFinalMs:Math.round(finished.at-Math.max(ready.at,quick?.at||0))});
+    report.timings.push({case:name,quick,requestBeforeVisualMs:visual.at-request.at,responseToBrakingMs:Math.round(responseToBrakingMs),impactGapsMs:gaps.map(Math.round),impacts:sounds,lastImpactAfterVisualMs:Math.round(sounds[4].at-visual.at),allReelsSettledAfterVisualMs:Math.round(finished.at-visual.at),readyToFinalMs:Math.round(finished.at-Math.max(ready.at,quick?.at||0))});
   }
   assert.equal(requests,4);assert.equal(state.history.length,4);
+  delete report.currentCase;
   if(slowFrames)assert.ok(report.timings.some(timing=>timing.impactGapsMs.some(gap=>Math.abs(gap-60)>=35)),'slow-frame run must exercise callbacks outside the old fixed tolerance');
   report.checks.push('no quick-stop text, immediate fetch, one settlement per round, quick braking planned within 200ms, exact 60ms deadlines with cues on the first eligible frame');
 
@@ -132,7 +161,10 @@ try{
   state={...freshState(),revision:0,historyRevision:0};gap=true;historyLoaded=false;delayMs=0;
   await page.reload();await page.waitForFunction(()=>document.querySelector('#spin')?.disabled===false);
   if(slowFrames)await page.evaluate(()=>{__qaScene.app.ticker.maxFPS=5;});
-  await page.click('#spin');await page.waitForTimeout(100);await page.click('#spin');
+  await page.evaluate(()=>__qaScene.app.stop());
+  await page.click('#spin');await page.waitForFunction(()=>__qaTimeline.some(event=>event.kind==='result-ready'));
+  if(slowInput)await page.waitForTimeout(2000);
+  await page.click('#spin');await page.evaluate(()=>__qaScene.app.start());
   await page.waitForFunction(()=>!__qaScene.active&&!document.querySelector('#spin').disabled);
   assert.equal(historyLoaded,false,'slow history must still be blocked while the new round has already finished');
   assert.equal(await page.locator('#dialog').evaluate(dialog=>dialog.open),false);
@@ -145,16 +177,22 @@ try{
   const mobileContext=await browser.newContext({viewport:{width:375,height:812},isMobile:true,hasTouch:true}),mobile=await mobileContext.newPage();
   mobile.on('pageerror',error=>report.errors.push(error.message));
   await mobile.addInitScript(()=>{window.__qaTimeline=[];});
-  let mobileState={...freshState(),revision:0},mobileRequests=0;
+  let mobileState={...freshState(),revision:0},mobileRequests=0,releaseMobileSpin;
+  const mobileSpinGate=new Promise(resolve=>{releaseMobileSpin=resolve;});
   await mobile.route('**/api/local-session',route=>route.fulfill({json:{mode:'local',user:{id:'100000000000000004',username:'QA 玩家'},session:{environment:'test',token:'isolated-touch-only',guildId:'100000000000000002',userId:'100000000000000004'}}}));
   await mobile.route('**/api/wallet',route=>route.fulfill({json:{state:mobileState}}));
   await mobile.route('**/api/spin',async route=>{
     mobileRequests++;const body=route.request().postDataJSON(),update=createRound(mobileState,body.bet,stops,body.requestId);mobileState={...update.state,revision:mobileState.revision+1};
-    await new Promise(resolve=>setTimeout(resolve,600));await route.fulfill({json:{...update,state:mobileState}});
+    await new Promise(resolve=>setTimeout(resolve,600));await mobileSpinGate;await route.fulfill({json:{...update,state:mobileState}});
   });
   await mobile.goto('http://127.0.0.1:4194/?wallet=local&platform=mobile');await mobile.waitForFunction(()=>document.querySelector('#spin')?.disabled===false);
   if(slowFrames)await mobile.evaluate(()=>{__qaScene.app.ticker.maxFPS=5;});
-  await mobile.locator('#spin').tap();await mobile.waitForTimeout(100);await mobile.locator('#spin').tap();
+  await mobile.locator('#spin').tap();
+  if(slowInput)await mobile.waitForTimeout(2000);
+  await mobile.locator('#spin').tap();
+  await mobile.waitForFunction(()=>__qaTimeline.some(event=>event.kind==='quick-request'));
+  assert.equal(await mobile.evaluate(()=>__qaTimeline.find(event=>event.kind==='quick-request').waiting),true,'touch quick must queue before the result');
+  releaseMobileSpin();
   assert.equal(await mobile.locator('#player-toast').isVisible(),false);
   await mobile.waitForFunction(()=>__qaTimeline.filter(e=>e.kind==='stop').length===5&&!__qaScene.active);
   const touchSounds=await mobile.evaluate(()=>__qaTimeline.filter(e=>e.kind==='stop'));
@@ -166,6 +204,6 @@ try{
   await writeFile(out+'/report.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));
 }catch(error){
  const pages=browser?browser.contexts().flatMap(context=>context.pages()):[];
- report.failure={message:error.message,pages:await Promise.all(pages.map(page=>page.evaluate(()=>({url:location.href,timeline:globalThis.__qaTimeline,active:!!globalThis.__qaScene?.active,spinDisabled:document.querySelector('#spin')?.disabled,text:document.body.innerText})).catch(()=>({unavailable:true}))))};
+ report.failure={case:report.currentCase,message:error.message,pages:await Promise.all(pages.map(page=>page.evaluate(()=>({url:location.href,timeline:globalThis.__qaTimeline,active:!!globalThis.__qaScene?.active,spinDisabled:document.querySelector('#spin')?.disabled,text:document.body.innerText})).catch(()=>({unavailable:true}))))};
  await writeFile(out+'/failure.json',JSON.stringify(report,null,2));console.error(JSON.stringify(report.failure,null,2));throw error;
 }finally{await browser?.close();await vite.close();}
