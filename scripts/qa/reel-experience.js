@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {freshState,createRound,INITIAL_STOPS} from '../../src/game/index.js';
 import {launchBrowser,createQaServer} from './helpers/browser.js';
+import {assertFirstDueFrame,assertReelCadence} from './helpers/reel-timing.js';
 
+const slowFrames=process.argv.includes('--slow-frames');
 const out='test-results/reel-experience';await mkdir(out,{recursive:true});
 const stops=JSON.parse(await readFile('docs/data/math-report.json','utf8')).examples.none.stops;
 const observe={name:'local-reel-observation',enforce:'pre',transform(source,id){
@@ -12,15 +14,16 @@ const observe={name:'local-reel-observation',enforce:'pre',transform(source,id){
     .replace('beginSpin() {',"beginSpin() { globalThis.__qaTimeline?.push({kind:'visual-start',at:performance.now()});")
     .replace('spin(stops, onStop) {',"spin(stops, onStop) { globalThis.__qaTimeline?.push({kind:'result-ready',at:performance.now()});")
     .replace('requestQuickStop() {',"requestQuickStop() { globalThis.__qaTimeline?.push({kind:'quick-request',at:performance.now()});")
-    .replace('const landingElapsed = a.time - r.stopAt;',"const landingElapsed = a.time - r.stopAt;if(i===0&&!a.__qaBraking&&landingElapsed>=-160){a.__qaBraking=true;globalThis.__qaTimeline?.push({kind:'braking-start',at:performance.now()});}")
+    .replace('const a = this.active; a.time +=', 'const a = this.active; this.__qaPreviousClock=a.time; a.time +=')
+    .replace('const landingElapsed = a.time - r.stopAt;',"const landingElapsed = a.time - r.stopAt;if(i===0&&!a.__qaBraking&&landingElapsed>=-160){a.__qaBraking=true;globalThis.__qaTimeline?.push({kind:'braking-start',at:performance.now(),clock:a.time,previousClock:this.__qaPreviousClock,scheduled:r.stopAt-160,start:r.start});}")
     .replaceAll('a.resolve();',"globalThis.__qaTimeline?.push({kind:'reels-settled',at:performance.now()});a.resolve();");
   if(path.endsWith('/src/ui/audio/audio.js'))return source
     .replace('this.music=musicUrl?', 'globalThis.__qaSound=this; this.music=musicUrl?')
-    .replace("stop(index){this.play('stop',index);}","stop(index){globalThis.__qaTimeline?.push({kind:'stop',index,at:performance.now(),clock:globalThis.__qaScene?.active?.time});this.play('stop',index);}");
+    .replace("stop(index){this.play('stop',index);}","stop(index){const scene=globalThis.__qaScene;globalThis.__qaTimeline?.push({kind:'stop',index,at:performance.now(),clock:scene?.active?.time,previousClock:scene?.__qaPreviousClock,scheduled:scene?.reels[index].stopAt});this.play('stop',index);}");
 }};
 const vite=await createQaServer(4194,[observe]);
 let browser;
-const report={checks:[],timings:[],errors:[],clientTelemetry:[]};
+const report={slowFrames,checks:[],timings:[],errors:[],clientTelemetry:[]};
 try{
   await vite.listen();browser=await launchBrowser();
   const context=await browser.newContext({viewport:{width:1440,height:900}}),page=await context.newPage();
@@ -48,6 +51,7 @@ try{
   await page.goto('http://127.0.0.1:4194/?wallet=local&platform=desktop');
   await page.waitForFunction(()=>document.querySelector('#spin')?.disabled===false);
   await page.click('#sound');await page.waitForFunction(()=>__qaSound.enabled);
+  if(slowFrames)await page.evaluate(()=>{__qaScene.app.ticker.maxFPS=5;});
   for(const [name,delay,quickAt] of [['normal',0,null],['early-quick',0,100],['queued-quick',1500,80],['late-quick',0,1300]]){
     delayMs=delay;await page.evaluate(()=>{__qaTimeline=[];});
     await page.click('#spin');
@@ -58,19 +62,19 @@ try{
     await page.waitForFunction(()=>!__qaScene.active&&!document.querySelector('#spin').disabled);
     const events=await page.evaluate(()=>__qaTimeline),request=events.find(e=>e.kind==='request-start'),visual=events.find(e=>e.kind==='visual-start'),sounds=events.filter(e=>e.kind==='stop');
     assert.ok(request.at<=visual.at,'settlement fetch starts before reel setup');
-    assert.deepEqual(sounds.map(e=>e.index),[0,1,2,3,4]);
+    assertReelCadence(sounds,name);
     const gaps=sounds.slice(1).map((event,i)=>event.clock-sounds[i].clock);
-    assert.ok(gaps.every(gap=>Math.abs(gap-60)<35),'normal and quick sounds share the shorter 60ms cadence');
     const ready=events.find(e=>e.kind==='result-ready'),braking=events.find(e=>e.kind==='braking-start'),quick=events.find(e=>e.kind==='quick-request');
     const responseToBrakingMs=braking.at-Math.max(ready.at,quick?.at||0);
     const finished=events.find(e=>e.kind==='reels-settled');
-    if(name==='early-quick'||name==='queued-quick')assert.ok(responseToBrakingMs<=200,'quick braking begins promptly once its result is ready');
-    if(name==='normal')assert.ok(sounds[4].at-visual.at<1730,'normal spin no longer waits over two seconds for the last reel');
+    assertFirstDueFrame(braking,`${name}: braking`);
+    if(name==='early-quick'||name==='queued-quick')assert.ok(braking.scheduled-braking.start<=200,'quick braking is scheduled promptly once its result is ready');
     assert.deepEqual(await page.evaluate(()=>__qaScene.currentStops),stops);
-    report.timings.push({case:name,requestBeforeVisualMs:visual.at-request.at,responseToBrakingMs:Math.round(responseToBrakingMs),impactGapsMs:gaps.map(Math.round),lastImpactAfterVisualMs:Math.round(sounds[4].at-visual.at),allReelsSettledAfterVisualMs:Math.round(finished.at-visual.at),readyToFinalMs:Math.round(finished.at-Math.max(ready.at,quick?.at||0))});
+    report.timings.push({case:name,requestBeforeVisualMs:visual.at-request.at,responseToBrakingMs:Math.round(responseToBrakingMs),impactGapsMs:gaps.map(Math.round),impacts:sounds,lastImpactAfterVisualMs:Math.round(sounds[4].at-visual.at),allReelsSettledAfterVisualMs:Math.round(finished.at-visual.at),readyToFinalMs:Math.round(finished.at-Math.max(ready.at,quick?.at||0))});
   }
   assert.equal(requests,4);assert.equal(state.history.length,4);
-  report.checks.push('no quick-stop text, immediate fetch, one settlement per round, quick braking starts within 200ms of readiness, shared 60ms cadence');
+  if(slowFrames)assert.ok(report.timings.some(timing=>timing.impactGapsMs.some(gap=>Math.abs(gap-60)>=35)),'slow-frame run must exercise callbacks outside the old fixed tolerance');
+  report.checks.push('no quick-stop text, immediate fetch, one settlement per round, quick braking planned within 200ms, exact 60ms deadlines with cues on the first eligible frame');
 
   const sceneChecks=await page.evaluate(async({target,initial})=>{
     const scene=__qaScene;scene.app.stop();const results=[];const cell=136,settle=160,bounce=190,speed=cell/60;
@@ -79,6 +83,7 @@ try{
       scene.reduced=reduced;scene.setStops(initial);scene.beginSpin();tick(217);
       if(mode==='queued')scene.requestQuickStop();
       const sounds=[],animation=scene.spin(target,i=>sounds.push({index:i,time:scene.active.time}));
+      if(mode==='normal'&&!reduced&&Math.abs(scene.reels[4].stopAt+217-1640)>1e-7)throw new Error('normal last impact no longer targets 1640ms including network wait');
       if(mode==='cruise'){
         tick(100);const before=scene.reels.map(r=>r.stopAt);scene.requestQuickStop();
         if(!reduced&&scene.reels[0].stopAt>=before[0])throw new Error('quick stop did not remove cruise');
@@ -110,21 +115,23 @@ try{
       scene.tick({elapsedMS:300,deltaMS:100});
       if(scene.active.time!==300)throw new Error('pending reels lost actual wall time to the ticker cap');
       if(quick)scene.requestQuickStop();
-      const sound=[],animation=scene.spin(target,i=>sound.push(i));
+      const sound=[],animation=scene.spin(target,index=>sound.push({index,clock:scene.active.time,previousClock:scene.__qaPreviousClock,scheduled:scene.reels[index].stopAt}));
       const deadline=Math.max(...scene.reels.map(r=>r.stopAt))+bounce;let wall=0;
       while(scene.active&&wall<5000){wall+=200;scene.tick({elapsedMS:200,deltaMS:100});if(scene.active&&scene.active.time!==wall)throw new Error('reel clock follows capped rendering time');}
       await animation;
       if(wall>deadline+200)throw new Error('rendering hitches stretched reel completion');
-      if(sound.join(',')!=='0,1,2,3,4')throw new Error('low-frame-rate stop cues changed order');
+      if(sound.map(event=>event.index).join(',')!=='0,1,2,3,4')throw new Error('low-frame-rate stop cues changed order');
       if(JSON.stringify(scene.currentStops)!==JSON.stringify(target))throw new Error('slow-frame result changed');
-      results.push({mode:quick?'slow-render-quick':'slow-render-normal',wallMs:wall,deadlineMs:deadline,renderStepMs:200,cappedDeltaMs:100});
+      results.push({mode:quick?'slow-render-quick':'slow-render-normal',wallMs:wall,deadlineMs:deadline,renderStepMs:200,cappedDeltaMs:100,impacts:sound});
     }
     scene.reduced=false;scene.setStops(initial);scene.app.start();return results;
   },{target:stops,initial:INITIAL_STOPS});
+  for(const result of sceneChecks)if(result.renderStepMs)assertReelCadence(result.impacts,result.mode);
   report.sceneChecks=sceneChecks;report.checks.push('actual Pixi scene retains original terminal deceleration and bounce in normal/queued/cruise/late modes, including reduced motion');
 
   state={...freshState(),revision:0,historyRevision:0};gap=true;historyLoaded=false;delayMs=0;
   await page.reload();await page.waitForFunction(()=>document.querySelector('#spin')?.disabled===false);
+  if(slowFrames)await page.evaluate(()=>{__qaScene.app.ticker.maxFPS=5;});
   await page.click('#spin');await page.waitForTimeout(100);await page.click('#spin');
   await page.waitForFunction(()=>!__qaScene.active&&!document.querySelector('#spin').disabled);
   assert.equal(historyLoaded,false,'slow history must still be blocked while the new round has already finished');
@@ -146,11 +153,12 @@ try{
     await new Promise(resolve=>setTimeout(resolve,600));await route.fulfill({json:{...update,state:mobileState}});
   });
   await mobile.goto('http://127.0.0.1:4194/?wallet=local&platform=mobile');await mobile.waitForFunction(()=>document.querySelector('#spin')?.disabled===false);
+  if(slowFrames)await mobile.evaluate(()=>{__qaScene.app.ticker.maxFPS=5;});
   await mobile.locator('#spin').tap();await mobile.waitForTimeout(100);await mobile.locator('#spin').tap();
   assert.equal(await mobile.locator('#player-toast').isVisible(),false);
   await mobile.waitForFunction(()=>__qaTimeline.filter(e=>e.kind==='stop').length===5&&!__qaScene.active);
   const touchSounds=await mobile.evaluate(()=>__qaTimeline.filter(e=>e.kind==='stop'));
-  assert.deepEqual(touchSounds.map(e=>e.index),[0,1,2,3,4]);assert.ok(touchSounds.slice(1).every((e,i)=>Math.abs(e.clock-touchSounds[i].clock-60)<35));
+  assertReelCadence(touchSounds,'mobile touch');
   assert.equal(mobileRequests,1);assert.equal(mobileState.history.length,1);
   await mobile.screenshot({path:out+'/mobile.png'});await mobileContext.close();
   report.checks.push('mobile touch queues one silent quick stop during network latency and retains the same ordered landing cadence');
@@ -159,5 +167,5 @@ try{
 }catch(error){
  const pages=browser?browser.contexts().flatMap(context=>context.pages()):[];
  report.failure={message:error.message,pages:await Promise.all(pages.map(page=>page.evaluate(()=>({url:location.href,timeline:globalThis.__qaTimeline,active:!!globalThis.__qaScene?.active,spinDisabled:document.querySelector('#spin')?.disabled,text:document.body.innerText})).catch(()=>({unavailable:true}))))};
- await writeFile(out+'/failure.json',JSON.stringify(report,null,2));throw error;
+ await writeFile(out+'/failure.json',JSON.stringify(report,null,2));console.error(JSON.stringify(report.failure,null,2));throw error;
 }finally{await browser?.close();await vite.close();}

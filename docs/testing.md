@@ -32,6 +32,8 @@
 
 數字測試以 `willReadFrequently: true` 固定 Canvas 軟體繪製，避免 GPU／CPU 切換造成像素雜湊差異；此設定僅限隔離測試頁，正式遊戲不受影響。固定基準位於 `tests/fixtures/number-rendering.json`，仍逐一核對像素、尺寸及無障礙文字。僅在有意更改字型／外觀，或已證實需要統一測試繪圖路徑時，用 `npm run test:numbers -- --baseline` 更新並審查差異；失敗時也會保存 `test-results/number-rendering/after.json`。
 
+停輪測試精確檢查 60ms 目標間隔、正常末軸 1640ms 及快停減速規劃，並確認音效在跨過目標的第一幀依序觸發。實際回呼可能因慢幀集中到同一幀，因此保留牆鐘量測供診斷，不以 CI 機器的即時幀率判定玩法。`npm run test:experience -- --slow-frames` 將隔離測試的 ticker 限為 5 FPS，驗證慢幀仍符合相同契約；正式遊戲不受影響。失敗時間線同時寫入日誌與 `test-results/reel-experience/failure.json`。
+
 `node scripts/qa/verify.js --full --list` 只列出步驟；驗證結果保存在 `test-results/verification.json`，第一個失敗即停止，不執行部署。Windows ARM 的 workerd 步驟使用 `.tools/node-x64/` 中與 `.node-version` 一致的 Node；其他步驟使用啟動驗證的 Node。
 
 ### 從零重驗
