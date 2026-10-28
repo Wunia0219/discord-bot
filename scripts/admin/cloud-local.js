@@ -1,11 +1,8 @@
-import {spawn} from 'node:child_process';
 import {existsSync} from 'node:fs';
-import {resolve,dirname} from 'node:path';
-import {once} from 'node:events';
-const x64=resolve('.tools/node-x64/node-v24.21.0-win-x64/node.exe');
-const node=process.platform==='win32'&&process.arch==='arm64'?x64:process.execPath;
+import {cloudNode,runNode} from '../lib/node-runtime.js';
+const node=cloudNode();
 if(!existsSync(node))throw new Error('Windows ARM needs official Node x64 in .tools/node-x64; see docs/deployment.md');
-const run=async args=>{const p=spawn(node,args,{stdio:'inherit',windowsHide:true,env:{...process.env,PATH:dirname(node)+(process.platform==='win32'?';':':')+process.env.PATH,WRANGLER_SEND_METRICS:'false'}});const [code]=await once(p,'exit');if(code!==0)throw new Error('Local cloud validation failed');};
+const run=async args=>{if(await runNode(node,args)!==0)throw new Error('Local cloud validation failed');};
 const command=process.argv[2];if(!['build','test','monitor-build','monitor-test','recovery-test','reset-test'].includes(command))throw new Error('Expected build, test, monitor-build, monitor-test, recovery-test or reset-test; deployment is not automatic');
 const monitor=command.startsWith('monitor-');
 await run(['node_modules/wrangler/bin/wrangler.js','deploy','--dry-run',...(monitor?['--config','wrangler.monitor.jsonc']:[]),'--outdir',monitor?'test-results/monitor-bundle':'test-results/cloud-bundle']);

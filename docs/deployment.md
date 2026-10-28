@@ -1,6 +1,6 @@
 # 部署與維運
 
-專案版本 0.3.1；本機版本更新不代表已部署。現有 Discord 測試入口為 `https://jokers-circus.nini900219.workers.dev`；Cloudflare Workers Free／SQLite Durable Object 搭配 Firestore Blaze v2，並保留原用量保護。正式客戶群尚待提供。
+本機版本以 `package.json` 為準，線上版本須另查 health。Discord 測試入口為 `https://jokers-circus.nini900219.workers.dev`；Cloudflare Workers Free／SQLite Durable Object 搭配 Firestore Blaze v2，保留原用量保護。正式客戶群尚待提供。
 
 ## 設定與資料範圍
 

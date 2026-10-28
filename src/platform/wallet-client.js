@@ -24,8 +24,7 @@ export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.se
       return update;
     });
     if(!deferHistory||!data.round||!data.state)return synchronized;
-    // The round and wallet balance are already authoritative. Older history
-    // can arrive separately without delaying the reels or another valid spin.
+    // Confirmed settlement must not wait for older history.
     synchronized.catch(()=>{});
     let history=data.state.history||latestState?.history||[];
     if(!data.state.history&&data.historyRevision===data.state.historyRevision){
@@ -43,8 +42,7 @@ export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.se
         while((remaining=nextSpinAt-clock())>0)await wait(remaining);
         try{const data=await request('/api/spin',pending,options);pending=null;persist();return data;}
         catch(error){
-          // A different device can start a round after our last wallet snapshot.
-          // Only this explicit cooldown is retried, keeping the same bet and ID.
+          // Retry only an explicit cross-device cooldown, with the same bet and ID.
           if(error.code==='SPIN_COOLDOWN'&&attempt<2){nextSpinAt=Math.max(nextSpinAt,clock()+error.retryAfterMs+25);continue;}
           throw error;
         }

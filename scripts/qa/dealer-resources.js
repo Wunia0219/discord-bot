@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
-import {createRequire} from 'node:module';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
-import {createServer} from 'vite';
-import {browserOptions} from './browser-options.js';
+import {launchBrowser,createQaServer} from './helpers/browser.js';
 
-const require=createRequire(import.meta.url);
-const {chromium}=require(process.env.PLAYWRIGHT_MODULE_PATH||'playwright');
 const baseline=process.argv.includes('--baseline'),out='test-results/dealer-resources';
 await mkdir(out,{recursive:true});
 const observe={name:'isolated-dealer-resources',enforce:'pre',transform(source,id){
@@ -17,7 +13,7 @@ const originalLoad=Assets.load.bind(Assets),originalUnload=Assets.unload.bind(As
 Assets.load=(url,...args)=>{if(typeof url==='string'&&/\\/win-\\d+\\.webp/.test(url))globalThis.__qaResources.winLoads++;return originalLoad(url,...args);};
 Assets.unload=(url,...args)=>{if(typeof url==='string'&&/\\/win-\\d+\\.webp/.test(url))globalThis.__qaResources.winUnloads++;return originalUnload(url,...args);};`;
 }};
-const vite=await createServer({configFile:false,envDir:false,plugins:[observe],server:{host:'127.0.0.1',port:4196,strictPort:true,hmr:false,watch:{ignored:['**/test-results/**','**/data/**','**/backups/**']}}});
+const vite=await createQaServer(4196,[observe]);
 let browser;const report={baseline,checks:[],views:[],errors:[]};
 async function open(mobile=false){
  const context=await browser.newContext({viewport:mobile?{width:375,height:812}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile});
@@ -29,7 +25,7 @@ async function open(mobile=false){
  return {page,context};
 }
 try{
- await vite.listen();browser=await chromium.launch(browserOptions());
+ await vite.listen();browser=await launchBrowser();
  for(const mobile of [false,true]){
   const {page,context}=await open(mobile);
   const name=mobile?'mobile':'desktop';

@@ -1,22 +1,18 @@
 import assert from 'node:assert/strict';
-import {createRequire} from 'node:module';
 import {mkdir,writeFile} from 'node:fs/promises';
-import {createServer} from 'vite';
 import {freshState} from '../../src/game/index.js';
-import {browserOptions} from './browser-options.js';
+import {launchBrowser,createQaServer} from './helpers/browser.js';
 
-const require=createRequire(import.meta.url);
-const {chromium}=require(process.env.PLAYWRIGHT_MODULE_PATH||'playwright');
 const out='test-results/startup-resources';await mkdir(out,{recursive:true});
 const observe={name:'isolated-startup-cleanup',enforce:'pre',transform(source,id){
  const path=id.replaceAll('\\','/');
  if(path.endsWith('/src/ui/reels/scene.js'))return source.replace('async init(host, onProgress = () => {}) {',"async init(host, onProgress = () => {}) { globalThis.__qaScene=this; if(globalThis.__qaOptions.failStage)throw new Error('isolated stage failure');");
  if(path.endsWith('/src/ui/wins/big-win.js'))return source.replace('async prepare() {',"async prepare() { if(globalThis.__qaOptions.failWin)throw new Error('isolated win preparation failure');");
 }};
-const vite=await createServer({configFile:false,envDir:false,plugins:[observe],server:{host:'127.0.0.1',port:4197,strictPort:true,hmr:false,watch:{ignored:['**/test-results/**','**/data/**','**/backups/**']}}});
+const vite=await createQaServer(4197,[observe]);
 let browser;const report={checks:[],errors:[]};
 try{
- await vite.listen();browser=await chromium.launch(browserOptions());
+ await vite.listen();browser=await launchBrowser();
  for(const options of [
   {name:'early-login-failure',failLogin:true},
   {name:'login-during-assets',failLogin:true,holdLogin:true,holdAssets:true},

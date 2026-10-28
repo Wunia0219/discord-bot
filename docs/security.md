@@ -23,12 +23,12 @@ Client Secret、Google 私鑰、管理 token、Webhook、備份金鑰不得出�
 
 備份與金鑰分開存於私密位置，Windows 以資料夾 ACL 控制；`0600` 不能取代 ACL。疑似外洩時先撤銷／輪替相應憑證，核對操作與備份，不單純刪除日誌。新金鑰不能讓舊備份失去解密能力。
 
-HTTPS、平台帳號 MFA、最小 IAM 權限及供應商存取紀錄需由部署帳戶核對。本輪程式檢查不等於完整滲透測試或供應商安全稽核；未發布前，開發分支新增的標頭不會自動出現在線上。
+HTTPS、平台帳號 MFA、最小 IAM 權限及供應商存取紀錄由部署帳戶核對。程式回歸不等於滲透測試或供應商稽核；線上保護須以實際部署驗證。
 
 ## 依賴限制
 
-2026-10-27 的 `npm audit --omit=dev` 回報 Discord SDK 2.5.0 使用的 Zod 3.25.76 有[大型集合驗證耗盡記憶體風險](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5)，共 2 個相依套件警示，屬同一漏洞。SDK 要求 Zod 3，公告修復版為 4.6.6；不能直接強制跨主版本替換後便宣稱相容。目前沒有 npm 提供的相容修補方案。
+2026-10-28 的 `npm audit --omit=dev` 仍回報 Discord SDK 2.5.0 使用的 Zod 3.25.76 有[大型集合驗證耗盡記憶體風險](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5)：2 個 high 相依警示，屬同一漏洞，`fixAvailable=false`。SDK 要求 Zod 3，公告修復版為 4.6.6；跨主版本替換需另驗相容性。此結果是當日紀錄，後續以重新執行 audit 為準。
 
-SDK 在瀏覽器處理 Discord 訊息，先檢查來源；後端錢包不使用 Zod，HTTP 大小限制也不能修補 SDK 的訊息解析。後續須追蹤 SDK 相容修補並重驗 Discord 登入；本輪未將此警示忽略或標成已解決。
+SDK 在瀏覽器處理 Discord 訊息並檢查來源；後端錢包不使用 Zod，HTTP 大小限制不能修補 SDK 解析。待 SDK 相容修補後重驗 Discord 登入，此警示仍未解決。
 
 依據：[OWASP HTTP Headers](https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html)、[CSP](https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html)。

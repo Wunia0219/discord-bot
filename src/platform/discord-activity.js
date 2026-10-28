@@ -1,5 +1,4 @@
 import { authenticateActivity } from './discord-auth.js';
-// OAuth is activated only after the local backend credentials are configured.
 export function isDiscordActivity(location) {
   return new URLSearchParams(location.search).has('frame_id')
     || /^\d+\.discordsays\.com$/.test(location.hostname);

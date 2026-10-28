@@ -1,6 +1,6 @@
 # 架構與資料契約
 
-版本 0.3.1。前端使用 PixiJS／Vite；Node 與 Cloudflare 共用驗證及錢包核心。線上由單一 Durable Object 管理專案額度、登入與排程，Firestore v2 是權威帳本。
+前端使用 PixiJS／Vite；Node 與 Cloudflare 共用驗證及錢包核心。線上由單一 Durable Object 管理專案額度、登入與排程，Firestore v2 是權威帳本。產品版本以 `package.json` 為準。
 
 ## 模組
 
@@ -10,17 +10,40 @@
 | `src/game/` | 現行規則、輪帶、算獎及歷史規則 |
 | `src/platform/` | Discord 登入、錢包請求及歷史同步 |
 | `src/ui/reels/` | 場景、停輪、快停與自動旋轉 |
-| `src/ui/dealer/`、`audio/`、`wins/` | 荷官、聲音、得獎演出 |
-| `src/ui/player/`、`dialogs/`、`shared/` | 玩家資訊、視窗及共用畫面元件 |
-| `server/index.js`、`config.js` | Node 啟動與後端選擇 |
-| `server/http/`、`discord/` | API、簽章、權限及私人指令回覆 |
+| `src/ui/dealer/`、`src/ui/audio/`、`src/ui/wins/` | 荷官、聲音、得獎演出 |
+| `src/ui/player/`、`src/ui/dialogs/`、`src/ui/shared/` | 玩家資訊、視窗及共用畫面元件 |
+| `server/index.js`、`server/config.js` | Node 啟動與後端選擇 |
+| `server/http/`、`server/discord/` | API、簽章、權限及私人指令回覆 |
 | `server/wallet/` | 共用錢包規則、session、SQLite 結算 |
-| `server/sqlite/`、`firestore/` | 儲存、查詢、驗帳、遷移 |
-| `server/recovery/`、`operations/` | 備份恢復、交接及維運 |
+| `server/sqlite/`、`server/firestore/` | 儲存、查詢、驗帳、遷移 |
+| `server/recovery/`、`server/operations/` | 備份恢復、交接及維運 |
 | `server/testing/` | 僅限 loopback 的本機假帳號 |
 | `cloud/` | REST 傳輸、DO 狀態、加密備份及 HTTP 入口 |
 | `monitor/` | 獨立唯讀監控及通知 |
-| `scripts/admin/`、`assets/`、`audio/`、`game/` | 維護、素材及驗算工具 |
+| `scripts/admin/` | 本機、雲端維運、模擬器及恢復工具 |
+| `scripts/assets/`、`scripts/audio/` | 素材製作、無損檢查及音效預覽 |
+| `scripts/game/` | 數學驗算與模型匯出 |
+| `scripts/qa/`、`scripts/qa/helpers/` | 完整驗證入口、瀏覽器情境與共用啟動設定 |
+| `scripts/lib/` | 跨 CLI 的 Node 執行工具，不進產品 bundle |
+
+## 檔案分類
+
+| 位置 | 內容與維護原則 |
+|---|---|
+| 根目錄 | npm／Node／Vite／Docker／Wrangler 設定、網頁入口、README 與維護規範 |
+| `.github/workflows/` | CI；只驗證，不部署 |
+| `deploy/` | 公開環境範本與 Firestore 規則；私密設定留在忽略版控的 `.env*.local` |
+| `docs/`、`docs/data/` | 主題文件及可重現的數學報告；玩法文件由 `export:model` 產生 |
+| `images/`、`audio/`、`public/` | 執行時素材與政策頁，路徑由建置／載入程式引用 |
+| `art/dealer/` | 原畫、參考、原幀、HD 圖集、設計候選與來源紀錄；不作為 runtime 載入 |
+| `output/` | 可重建的模型交付 JSON |
+| `tests/*.test.js` | 一般回歸；`*.integration.js` 為模擬器／workerd 情境 |
+| `tests/helpers/`、`tests/fixtures/` | 獨立算獎 oracle、測試工具、固定像素基準及測試 Worker |
+| `node_modules/`、`dist/`、`.wrangler/` | 忽略版控的相依套件、建置及本機 Worker 產物 |
+| `.tools/`、`test-results/` | 忽略版控的工具快取、一次性維運腳本及驗證證據；不是產品來源 |
+| `data/`、`backups/` | 私密帳本、用量、金鑰及備份；不可當暫存檔批次清除 |
+
+來源素材、歷史規則及備份相容程式各有用途；未被前端匯入不等於可刪除。重新分類以模組責任為準，保留執行資源 URL、匯出格式與既有 CLI 入口。
 
 ## 結算與同步
 

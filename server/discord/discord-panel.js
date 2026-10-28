@@ -130,8 +130,7 @@ export async function handlePanel(i,store,recordField,parsed){
     row(button(i,'確認重設全群','ra',[request(i)],4),button(i,'上次重設報表','rf'),button(i,'取消','home')),
   ],'warning');
   if(action==='ra'){fresh(args[0],store.resetAt);return report(i,env,await store.resetWallets(guild,actor,args[0]));}
-  // Cached old forms/selects also lead to the latest report; there is no longer
-  // a historical report-ID lookup in the player-facing management flow.
+  // Legacy forms/selects also open the latest reset report.
   if(['rf','rs','rr'].includes(action))return report(i,env,await store.walletResetReport(guild,actor,undefined,{page:1}));
   if(action==='rp')return report(i,env,await store.walletResetReport(guild,actor,args[0],{page:Number(args[1])}),Number(args[1]));
   throw problem(400,'請重新開啟管理面板。','PANEL_INVALID');

@@ -1,18 +1,15 @@
 import assert from 'node:assert/strict';
-import {createRequire} from 'node:module';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
-import {createServer} from 'vite';
-import {browserOptions} from './browser-options.js';
+import {launchBrowser,createQaServer} from './helpers/browser.js';
 
-const require=createRequire(import.meta.url),{chromium}=require(process.env.PLAYWRIGHT_MODULE_PATH||'playwright');
 const baseline=process.argv.includes('--baseline'),out='test-results/number-rendering',reference='tests/fixtures/number-rendering.json';
 await mkdir(out,{recursive:true});
-const server=await createServer({configFile:false,envDir:false,plugins:[{name:'isolated-number-page',configureServer(server){server.middlewares.use((req,res,next)=>{
+const server=await createQaServer(4198,[{name:'isolated-number-page',configureServer(server){server.middlewares.use((req,res,next)=>{
  if(req.url!=='/__numbers')return next();res.setHeader('Content-Type','text/html');res.end('<!doctype html><html><body><div id="number"></div><div id="benchmark"></div></body></html>');
-});}}],server:{host:'127.0.0.1',port:4198,strictPort:true,hmr:false,watch:{ignored:['**/test-results/**']}}});
+});}}],['**/test-results/**']);
 let browser;
 try{
- await server.listen();browser=await chromium.launch(browserOptions());const page=await browser.newPage(),errors=[];
+ await server.listen();browser=await launchBrowser();const page=await browser.newPage(),errors=[];
  page.on('pageerror',error=>errors.push(error.message));
  await page.route('**/*',route=>new URL(route.request().url()).origin==='http://127.0.0.1:4198'?route.continue():route.abort());
  await page.goto('http://127.0.0.1:4198/__numbers');

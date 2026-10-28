@@ -27,7 +27,23 @@
 
 瀏覽器測試使用鎖定的 Playwright 開發相依；Windows 預設 Edge，Linux 預設 Chromium（先執行 `npx playwright install --with-deps chromium`）。可用 `PLAYWRIGHT_MODULE_PATH` 指定既有模組目錄、`PLAYWRIGHT_BROWSER_CHANNEL` 指定測試通道。數字的固定像素基準位於 `tests/fixtures/number-rendering.json`；僅在有意更改字型／外觀時用 `npm run test:numbers -- --baseline` 更新。
 
-`node scripts/qa/verify.js --full --list` 只列出步驟；一般或完整驗證都會保存 `test-results/verification.json`，遇到第一個失敗就停止，不執行部署。完整驗證前需完成 `npm run firestore:emulator:setup` 並準備 Java 21。Windows ARM 的 workerd 步驟沿用 `.tools/node-x64/`，一般測試仍使用目前的 Node 24。
+`node scripts/qa/verify.js --full --list` 只列出步驟；驗證結果保存在 `test-results/verification.json`，第一個失敗即停止，不執行部署。Windows ARM 的 workerd 步驟使用 `.tools/node-x64/node-v24.21.0-win-x64/node.exe`；其他步驟使用啟動驗證的 Node 24。
+
+### 從零重驗
+
+使用儲存庫外的新目錄，複製目前來源或從待驗證提交建立 checkout。不要帶入 `.env*.local`、`data/`、`backups/`、`node_modules/`、`dist/`、`.wrangler/` 或舊測試結果，也不要放在已有 `node_modules` 的父目錄下，以免 Node 向上尋找舊套件。
+
+```sh
+npm ci
+npm run firestore:emulator:setup
+npm run verify:full
+npm run verify:math
+npm run verify:sessions
+```
+
+Windows ARM 建議在 **Node 24 x64 環境**內完成以上全部步驟，確保 npm 安裝的原生套件與 workerd 執行架構一致；只在最後切換 Node 不足以補齊 x64 套件。Java 21 可由 `JAVA_HOME`／`FIRESTORE_JAVA_PATH` 指定；官方 emulator 會核對 SHA-256。數學驗算會重建 `docs/data/` 報告及 `src/game/model-config.js`，應與來源比對；未調整玩法時內容須一致。
+
+單獨執行 `test:security` 前需先 build；`verify` 已按此順序執行。全新目錄沒有荷官的本機影格基準時，`test:dealer` 仍檢查格數、時長及資源生命週期；要比較修改前後像素，先依[素材文件](assets.md)保存同機基準。
 
 `.github/workflows/verify.yml` 在 pull request、main 推送或手動觸發時使用相同完整入口；固定 Node 24、Java 21、Chromium 與經雜湊核對的官方 emulator。workflow 只有讀取程式碼權限，不注入正式憑證、不部署、不執行正式資料清理。Actions 提交已鎖定；遠端結果以實際 workflow 執行為準。設定參考 [Playwright CI 文件](https://playwright.dev/docs/ci-intro)。
 

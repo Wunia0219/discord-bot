@@ -1,11 +1,10 @@
-import {spawn} from 'node:child_process';
 import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
-import {resolve,dirname} from 'node:path';
+import {cloudNode,runNode} from '../lib/node-runtime.js';
 
 const full=process.argv.includes('--full'),list=process.argv.includes('--list');
 if(process.argv.slice(2).some(arg=>!['--full','--list'].includes(arg)))throw new Error('Use --full and/or --list');
 const node=process.execPath;
-const integrationNode=process.platform==='win32'&&process.arch==='arm64'?resolve('.tools/node-x64/node-v24.21.0-win-x64/node.exe'):node;
+const integrationNode=cloudNode();
 const steps=[
  ['一般回歸',node,['--test','tests/*.test.js']],
  ['前端建置',node,['node_modules/vite/bin/vite.js','build']],
@@ -31,10 +30,7 @@ mkdirSync('test-results',{recursive:true});const report={full,steps:[]};
 try{
  for(const [label,executable,args] of steps){
   console.log(`\n[${report.steps.length+1}/${steps.length}] ${label}`);
-  const started=Date.now(),code=await new Promise((resolve,reject)=>{
-   const child=spawn(executable,args,{stdio:'inherit',windowsHide:true,env:{...process.env,FIRESTORE_LIVE_ENABLED:'false',WRANGLER_SEND_METRICS:'false',PATH:dirname(executable)+(process.platform==='win32'?';':':')+process.env.PATH}});
-   child.once('error',reject);child.once('exit',code=>resolve(code??1));
-  });
+  const started=Date.now(),code=await runNode(executable,args,{FIRESTORE_LIVE_ENABLED:'false'});
   report.steps.push({label,exitCode:code,durationMs:Date.now()-started});
   if(code!==0){process.exitCode=code;break;}
  }

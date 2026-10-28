@@ -12,7 +12,7 @@
 | `images/dealer/v4/` | 荷官 manifest 與 51 頁無損 WebP |
 | `audio/circus-background-optimized.mp3` | 使用者原音樂，182.76 秒、48 kHz 立體聲 |
 
-MP3 已用 stream copy 移除封面／標籤，4,342,331→4,317,696 bytes，未重編碼；原驗證封包及解碼 PCM 雜湊一致。音樂按開關才載入、音量 16%、循環播放，入口支援 Range。合成音效由 `src/ui/audio/` 共用 voice plan 產生，`npm run audio:preview` 可離線試聽。
+MP3 僅以 stream copy 移除封面／標籤，未重編碼。音樂按開關才載入、音量 16%、循環播放，入口支援 Range。合成音效由 `src/ui/audio/` 共用 voice plan 產生，`npm run audio:preview` 可離線試聽。
 
 金色數字的字型上下界在模組初始化時計算一次；文字變動時僅在尺寸不同才重設 Canvas，其餘更新清除原畫布再繪製。原字型、排版、數字動畫時長與無障礙文字保持不變，`npm run test:numbers` 比對固定像素基準。
 
@@ -20,7 +20,7 @@ MP3 已用 stream copy 移除封面／標籤，4,342,331→4,317,696 bytes，未
 
 `npm run assets:audit` 檢查 Git 追蹤的 `images/`、`art/` 圖片；`npm run assets:webp` 只寫入更小、尺寸及完整 RGBA 逐位元一致的候選。包含透明區 RGB，不縮尺寸、不更改畫面內容。報告在 `test-results/image-compression.json`，記錄檔案／像素雜湊、編碼及大小。
 
-動畫 WebP 保留所有影格與原時序，不攤平成單張。已有有損背景及 MP3 不宣稱可還原成原始無損；本輪不再有損壓縮。圖集內 `spin-button.png` 等名稱是 frame key，不是待下載 PNG。
+動畫 WebP 保留所有影格與原時序，不攤平成單張。已有有損背景及 MP3 不可還原成原始無損；維護時不再有損壓縮。圖集內 `spin-button.png` 等名稱是 frame key，不是待下載 PNG。
 
 Python 工具需 Pillow；`build-circus-font.py` 使用 Windows Georgia Bold，字型檔不打包。Python 模組採底線，CLI 與 JS 檔採連字號；`__pycache__` 不進版控。
 
@@ -41,7 +41,7 @@ runtime 邏輯畫布每格 576×832，原幀 1152×1664，anchor `[0.5,1600/1664
 
 win 完整播放回待機後保留 30 秒，供短時間內的下一次得獎重用；到期若轉輪仍在運動則延後釋放。正在播放、準備播放及首次預載待用的動作保持可用；回背景會切回原 idle 並釋放可選動作，背景不另外預載 win。重新使用同一動作會取消待釋放計時，並行準備共用一份工作。載入、解析或 GPU 上傳失敗時等待同批頁面收尾，再清理成功載入的資源；離開時也等待進行中的準備與釋放完成。
 
-上述策略保留 51 頁、全部影格、完整像素與播放順序。共用外框打包後，兩組貼圖按 RGBA 尺寸估算由 372.94 MiB 降為 298.83 MiB（約 19.9%）；無損 WebP 合計由 41,296,688 降為 41,019,400 bytes。短期重用仍會延長 win 貼圖的駐留時間；上述記憶體數字是圖集尺寸估算，不是裝置實測。
+兩組共 51 頁，保留全部影格、像素與播放順序；RGBA 尺寸合計約 298.83 MiB，WebP 共 41,019,400 bytes。記憶體數字是圖集尺寸估算，不是裝置實測；短期重用會延長 win 貼圖駐留時間。
 
 原畫在 `art/dealer/rebuild/host-master.webp`，補件／原幀／HD 圖集在 `art/dealer/v4/`，動作設計在 `art/dealer/win-design/`。R6 使用一次致意：上身峰值 +0.95°、自由臂 +6.5°，手臂較身體延後約 191ms；支撐手、平台與靴底固定。108 格含 107 張不同像素，首尾共用中立姿勢。
 

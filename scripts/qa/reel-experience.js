@@ -1,12 +1,8 @@
 import assert from 'node:assert/strict';
-import {createRequire} from 'node:module';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
-import {createServer} from 'vite';
 import {freshState,createRound,INITIAL_STOPS} from '../../src/game/index.js';
-import {browserOptions} from './browser-options.js';
+import {launchBrowser,createQaServer} from './helpers/browser.js';
 
-const require=createRequire(import.meta.url);
-const {chromium}=require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
 const out='test-results/reel-experience';await mkdir(out,{recursive:true});
 const stops=JSON.parse(await readFile('docs/data/math-report.json','utf8')).examples.none.stops;
 const observe={name:'local-reel-observation',enforce:'pre',transform(source,id){
@@ -22,11 +18,11 @@ const observe={name:'local-reel-observation',enforce:'pre',transform(source,id){
     .replace('this.music=musicUrl?', 'globalThis.__qaSound=this; this.music=musicUrl?')
     .replace("stop(index){this.play('stop',index);}","stop(index){globalThis.__qaTimeline?.push({kind:'stop',index,at:performance.now(),clock:globalThis.__qaScene?.active?.time});this.play('stop',index);}");
 }};
-const vite=await createServer({configFile:false,envDir:false,plugins:[observe],server:{host:'127.0.0.1',port:4194,strictPort:true,hmr:false,watch:{ignored:['**/test-results/**','**/data/**','**/backups/**']}}});
+const vite=await createQaServer(4194,[observe]);
 let browser;
 const report={checks:[],timings:[],errors:[],clientTelemetry:[]};
 try{
-  await vite.listen();browser=await chromium.launch(browserOptions());
+  await vite.listen();browser=await launchBrowser();
   const context=await browser.newContext({viewport:{width:1440,height:900}}),page=await context.newPage();
   await page.addInitScript(()=>{
     window.__qaTimeline=[];const nativeFetch=window.fetch;

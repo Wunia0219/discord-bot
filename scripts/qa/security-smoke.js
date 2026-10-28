@@ -1,12 +1,9 @@
 import assert from 'node:assert/strict';
-import {createRequire} from 'node:module';
 import {mkdirSync,mkdtempSync,writeFileSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {createActivityServer} from '../../server/http/app.js';
 import {localTestWalletConfig} from '../../server/testing/local-test-wallet.js';
-import {browserOptions} from './browser-options.js';
-const require=createRequire(import.meta.url);
-const {chromium}=require(process.env.PLAYWRIGHT_MODULE_PATH||'playwright');
+import {launchBrowser} from './helpers/browser.js';
 mkdirSync('test-results/security-smoke',{recursive:true});
 const dir=mkdtempSync('test-results/security-smoke/run-'),port=4193;
 const wallet=localTestWalletConfig({APP_ENV:'test',HOST:'127.0.0.1',WALLET_ENABLED:'true',LOCAL_WALLET_TEST:'true',DATABASE_PATH:resolve(dir,'wallet.sqlite')});
@@ -14,7 +11,7 @@ const server=createActivityServer({wallet,localPort:port,distDir:resolve('dist')
 await new Promise((ok,fail)=>{server.once('error',fail);server.listen(port,'127.0.0.1',ok);});
 let browser;const report={errors:[],checks:[],devices:[]};
 try{
- browser=await chromium.launch(browserOptions());
+ browser=await launchBrowser();
  for(const mobile of [false,true]){
   const context=await browser.newContext({viewport:mobile?{width:375,height:812}:{width:1440,height:900},isMobile:mobile,hasTouch:mobile});
   const page=await context.newPage();page.on('pageerror',e=>report.errors.push(e.message));

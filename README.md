@@ -15,22 +15,11 @@ npm run dev
 
 固定檢查入口為 `npm run verify`；準備 Java 21 與 Firestore emulator 後，用 `npm run verify:full` 執行包含 REST／workerd 與恢復的完整檢查。兩者只建置與驗證，不部署；步驟與 CI 見[測試文件](docs/testing.md)。
 
-| 指令 | 用途 |
-|---|---|
-| `npm test` | 一般回歸 |
-| `npm run build` | 前端正式建置 |
-| `npm run test:firestore` | Firestore SDK、遷移及備份 |
-| `npm run test:cloud` | REST／真正 workerd 與備份 |
-| `npm run test:recovery` | 60 錢包、5 人並行及恢復 |
-| `npm run test:monitor` | 獨立監控 |
-| `npm run assets:audit` | 圖片逐檔無損壓縮檢查 |
-| `npm run assets:webp` | 僅保留更小且像素一致的圖片 |
-
 ## 文件
 
 | 文件 | 內容 |
 |---|---|
-| [架構](docs/architecture.md) | 模組邊界、帳本與同步契約 |
+| [架構與檔案分類](docs/architecture.md) | 來源、產物、私密資料、模組邊界與同步契約 |
 | [部署與維運](docs/deployment.md) | 環境、額度、Discord、監控 |
 | [備份與恢復](docs/recovery.md) | 加密、驗帳、事故處理與 writer 交接 |
 | [測試](docs/testing.md) | 自動測試、本機入口與人工驗收 |
