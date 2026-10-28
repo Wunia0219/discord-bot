@@ -6,7 +6,19 @@ Discord Activity：5×3 轉輪、243 路，後端負責算獎、戲籌、週簽�
 
 需要 Node.js **24.22.1+（24 LTS）**、npm **12.2.1+（12.x）**；圖片工具另需 Python／Pillow，Firestore 模擬器需 Java 21。
 
-Windows PowerShell 先執行 `. ./scripts/admin/setup-toolchain.ps1`，下載經 SHA-256 核對的專案專用 Node x64／npm，並設定目前 shell 的 PATH。其他系統依 `.node-version` 安裝 Node，再執行 `npm install --global npm@12.2.1`。
+先進入儲存庫根目錄（可看到 `package.json`）。Windows PowerShell 執行 `. .\scripts\admin\setup-toolchain.ps1`，下載經 SHA-256 核對的專案專用 Node x64／npm，並設定目前 shell 的 PATH。其他系統依 `.node-version` 安裝 Node，再執行 `npm install --global npm@12.2.1`。
+
+Windows 若已安裝專案工具鏈，但 PowerShell 阻擋 `.ps1`，可直接啟用，不必調整執行原則：
+
+```powershell
+$projectNodeVersion = (Get-Content .node-version -Raw).Trim()
+$projectNodePath = (Resolve-Path ".tools/node-x64/node-v$projectNodeVersion-win-x64").Path
+$env:Path = "$projectNodePath;$env:Path"
+node --version
+npm.cmd --version
+```
+
+此 PATH 只對目前視窗生效；Windows 後續指令使用 `npm.cmd`，避免命中受阻擋的 `npm.ps1`。尚未安裝工具鏈時，先依上方版本需求安裝 Node／npm。
 
 ```sh
 npm ci
