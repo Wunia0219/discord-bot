@@ -5,6 +5,10 @@ const glyphs = new Map(descriptor.split('\n').filter(line => line.startsWith('ch
   const glyph = Object.fromEntries([...line.matchAll(/(\w+)=(-?\d+)/g)].map(([,key,value]) => [key,Number(value)]));
   return [String.fromCodePoint(glyph.id),glyph];
 }));
+// Font-wide bounds are fixed; retain the authored baseline and descenders.
+const fontGlyphs=[...glyphs.values()];
+const fontTop=Math.min(...fontGlyphs.map(glyph=>glyph.yoffset))-6;
+const fontHeight=Math.max(...fontGlyphs.map(glyph=>glyph.yoffset+glyph.height))-fontTop+6;
 const image = new Image(); image.src = atlasUrl;
 let loaded = false;
 export const prepareNumberFont = () => image.decode().then(() => { loaded = true; });
@@ -26,15 +30,16 @@ export function setBitmapNumber(element, text) {
   element.querySelector('.number-text').textContent = text;
   const sequence = [...text].map(char => glyphs.get(char === '-' ? '−' : char));
   if (sequence.some(glyph => !glyph)) { element.textContent = text; delete element.dataset.bitmapValue; return; }
-  // Trim shared vertical font padding consistently, retaining baseline/descenders.
-  canvas.width = sequence.reduce((width,glyph) => width + glyph.xadvance, 24);
-  const top = Math.min(...[...glyphs.values()].map(glyph => glyph.yoffset)) - 6;
-  canvas.height = Math.max(...[...glyphs.values()].map(glyph => glyph.yoffset + glyph.height)) - top + 6;
-  canvas.style.width = `${canvas.width / canvas.height}em`;
+  const width=sequence.reduce((width,glyph)=>width+glyph.xadvance,24);
+  let resized=false;
+  if(canvas.width!==width){canvas.width=width;resized=true;}
+  if(canvas.height!==fontHeight){canvas.height=fontHeight;resized=true;}
+  if(resized)canvas.style.width=`${width/fontHeight}em`;
   const context = canvas.getContext('2d');
+  if(!resized)context.clearRect(0,0,width,fontHeight);
   let x = 12;
   for (const glyph of sequence) {
-    context.drawImage(image,glyph.x,glyph.y,glyph.width,glyph.height,x+glyph.xoffset,glyph.yoffset-top,glyph.width,glyph.height);
+    context.drawImage(image,glyph.x,glyph.y,glyph.width,glyph.height,x+glyph.xoffset,glyph.yoffset-fontTop,glyph.width,glyph.height);
     x += glyph.xadvance;
   }
 }

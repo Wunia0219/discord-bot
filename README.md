@@ -13,6 +13,8 @@ npm run dev
 
 瀏覽器試玩：`http://127.0.0.1:4187/`。完整本機錢包驗收：`npm run validation:start`，開啟 `http://127.0.0.1:4192/wallet-test`。
 
+固定檢查入口為 `npm run verify`；準備 Java 21 與 Firestore emulator 後，用 `npm run verify:full` 執行包含 REST／workerd 與恢復的完整檢查。兩者只建置與驗證，不部署；步驟與 CI 見[測試文件](docs/testing.md)。
+
 | 指令 | 用途 |
 |---|---|
 | `npm test` | 一般回歸 |

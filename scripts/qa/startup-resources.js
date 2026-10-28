@@ -3,6 +3,7 @@ import {createRequire} from 'node:module';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {createServer} from 'vite';
 import {freshState} from '../../src/game/index.js';
+import {browserOptions} from './browser-options.js';
 
 const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE_PATH||'playwright');
@@ -15,7 +16,7 @@ const observe={name:'isolated-startup-cleanup',enforce:'pre',transform(source,id
 const vite=await createServer({configFile:false,envDir:false,plugins:[observe],server:{host:'127.0.0.1',port:4197,strictPort:true,hmr:false,watch:{ignored:['**/test-results/**','**/data/**','**/backups/**']}}});
 let browser;const report={checks:[],errors:[]};
 try{
- await vite.listen();browser=await chromium.launch({channel:'msedge',headless:true,args:['--mute-audio']});
+ await vite.listen();browser=await chromium.launch(browserOptions());
  for(const options of [
   {name:'early-login-failure',failLogin:true},
   {name:'login-during-assets',failLogin:true,holdLogin:true,holdAssets:true},

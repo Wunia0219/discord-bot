@@ -14,6 +14,8 @@
 
 MP3 已用 stream copy 移除封面／標籤，4,342,331→4,317,696 bytes，未重編碼；原驗證封包及解碼 PCM 雜湊一致。音樂按開關才載入、音量 16%、循環播放，入口支援 Range。合成音效由 `src/ui/audio/` 共用 voice plan 產生，`npm run audio:preview` 可離線試聽。
 
+金色數字的字型上下界在模組初始化時計算一次；文字變動時僅在尺寸不同才重設 Canvas，其餘更新清除原畫布再繪製。原字型、排版、數字動畫時長與無障礙文字保持不變，`npm run test:numbers` 比對固定像素基準。
+
 ## 無損檢查
 
 `npm run assets:audit` 檢查 Git 追蹤的 `images/`、`art/` 圖片；`npm run assets:webp` 只寫入更小、尺寸及完整 RGBA 逐位元一致的候選。包含透明區 RGB，不縮尺寸、不更改畫面內容。報告在 `test-results/image-compression.json`，記錄檔案／像素雜湊、編碼及大小。

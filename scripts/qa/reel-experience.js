@@ -3,6 +3,7 @@ import {createRequire} from 'node:module';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {createServer} from 'vite';
 import {freshState,createRound,INITIAL_STOPS} from '../../src/game/index.js';
+import {browserOptions} from './browser-options.js';
 
 const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
@@ -25,7 +26,7 @@ const vite=await createServer({configFile:false,envDir:false,plugins:[observe],s
 let browser;
 const report={checks:[],timings:[],errors:[],clientTelemetry:[]};
 try{
-  await vite.listen();browser=await chromium.launch({channel:'msedge',headless:true,args:['--mute-audio']});
+  await vite.listen();browser=await chromium.launch(browserOptions());
   const context=await browser.newContext({viewport:{width:1440,height:900}}),page=await context.newPage();
   await page.addInitScript(()=>{
     window.__qaTimeline=[];const nativeFetch=window.fetch;

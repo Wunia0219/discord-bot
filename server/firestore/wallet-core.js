@@ -16,10 +16,12 @@ const unpack=doc=>doc.exists?JSON.parse(doc.get('json')):null;
 const packed=data=>({json:JSON.stringify(data)});
 
 export class FirestoreWalletCore {
-  constructor(settings,{guildIds=[],weeklyRewards,grantMax=100000,grantDaily=1000000,clock=Date.now,spinDelay=2000,db,quota,settlementQueue}={}){
+  constructor(settings,{guildIds=[],weeklyRewards,grantMax=100000,grantDaily=1000000,clock=Date.now,spinDelay=2000,stateCacheMs=5000,db,quota,settlementQueue}={}){
     if(!guildIds.length||guildIds.some(id=>!/^\d{17,20}$/.test(id)))throw new Error('Explicit guild allowlist required');
     for(const value of [grantMax,grantDaily])if(!Number.isSafeInteger(value)||value<=0||value>maxBalance)throw new Error('Invalid wallet limits');
-    Object.assign(this,{settings,environment:settings.environment,guildIds:new Set(guildIds),weeklyRewards:checkinRewards(weeklyRewards),grantMax,grantDaily,clock,spinDelay});
+    if(!Number.isInteger(stateCacheMs)||stateCacheMs<0||stateCacheMs>30000)throw new Error('Invalid wallet cache lifetime');
+    Object.assign(this,{settings,environment:settings.environment,guildIds:new Set(guildIds),weeklyRewards:checkinRewards(weeklyRewards),grantMax,grantDaily,clock,spinDelay,stateCacheMs});
+    this.cacheGeneration=0;
     this.backend='firestore';
     this.schemaVersion=settings.schemaVersion??1;
     if(![1,2].includes(this.schemaVersion))throw new Error('Invalid Firestore schema version');
@@ -77,6 +79,7 @@ export class FirestoreWalletCore {
   }
   safe(error){
     if(error.walletProblem)return error;
+    this.invalidateCache();
     this.ready=false;
     return problem(503,'帳號戲籌暫時連不上，請稍後重試；未確認的操作請沿用原請求。','FIRESTORE_UNAVAILABLE');
   }
@@ -104,21 +107,26 @@ export class FirestoreWalletCore {
   async readState(guild,user){
     this.validate(guild,user);if(this.closed)throw this.safe({});
     this.quota.reserve({});const key=guild+':'+user,cached=this.cache.get(key);
-    if(cached&&this.clock()-cached.at<5000)return this.snapshot(cached.wallet);
+    const age=cached?this.clock()-cached.at:-1;
+    if(cached&&age>=0&&age<this.stateCacheMs)return this.snapshot(cached.wallet);
     if(this.pending.has(key))return this.pending.get(key);
+    const readAt=this.clock(),generation=this.cacheGeneration;
     const promise=(async()=>{
       try{const wallet=await this.read(this.walletRef(guild,user));
+        if(this.closed||generation!==this.cacheGeneration)throw new Error('Wallet read invalidated');
         if(!wallet)return (await this.transact(guild,user,{kind:'ensure'},{compact:true})).state;
-        this.cacheWallet(wallet);return this.snapshot(wallet);
+        return this.snapshot(this.cacheWallet(wallet,{at:readAt}));
       }catch(error){throw this.safe(error);}
     })().finally(()=>this.pending.delete(key));this.pending.set(key,promise);return promise;
   }
-  cacheWallet(wallet){
-    const current=this.cache.get(wallet.guild+':'+wallet.user);
-    if(current&&current.wallet.revision>wallet.revision)return;
-    if(this.cache.size>=1000)this.cache.delete(this.cache.keys().next().value);
-    this.cache.set(wallet.guild+':'+wallet.user,{wallet,at:this.clock()});
+  cacheWallet(wallet,{at=this.clock()}={}){
+    if(this.closed)return wallet;
+    const key=wallet.guild+':'+wallet.user,current=this.cache.get(key);
+    if(current&&(current.wallet.revision>wallet.revision||current.wallet.revision===wallet.revision&&current.at>=at))return current.wallet;
+    if(!current&&this.cache.size>=1000)this.cache.delete(this.cache.keys().next().value);
+    this.cache.set(key,{wallet,at});return wallet;
   }
+  invalidateCache(){this.cache.clear();this.cacheGeneration++;}
   record(tx,ref,entry){
     const id=String(entry.id).padStart(16,'0'),cat=category(entry.kind);
     for(const name of ['ledger',`entries-${cat}`,`entries-${cat}-${entry.day}`,`entries-all-${entry.day}`]){
@@ -323,6 +331,6 @@ export class FirestoreWalletCore {
     }catch(error){throw this.safe(error);}
   }
   status(){return {backend:'firestore',schemaVersion:this.schemaVersion,environment:this.environment,projectId:this.settings.projectId,namespace:this.settings.namespace,quota:this.quota.status(),ready:this.ready&&!this.closed};}
-  async close(){if(this.closed)return;this.closed=true;this.cache.clear();this.histories.clear();await this.db.terminate();this.quota.close();}
+  async close(){if(this.closed)return;this.closed=true;this.invalidateCache();this.histories.clear();await this.db.terminate();this.quota.close();}
 }
 Object.assign(FirestoreWalletCore.prototype,firestoreAdminWallets);

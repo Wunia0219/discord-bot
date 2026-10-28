@@ -51,9 +51,13 @@
     "test:experience": "node scripts/qa/reel-experience.js",
     "test:dealer": "node scripts/qa/dealer-resources.js",
     "test:startup": "node scripts/qa/startup-resources.js",
+    "test:numbers": "node scripts/qa/number-rendering.js",
+    "verify": "node scripts/qa/verify.js",
+    "verify:full": "node scripts/qa/verify.js --full",
     "test:security": "node scripts/qa/security-smoke.js",
     "testdata:reset": "node scripts/admin/reset-test-data.js"
   },
+  "engines": {"node":"24.x"},
   "dependencies": {
     "@discord/embedded-app-sdk": "2.5.0",
     "@google-cloud/firestore": "9.3.1",
@@ -62,6 +66,7 @@
   },
   "devDependencies": {
     "miniflare": "5.20261019.2-beta",
+    "playwright": "1.62.1",
     "wrangler": "4.152.0"
   },
   "overrides": {

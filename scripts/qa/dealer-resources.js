@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {createServer} from 'vite';
+import {browserOptions} from './browser-options.js';
 
 const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE_PATH||'playwright');
@@ -28,7 +29,7 @@ async function open(mobile=false){
  return {page,context};
 }
 try{
- await vite.listen();browser=await chromium.launch({channel:'msedge',headless:true,args:['--mute-audio']});
+ await vite.listen();browser=await chromium.launch(browserOptions());
  for(const mobile of [false,true]){
   const {page,context}=await open(mobile);
   const name=mobile?'mobile':'desktop';

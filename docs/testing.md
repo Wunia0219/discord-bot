@@ -6,6 +6,8 @@
 
 | 指令 | 範圍 |
 |---|---|
+| `npm run verify` | 固定順序：一般回歸、前端／Worker dry-run、啟動／荷官／數字／停輪／CSP 瀏覽器驗證 |
+| `npm run verify:full` | 上述全部，再跑官方 emulator、REST／workerd、備份恢復、重設與監控 |
 | `npm test` | 算獎、介面契約、Discord 權限、SQLite、備份、同步與防重送 |
 | `npm run test:bot` | 指令、HTTP、帳本與維運 |
 | `npm run test:firestore` | 官方 emulator：交易、索引、遷移、完整／增量備份 |
@@ -15,6 +17,7 @@
 | `npm run test:experience` | Edge：正常／快停、慢結果、慢歷史、慢幀與手機觸控 |
 | `npm run test:dealer` | Edge：荷官完整影格、短期重用、背景／到期釋放及故障清理 |
 | `npm run test:startup` | Edge：六種啟動失敗、立即停止渲染、晚到素材回收與重試畫面 |
+| `npm run test:numbers` | 數字、符號、空值與後備文字的像素／尺寸／無障礙基準，以及 Canvas 重設次數 |
 | `npm run test:security` | 先 build；Edge：CSP、腳本注入阻擋、SQLite 結算 |
 | `npm run test:monitor` | scheduled handler、持久去重、故障與恢復通知 |
 | `npm run build`、`cloud:build`、`monitor:build` | 前端與 Worker dry-run，不部署 |
@@ -22,7 +25,11 @@
 
 需要 Node.js 24、Java 21；首次以 `npm run firestore:emulator:setup` 準備模擬器。Windows 還原測試使用 NTFS 硬連結，沙箱禁止時須允許隔離測試的檔案操作，不能改成覆寫目的檔。
 
-瀏覽器測試需 Edge 與 Playwright；可用 `PLAYWRIGHT_MODULE_PATH` 指定既有 Playwright 模組目錄。
+瀏覽器測試使用鎖定的 Playwright 開發相依；Windows 預設 Edge，Linux 預設 Chromium（先執行 `npx playwright install --with-deps chromium`）。可用 `PLAYWRIGHT_MODULE_PATH` 指定既有模組目錄、`PLAYWRIGHT_BROWSER_CHANNEL` 指定測試通道。數字的固定像素基準位於 `tests/fixtures/number-rendering.json`；僅在有意更改字型／外觀時用 `npm run test:numbers -- --baseline` 更新。
+
+`node scripts/qa/verify.js --full --list` 只列出步驟；一般或完整驗證都會保存 `test-results/verification.json`，遇到第一個失敗就停止，不執行部署。完整驗證前需完成 `npm run firestore:emulator:setup` 並準備 Java 21。Windows ARM 的 workerd 步驟沿用 `.tools/node-x64/`，一般測試仍使用目前的 Node 24。
+
+`.github/workflows/verify.yml` 在 pull request、main 推送或手動觸發時使用相同完整入口；固定 Node 24、Java 21、Chromium 與經雜湊核對的官方 emulator。workflow 只有讀取程式碼權限，不注入正式憑證、不部署、不執行正式資料清理。Actions 提交已鎖定；遠端結果以實際 workflow 執行為準。設定參考 [Playwright CI 文件](https://playwright.dev/docs/ci-intro)。
 
 ## 本機完整錢包
 

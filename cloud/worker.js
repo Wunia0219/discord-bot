@@ -46,7 +46,8 @@ export class CircusProject extends DurableObject {
     const credentials=JSON.parse(this.env.GOOGLE_SERVICE_ACCOUNT_JSON||'null');if(credentials?.type!=='service_account'||credentials.project_id!==settings.projectId||!credentials.private_key||!credentials.client_email)throw new Error('Credentials mismatch');
     const sealer=new Sealer(this.env.CLOUD_ENCRYPTION_KEY),vault=new SnapshotVault(this.ctx.storage,this.state,sealer),guildIds=(this.env.ALLOWED_GUILD_IDS||'').split(',').map(x=>x.trim());
     const transport=()=>new FirestoreRest({...settings,credentials,fetchImpl:cloudFetch,endpoint:this.env.FIRESTORE_ENDPOINT}),options={guildIds,weeklyRewards:this.env.WEEKLY_CHECKIN_REWARDS,grantMax:Number(this.env.ADMIN_GRANT_MAX||100000),grantDaily:Number(this.env.ADMIN_DAILY_MAX||1000000)};
-    const store=new FirestoreWalletCore(settings,{...options,db:transport(),quota:this.quota,settlementQueue:new SettlementQueue()});
+    // This sole writer refreshes wallets after every committed operation.
+    const store=new FirestoreWalletCore(settings,{...options,db:transport(),quota:this.quota,settlementQueue:new SettlementQueue(),stateCacheMs:30000});
     // Never initialize an empty remote namespace from a public request.
     const meta=await store.read(store.meta);store.checkMeta(meta);store.walletEpoch=meta.walletEpoch;store.resetAt=meta.resetAt;store.ready=true;store.readyAt=Date.now();
     const service=new WalletService(store,{fetchImpl:cloudFetch,sessions:new CloudSessions(this.ctx.storage,sealer)}),hs=highlightSettings(this.env,store);
@@ -99,14 +100,14 @@ export class CircusProject extends DurableObject {
       this.ctx.storage.transactionSync(()=>{this.quota.seed(input.quota,settings.projectId);vault.save('baseline',input.snapshot);vault.publish('baseline');this.state.set('source',{...settings,revision:input.snapshot.revision});this.state.set('mode','paused');this.state.set('backup-status',{ok:true,at:Date.now(),revision:input.snapshot.revision});});
       return json({seeded:true,active:false});
     }
-    if(path==='/__ops/pause'){if(this.state.get('mode')==='released')throw new Error('Ownership already released');this.state.set('mode','paused');await Promise.allSettled([...this.active]);await this.ctx.storage.deleteAlarm();return json({paused:true,drained:true});}
+    if(path==='/__ops/pause'){if(this.state.get('mode')==='released')throw new Error('Ownership already released');this.state.set('mode','paused');await Promise.allSettled([...this.active]);this.instance?.store.invalidateCache();await this.ctx.storage.deleteAlarm();return json({paused:true,drained:true});}
     if(path==='/__ops/activate'){
       if(this.state.get('mode')!=='paused')throw new Error('Paused ownership required');
       const input=await body(request,1024);if(input.writersStopped!==true||input.freePlanVerified!==true)throw new Error('Cutover prerequisites');
       const r=await this.runtime(),snapshot=r.vault.load(this.state.get('backup-latest')),meta=await r.store.read(r.store.meta);r.store.checkMeta(meta);
       if(meta.nextId!==snapshot.revision||snapshot.upstreamImportFingerprint!==(meta.importFingerprint??null))throw new Error('Source moved since backup');
       for(const w of snapshot.tables.wallets){const actual=await r.store.read(r.store.walletRef(w.guild,w.user));if(!actual||actual.balance!==w.balance||Number(actual.milestone)!==w.milestone||actual.last_spin!==w.last_spin)throw new Error('Wallet mismatch');}
-      this.state.set('mode','active');await this.schedule(1000);return json({active:true});
+      r.store.invalidateCache();this.state.set('mode','active');await this.schedule(1000);return json({active:true});
     }
     if(path==='/__ops/verify'){if(this.state.get('mode')!=='paused'||this.active.size)throw new Error('Paused writer required');const r=await this.runtime(),db=new FirestoreRest({...settings,credentials:JSON.parse(this.env.GOOGLE_SERVICE_ACCOUNT_JSON),fetchImpl:cloudFetch,readOnly:true}),store=new FirestoreWalletCore(settings,{db,quota:this.quota,guildIds:[...r.store.guildIds]});return json(await verifyCloudSnapshot(r.vault.load(this.state.get('backup-latest')),store));}
     if(path==='/__ops/backup'){if(this.state.get('mode')==='released')throw new Error('Ownership released');const r=await this.runtime();return json(await this.backupStep(r));}
