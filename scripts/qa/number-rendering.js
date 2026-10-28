@@ -14,6 +14,11 @@ try{
  await page.route('**/*',route=>new URL(route.request().url()).origin==='http://127.0.0.1:4198'?route.continue():route.abort());
  await page.goto('http://127.0.0.1:4198/__numbers');
  const report=await page.evaluate(async()=>{
+  // Pixel readback must use the same software path on desktops and CI runners.
+  const getContext=HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext=function(type,options){
+   return getContext.call(this,type,type==='2d'?{...options,willReadFrequently:true}:options);
+  };
   const {prepareNumberFont,setBitmapNumber}=await import('/src/ui/shared/bitmap-number.js');
   const el=document.querySelector('#number');setBitmapNumber(el,'123');const beforeFont=el.textContent;await prepareNumberFont();
   const metrics={widthResets:0,heightResets:0,clears:0};
@@ -38,11 +43,11 @@ try{
  });
  assert.equal(report.beforeFont,'123');assert.deepEqual(errors,[]);
  const pixels={beforeFont:report.beforeFont,cases:report.cases};
+ await writeFile(`${out}/${baseline?'baseline':'after'}.json`,JSON.stringify(report,null,2)+'\n');
  if(baseline)await writeFile(reference,JSON.stringify(pixels,null,2)+'\n');
  else{
   assert.deepEqual(pixels,JSON.parse(await readFile(reference,'utf8')),'bitmap pixels, layout, accessibility and fallbacks must remain identical');
   assert.ok(report.benchmark.heightResets<=1);assert.ok(report.benchmark.widthResets<300);
  }
- await writeFile(`${out}/${baseline?'baseline':'after'}.json`,JSON.stringify(report,null,2)+'\n');
  console.log(JSON.stringify({cases:report.cases.length,baseline,benchmark:report.benchmark}));
 }finally{await browser?.close();await server.close();}

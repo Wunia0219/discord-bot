@@ -28,7 +28,9 @@
 
 `npm ci` 會執行 Discord SDK 的相容安全修補；不可略過專案 `postinstall`。使用 `--ignore-scripts` 安裝時，必須另執行 `node scripts/security/patch-discord-sdk.js`，再以 `--check` 核對。完整驗證與正式建置會拒絕未修補或未知的 SDK 內容；細節見[資料保護](security.md#discord-sdkzod-修補)。
 
-瀏覽器測試使用鎖定的 Playwright 開發相依；Windows 預設 Edge，Linux 預設 Chromium（先執行 `npx playwright install --with-deps chromium`）。可用 `PLAYWRIGHT_MODULE_PATH` 指定既有模組目錄、`PLAYWRIGHT_BROWSER_CHANNEL` 指定測試通道。數字的固定像素基準位於 `tests/fixtures/number-rendering.json`；僅在有意更改字型／外觀時用 `npm run test:numbers -- --baseline` 更新。
+瀏覽器測試使用鎖定的 Playwright 開發相依；Windows 預設 Edge，Linux 預設 Chromium（先執行 `npx playwright install --with-deps chromium`）。可用 `PLAYWRIGHT_MODULE_PATH` 指定既有模組目錄、`PLAYWRIGHT_BROWSER_CHANNEL` 指定測試通道。
+
+數字測試以 `willReadFrequently: true` 固定 Canvas 軟體繪製，避免 GPU／CPU 切換造成像素雜湊差異；此設定僅限隔離測試頁，正式遊戲不受影響。固定基準位於 `tests/fixtures/number-rendering.json`，仍逐一核對像素、尺寸及無障礙文字。僅在有意更改字型／外觀，或已證實需要統一測試繪圖路徑時，用 `npm run test:numbers -- --baseline` 更新並審查差異；失敗時也會保存 `test-results/number-rendering/after.json`。
 
 `node scripts/qa/verify.js --full --list` 只列出步驟；驗證結果保存在 `test-results/verification.json`，第一個失敗即停止，不執行部署。Windows ARM 的 workerd 步驟使用 `.tools/node-x64/` 中與 `.node-version` 一致的 Node；其他步驟使用啟動驗證的 Node。
 
