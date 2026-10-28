@@ -53,6 +53,7 @@ export class SlotScene {
       motionManifest:dealerManifest,
       resolvePage:page=>dealerPages['../../../images/dealer/v4/'+page.file],
       uploadTextures:textures=>this.app.renderer.prepare.upload(textures),
+      canRelease:()=>!this.active,
     });
     const dealerReady=this.dealer.init().catch(error=>console.warn('Dealer artwork unavailable:',error.message));
     const [main, symbols, winFrame] = await Promise.all([Assets.load(mainUrl).then(loaded), Assets.load(symbolsUrl).then(loaded), Assets.load(winFrameUrl), background.decode().then(loaded)]);

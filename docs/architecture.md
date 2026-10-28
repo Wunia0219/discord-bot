@@ -1,6 +1,6 @@
 # 架構與資料契約
 
-版本 0.3.0。前端使用 PixiJS／Vite；Node 與 Cloudflare 共用驗證及錢包核心。線上由單一 Durable Object 管理專案額度、登入與排程，Firestore v2 是權威帳本。
+版本 0.3.1。前端使用 PixiJS／Vite；Node 與 Cloudflare 共用驗證及錢包核心。線上由單一 Durable Object 管理專案額度、登入與排程，Firestore v2 是權威帳本。
 
 ## 模組
 

@@ -37,8 +37,14 @@ runtime 每格 576×832，原幀 1152×1664，anchor `[0.5,1600/1664]`。桌面�
 
 `Dealer.prepare()` 先解碼、解析圖集並上傳 GPU 才播放。idle 與舞台素材並行準備；win 在可操作後預載，回合結果也可按需預載，不阻擋首次進入。圖集以 Vite 雜湊 URL 載入。
 
+win 完整播放回待機後保留 30 秒，供短時間內的下一次得獎重用；到期若轉輪仍在運動則延後釋放。正在播放、準備播放及首次預載待用的動作保持可用；回背景會切回原 idle 並釋放可選動作，背景不另外預載 win。重新使用同一動作會取消待釋放計時，並行準備共用一份工作。載入、解析或 GPU 上傳失敗時等待同批頁面收尾，再清理成功載入的資源；離開時也等待進行中的準備與釋放完成。
+
+上述策略保留原 51 頁圖集、完整像素與播放順序。兩組貼圖按 RGBA 尺寸估算的峰值仍為約 373 MiB，短期重用會延長 win 貼圖的駐留時間；這是圖集尺寸估算，不是裝置記憶體實測。
+
 原畫在 `art/dealer/rebuild/host-master.webp`，補件／原幀／HD 圖集在 `art/dealer/v4/`，動作設計在 `art/dealer/win-design/`。R6 使用一次致意：上身峰值 +0.95°、自由臂 +6.5°，手臂較身體延後約 191ms；支撐手、平台與靴底固定。108 格含 107 張不同像素，首尾共用中立姿勢。
 
 ## 維護驗證
 
 `npm test`、`npm run build` 與 `python scripts/assets/check-dealer-v4.py --allow-duplicates --require-manifest` 核對來源、圖集及時間契約。`export-dealer-v4.py` 由原幀輸出無損圖集。畫面另檢查透明邊緣、完整人物、手機／桌面、鍵盤焦點及長位數金額；停輪規格集中在[基準](reel-timing-baseline.md)。
+
+`npm run test:dealer` 使用隔離 Edge 檢查短期重用、到期時的轉輪保護、背景釋放、併發準備與故障清理，並擷取桌機／手機全部 204 影格的渲染像素雜湊。修改前可先在同一裝置與瀏覽器執行 `npm run test:dealer -- --baseline` 保存本機基準；之後有該基準時會逐格比對像素、位置、縮放、時序與圖集峰值。報告在 `test-results/dealer-resources/`，不在正式遊戲加入測量 hooks。

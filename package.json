@@ -1,6 +1,6 @@
 {
   "name": "luna-arcade-preview",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -49,6 +49,7 @@
     "validation:test": "node --test tests/local-wallet.test.js tests/wallet-client.test.js tests/spin-controls.test.js tests/spin-shortcut.test.js",
     "test:reset": "node scripts/admin/cloud-local.js reset-test",
     "test:experience": "node scripts/qa/reel-experience.js",
+    "test:dealer": "node scripts/qa/dealer-resources.js",
     "test:security": "node scripts/qa/security-smoke.js",
     "testdata:reset": "node scripts/admin/reset-test-data.js"
   },
