@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, sign } from 'node:crypto';
-import { createActivityServer } from '../server/app.js';
-import { WalletStore } from '../server/wallet.js';
+import { createActivityServer } from '../server/http/app.js';
+import { WalletStore } from '../server/wallet/wallet.js';
 
 const app = '100000000000000001';
 const guild = '100000000000000002';

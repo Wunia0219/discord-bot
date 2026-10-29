@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SpinControls } from '../src/ui/spin-controls.js';
+import { SpinControls } from '../src/ui/reels/spin-controls.js';
 import { TEST_STOPS } from './helpers/current-model.js';
 import { createRound,freshState } from '../src/game/index.js';
 function harness(){

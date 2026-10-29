@@ -1,0 +1,157 @@
+{
+  "beforeFont": "123",
+  "cases": [
+    {
+      "text": "0",
+      "accessible": "0",
+      "width": 165,
+      "height": 198,
+      "cssWidth": "0.833333em",
+      "pixels": "a110c3e6cb76c778036b4e8331e2cd4cdead7ed90c7c1c7d537e69c0540b2041"
+    },
+    {
+      "text": "1",
+      "accessible": "1",
+      "width": 125,
+      "height": 198,
+      "cssWidth": "0.631313em",
+      "pixels": "9428fc1a66db087e0bfb66d187124bdbb007bca53f48abe9cb6e01d3ee85533a"
+    },
+    {
+      "text": "8",
+      "accessible": "8",
+      "width": 160,
+      "height": 198,
+      "cssWidth": "0.808081em",
+      "pixels": "8452759974d5b3904732d324239c40ed57a5bb71edd9e5617bbf80a18ffb4423"
+    },
+    {
+      "text": "10",
+      "accessible": "10",
+      "width": 266,
+      "height": 198,
+      "cssWidth": "1.34343em",
+      "pixels": "6bbcb97afb4ea1196033a82fbfb54cf413cf46f4c17b8bf4c740c0c9e91d8d95"
+    },
+    {
+      "text": "100",
+      "accessible": "100",
+      "width": 407,
+      "height": 198,
+      "cssWidth": "2.05556em",
+      "pixels": "9564272838198ebe5d6afeadd41bf7302212423c4379ed75ad878bc46d2a5555"
+    },
+    {
+      "text": "101",
+      "accessible": "101",
+      "width": 367,
+      "height": 198,
+      "cssWidth": "1.85354em",
+      "pixels": "ba5d71de67ba885b4a261742d57ec222e244de7c33eb2ca3190af87881426750"
+    },
+    {
+      "text": "888",
+      "accessible": "888",
+      "width": 432,
+      "height": 198,
+      "cssWidth": "2.18182em",
+      "pixels": "2eef8988e120bbe914b61dee98a614d68d16186ec9a21dd2a5681ad1fc57bc12"
+    },
+    {
+      "text": "999",
+      "accessible": "999",
+      "width": 417,
+      "height": 198,
+      "cssWidth": "2.10606em",
+      "pixels": "d3192ed409c8acbceedb99f92d68accdef8a39cd91f13d55993a809022a7d071"
+    },
+    {
+      "text": "1,000",
+      "accessible": "1,000",
+      "width": 618,
+      "height": 198,
+      "cssWidth": "3.12121em",
+      "pixels": "764f00c53594c646489d1f86c41df7b50f717cf287ed780e44a54cfc24cc471a"
+    },
+    {
+      "text": "9,900",
+      "accessible": "9,900",
+      "width": 638,
+      "height": 198,
+      "cssWidth": "3.22222em",
+      "pixels": "8266310a768ca3ae0ca660efa2bfed9a2421a2b9a427835f33d5012fc876f3be"
+    },
+    {
+      "text": "10,000",
+      "accessible": "10,000",
+      "width": 759,
+      "height": 198,
+      "cssWidth": "3.83333em",
+      "pixels": "2dc7d48f144710afe581463d1b030763f3d86697b39e9d64ea8f7926e505da9e"
+    },
+    {
+      "text": "+0",
+      "accessible": "+0",
+      "width": 307,
+      "height": 198,
+      "cssWidth": "1.55051em",
+      "pixels": "060901752eb36332d8b0d6358b11ef663313f08c2786676ca70d372e4578222d"
+    },
+    {
+      "text": "+2,000",
+      "accessible": "+2,000",
+      "width": 786,
+      "height": 198,
+      "cssWidth": "3.9697em",
+      "pixels": "2d5bcda76db44cf3de45a6b4909578a6f741f7f20a69854db47851f7321609f1"
+    },
+    {
+      "text": "-500",
+      "accessible": "-500",
+      "width": 570,
+      "height": 198,
+      "cssWidth": "2.87879em",
+      "pixels": "91d2d63f40603aeb06d519ae73a24f40bc0e62ab4943c7b13132555ada169acd"
+    },
+    {
+      "text": "−500",
+      "accessible": "−500",
+      "width": 570,
+      "height": 198,
+      "cssWidth": "2.87879em",
+      "pixels": "91d2d63f40603aeb06d519ae73a24f40bc0e62ab4943c7b13132555ada169acd"
+    },
+    {
+      "text": "1,000,000,000,000",
+      "accessible": "1,000,000,000,000",
+      "width": 2097,
+      "height": 198,
+      "cssWidth": "10.5909em",
+      "pixels": "eccb0b82d82ccd4339e473286d6534ed45ee906d9835dadc7977238551798dc4"
+    },
+    {
+      "text": "",
+      "accessible": "",
+      "width": null,
+      "height": null,
+      "cssWidth": null,
+      "pixels": null
+    },
+    {
+      "text": "?",
+      "accessible": "?",
+      "width": null,
+      "height": null,
+      "cssWidth": null,
+      "pixels": null
+    },
+    {
+      "text": "100",
+      "accessible": "100",
+      "width": 407,
+      "height": 198,
+      "cssWidth": "2.05556em",
+      "pixels": "9564272838198ebe5d6afeadd41bf7302212423c4379ed75ad878bc46d2a5555"
+    }
+  ]
+}

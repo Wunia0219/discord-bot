@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {deflateRawSync} from 'node:zlib';
-import {encodeHistory,decodeHistory,ledgerIndex,ledgerRange,sequenceKey} from '../server/firestore-schema.js';
+import {encodeHistory,decodeHistory,ledgerIndex,ledgerRange,sequenceKey} from '../server/firestore/schema.js';
 
 test('recent cache compression preserves exact JSON data including legacy fields and non-ASCII text',()=>{
   const rows=Array.from({length:105},(_,i)=>({sequence:200-i,round:{id:String(i),rules:'legacy-v1',

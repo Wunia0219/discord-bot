@@ -4,11 +4,11 @@ import {resolve,join} from 'node:path';
 import assert from 'node:assert/strict';
 import {performance} from 'node:perf_hooks';
 import {randomBytes} from 'node:crypto';
-import {decodeCloudArchive,restoreCloudSnapshot,snapshotForCloud} from '../../server/cloud-handoff.js';
-import {WalletStore} from '../../server/wallet.js';
-import {createActivityServer} from '../../server/app.js';
+import {decodeCloudArchive,restoreCloudSnapshot,snapshotForCloud} from '../../server/recovery/cloud-handoff.js';
+import {WalletStore} from '../../server/wallet/wallet.js';
+import {createActivityServer} from '../../server/http/app.js';
 import {digest} from '../../cloud/snapshot.js';
-import {expandResetResult} from '../../server/wallet-admin.js';
+import {expandResetResult} from '../../server/wallet/wallet-admin.js';
 
 const flags=new Map(),args=process.argv.slice(2);
 for(let i=0;i<args.length;i+=2){if(!['--archive','--key-file','--out','--environment'].includes(args[i])||!args[i+1]||flags.has(args[i]))throw new Error('Expected --archive --key-file --out --environment');flags.set(args[i],args[i+1]);}

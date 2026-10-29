@@ -5,9 +5,9 @@ import {resolve,join,sep} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {spawnSync} from 'node:child_process';
-import {WalletStore} from '../server/wallet.js';
-import {WALLET_TABLES} from '../server/database.js';
-import {createBackupKey,exportPortableBackup,verifyPortableBackup,restorePortableBackup} from '../server/portable-backup.js';
+import {WalletStore} from '../server/wallet/wallet.js';
+import {WALLET_TABLES} from '../server/sqlite/database.js';
+import {createBackupKey,exportPortableBackup,verifyPortableBackup,restorePortableBackup} from '../server/recovery/portable-backup.js';
 
 const guild='100000000000000001',user='100000000000000002',now=Date.parse('2026-10-23T06:00:00Z');
 function fixture(t){

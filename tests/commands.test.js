@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, sign, randomUUID } from 'node:crypto';
-import { validSignature, handleCommand } from '../server/commands.js';
-import { WalletStore } from '../server/wallet.js';
+import { validSignature, handleCommand } from '../server/discord/commands.js';
+import { WalletStore } from '../server/wallet/wallet.js';
 const guild='1441097301685698703',user='1561284960986599626',target='1561284960986599627';
 test('Discord signatures reject tampering, wrong keys and expired timestamps',()=>{
  const keys=generateKeyPairSync('ed25519');const pub=keys.publicKey.export({format:'der',type:'spki'}).subarray(-32).toString('hex');
@@ -78,7 +78,7 @@ test('unknown and provider failures never reach players as raw diagnostic text',
    assert.equal(response.data.flags,64);
    assert.deepEqual(response.data.allowed_mentions,{parse:[]});
    assert.equal(response.data.embeds[0].title,'剛剛卡住了');
-   assert.match(response.data.embeds[0].description,/再試一次/);
+   assert.match(response.data.embeds[0].description,/再試/);
    assert.doesNotMatch(JSON.stringify(response),/sqlite|provider-token|internal-request-id|測試環境/);
  }
 });

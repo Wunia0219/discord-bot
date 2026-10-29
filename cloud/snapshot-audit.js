@@ -1,9 +1,9 @@
 import {isDeepStrictEqual} from 'node:util';
-import {validRound} from '../server/database-audit.js';
-import {assertHighlightEvent,assertHighlightBoard,highlightEvent} from '../server/firestore-highlight-data.js';
-import {previousDay,validCheckinTransition} from '../server/weekly-checkin.js';
-import {validResetOperation,resetEntryIds} from '../server/wallet-admin.js';
-import {isOpeningKind,validWelcomeEntry} from '../server/wallet-opening.js';
+import {validRound} from '../server/sqlite/database-audit.js';
+import {assertHighlightEvent,assertHighlightBoard,highlightEvent} from '../server/firestore/highlight-data.js';
+import {previousDay,validCheckinTransition} from '../server/wallet/weekly-checkin.js';
+import {validResetOperation,resetEntryIds} from '../server/wallet/wallet-admin.js';
+import {isOpeningKind,validWelcomeEntry} from '../server/wallet/wallet-opening.js';
 
 // Same relationships as auditSnapshot, with bounded row iteration and segment-location
 // indexes. No array containing the complete history is constructed in the Worker.

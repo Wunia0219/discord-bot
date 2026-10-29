@@ -1,5 +1,5 @@
-import {operationsSettings} from '../../server/operations-settings.js';
-import {maintenanceJob} from '../../server/operations.js';
+import {operationsSettings} from '../../server/operations/operations-settings.js';
+import {maintenanceJob} from '../../server/operations/operations.js';
 
 const settings=operationsSettings();
 if(settings?.backend!=='firestore')throw new Error('Firestore operations must be enabled');

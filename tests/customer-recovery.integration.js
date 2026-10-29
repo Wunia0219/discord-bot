@@ -5,10 +5,10 @@ import {mkdirSync,mkdtempSync,writeFileSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {randomUUID,randomBytes,generateKeyPairSync} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
-import {WalletStore} from '../server/wallet.js';
-import {FirestoreWalletStore} from '../server/firestore-wallet.js';
-import {firestoreImportPlan,importFirestore} from '../server/firestore-import.js';
-import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot} from '../server/cloud-handoff.js';
+import {WalletStore} from '../server/wallet/wallet.js';
+import {FirestoreWalletStore} from '../server/firestore/wallet.js';
+import {firestoreImportPlan,importFirestore} from '../server/firestore/import.js';
+import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot} from '../server/recovery/cloud-handoff.js';
 import {QUOTA_LIMITS} from '../cloud/quota.js';
 
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8787');

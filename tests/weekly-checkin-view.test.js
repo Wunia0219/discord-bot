@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {weeklyCheckinView} from '../src/ui/weekly-checkin-view.js';
-import {weeklyCheckinState} from '../server/weekly-checkin.js';
+import {weeklyCheckinView} from '../src/ui/dialogs/weekly-checkin-view.js';
+import {weeklyCheckinState} from '../server/wallet/weekly-checkin.js';
 import {DEFAULT_CHECKIN_REWARDS as rewards} from '../src/game/checkin-rewards.js';
-import {WalletStore} from '../server/wallet.js';
+import {WalletStore} from '../server/wallet/wallet.js';
 const receipt=day=>({version:1,cycleDay:day,rewards:[...rewards]});
 
 test('seven-day reward table totals 10000 and progress distinguishes completed, claimable and future days',()=>{

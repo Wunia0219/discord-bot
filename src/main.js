@@ -1,25 +1,25 @@
-import { mainArt } from './ui/main-art.js';
-import { icon } from './ui/icons.js';
-import { createPlayerBar } from './ui/player-bar.js';
-import { playerError } from './ui/player-copy.js';
-import { createWeeklyCheckin } from './ui/weekly-checkin.js';
-import { roundRecords,placeResetMarker } from './ui/player-records.js';
+import { mainArt } from './ui/shared/main-art.js';
+import { icon } from './ui/shared/icons.js';
+import { createPlayerBar } from './ui/player/player-bar.js';
+import { playerError } from './ui/player/player-copy.js';
+import { createWeeklyCheckin } from './ui/dialogs/weekly-checkin.js';
+import { roundRecords,placeResetMarker } from './ui/player/player-records.js';
 import './style.css';
-import { SlotScene } from './ui/scene.js';
-import { Sound } from './ui/audio.js';
-import { MUSIC_SOURCE } from './ui/audio-cues.js';
-import { presentRoundWin } from './ui/round-win.js';
+import { SlotScene } from './ui/reels/scene.js';
+import { Sound } from './ui/audio/audio.js';
+import { MUSIC_SOURCE } from './ui/audio/audio-cues.js';
+import { presentRoundWin } from './ui/wins/round-win.js';
 import { connectActivity } from './platform/discord-activity.js';
 import { connectLocalWallet } from './platform/local-wallet.js';
-import { createLoadingScreen } from './ui/loading.js';
-import { BigWinPresentation } from './ui/big-win.js';
-import { createGameRules } from './ui/game-rules.js';
-import { SpinControls } from './ui/spin-controls.js';
-import { bindSpinButton } from './ui/spin-button.js';
-import { installSpinShortcut } from './ui/spin-shortcut.js';
-import { roundFeedbackTiming } from './ui/presentation.js';
-import { setBitmapNumber } from './ui/bitmap-number.js';
-import { installResponsiveLayout } from './ui/responsive-layout.js';
+import { createLoadingScreen } from './ui/shared/loading.js';
+import { BigWinPresentation } from './ui/wins/big-win.js';
+import { createGameRules } from './ui/dialogs/game-rules.js';
+import { SpinControls } from './ui/reels/spin-controls.js';
+import { bindSpinButton } from './ui/reels/spin-button.js';
+import { installSpinShortcut } from './ui/reels/spin-shortcut.js';
+import { roundFeedbackTiming } from './ui/reels/presentation.js';
+import { setBitmapNumber } from './ui/shared/bitmap-number.js';
+import { installResponsiveLayout } from './ui/shared/responsive-layout.js';
 import { createWalletClient } from './platform/wallet-client.js';
 import { BETS, SYMBOL_NAMES, MODEL_VERSION, drawStops, restoredStops, freshState, readState, createRound } from './game/index.js';
 
@@ -158,19 +158,16 @@ function celebrate(kind,amount) {
 async function spin() {
   if(busy||!controls.isReady())return;
   controls.beginRound();
-  setBusy(true);result('馬上開轉，請稍等一下。','');let nextDelay=650,settledRound;
+  setBusy(true);result('準備開轉…','');let nextDelay=650,settledRound;
   try{
     const recovering=walletClient?.hasPending()===true;
-    // Dispatch settlement first; presentation and history synchronization run
-    // alongside it. Neither an animation nor a quick stop chooses the outcome.
+    // Request the authoritative result before animation; history follows in the background.
     const settlement=walletClient?walletClient.spin(bet,{deferHistory:true}):Promise.resolve(createRound(state,bet,drawStops(),crypto.randomUUID()));
     settlement.catch(()=>{});
     showPayout(0);cancelAnimationFrame(countAnimation);hideCelebration();clearWinReadout();
-    // Reserve the new wager visually while settlement is pending. Keep the
-    // authoritative wallet untouched; failures render it again, and recovering
-    // an existing request must not preview another debit.
+    // Preview a new wager only; recovering an old request must not show a second debit.
     if(!recovering&&state.balance>=bet)setBitmapNumber($('#balance'),fmt(state.balance-bet));
-    scene.beginSpin();sound.spin();result('轉輪開始，準備揭曉。',`本局下注 ${fmt(bet)}`);
+    scene.beginSpin();sound.spin();result('轉動中…',`本局下注 ${fmt(bet)}`);
     const update=await settlement;
     const r=update.round;save(update.state);settledRound=r;
     if(update.synchronized){
@@ -186,7 +183,7 @@ async function spin() {
     }
     scene.prepareDealer(r);
     setBitmapNumber($('#balance'),fmt(r.before-r.bet));
-    result('轉輪開始，準備揭曉。',`本局下注 ${fmt(r.bet)}`);
+    result('轉動中…',`本局下注 ${fmt(r.bet)}`);
     const animation=scene.spin(r.stops,i=>sound.stop(i));
     controls.animationStarted();
     if(document.hidden)scene.finish();
@@ -318,29 +315,44 @@ showPayout(0);
 setBusy(false);
 async function startGame() {
   const loading = createLoadingScreen();
-  loading.update(8, '正在喚醒馬戲團');
+  loading.update(8, '正在連線…');
+  let stageProgress, showStageProgress=false;
+  const activityReady=connectLocalWallet(window.location).then(activity=>activity||connectActivity());
+  const stageReady=Promise.all([scene.init($('#canvas-host'),(...progress)=>{
+    stageProgress=progress;
+    if(showStageProgress)loading.update(...progress);
+  }),bigWin.prepare()]);
+  // Stage preparation may fail before login finishes; report it after connection.
+  stageReady.catch(()=>{});
   try {
-    const activity=await connectLocalWallet(window.location)||await connectActivity();
+    const activity=await activityReady;
     activityMode=activity.mode;
     activityUser=activity.user || null;
     if(activity.session){walletClient=createWalletClient(activity.session);state=(await walletClient.state()).state;renderState();}
     if(activityMode==='discord'&&import.meta.env.VITE_DISCORD_WALLET_ENABLED==='true'&&!walletClient)throw new Error('帳號錢包尚未連接，請重新開啟活動。');
     renderPlayer();
-    loading.update(20, '正在展開馬戲團的舞台');
+    loading.update(20, '正在準備舞台');
+    showStageProgress=true;
+    if(stageProgress)loading.update(...stageProgress);
   } catch(error) {
     console.error(error);
+    showStageProgress=false;bigWin.hide();
+    void scene.destroy().catch(cleanup=>console.warn('Stage cleanup unavailable:',cleanup.message));
     const copy=playerError(error,{context:'connect'});loading.fail(copy.message);
     result(copy.title,copy.message);
     return;
   }
   try {
-    await Promise.all([scene.init($('#canvas-host'),loading.update),bigWin.prepare()]);
+    await stageReady;
     renderState();
     scene.setStops(restoredStops(state));
     scene.app.render();
     await loading.finish();
     ready=true;setBusy(false);
+    setTimeout(()=>scene.preloadDealer(),0);
   } catch(error) {
+    showStageProgress=false;
+    bigWin.hide();void scene.destroy().catch(cleanup=>console.warn('Stage cleanup unavailable:',cleanup.message));
     console.error(error);const copy=playerError(error,{context:'load'});loading.fail(copy.message);result(copy.title,copy.message);
   }
 }

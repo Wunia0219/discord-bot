@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {REEL_STRIPS,INITIAL_STOPS,gridFromStops} from '../src/game/index.js';
-import {pendingReelFrame} from '../src/ui/presentation.js';
+import {pendingReelFrame} from '../src/ui/reels/presentation.js';
 
 const cell=136;
 const visible=(names,offset)=>names.map((name,row)=>({name,y:(row-1)*cell+offset})).filter(({y})=>y+cell>1e-7&&y<3*cell-1e-7);

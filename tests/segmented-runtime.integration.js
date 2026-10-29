@@ -5,8 +5,8 @@ import {build} from 'esbuild';
 import {mkdirSync,mkdtempSync,writeFileSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {WalletStore} from '../server/wallet.js';
-import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot} from '../server/cloud-handoff.js';
+import {WalletStore} from '../server/wallet/wallet.js';
+import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot} from '../server/recovery/cloud-handoff.js';
 
 test('real workerd audits and exports over 8MiB without a full-history SQL rewrite',async t=>{
  const root=resolve('test-results/segmented-workerd');mkdirSync(root,{recursive:true});const dir=mkdtempSync(join(root,'run-'));

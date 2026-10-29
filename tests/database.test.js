@@ -7,9 +7,9 @@ import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { Worker } from 'node:worker_threads';
 import { once } from 'node:events';
-import { DATABASE_VERSION, inspectWalletDatabase, openWalletDatabase } from '../server/database.js';
-import { backupWalletDatabase, copyWalletDatabase, databaseSettings } from '../server/database-maintenance.js';
-import { WalletStore } from '../server/wallet.js';
+import { DATABASE_VERSION, inspectWalletDatabase, openWalletDatabase } from '../server/sqlite/database.js';
+import { backupWalletDatabase, copyWalletDatabase, databaseSettings } from '../server/sqlite/database-maintenance.js';
+import { WalletStore } from '../server/wallet/wallet.js';
 import { walletConfig } from '../server/config.js';
 
 const guild='1441097301685698703', user='1561284960986599626', admin='1561284960986599627';
@@ -117,7 +117,7 @@ test('WAL backups and safe restore preserve balances, checkins and deduplication
 
 test('five database connections settle retries once while 100 distinct player wallets stay consistent',{timeout:20000},async t=>{
   const {filename}=fixture(t),initial=wallet(filename);initial.close();
-  const moduleUrl=new URL('../server/wallet.js',import.meta.url).href;
+  const moduleUrl=new URL('../server/wallet/wallet.js',import.meta.url).href;
   const workerCode=`
     const {parentPort,workerData}=require('node:worker_threads');
     import(workerData.moduleUrl).then(({WalletStore})=>{

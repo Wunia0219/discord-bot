@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Sound} from '../src/ui/audio.js';
-import {cueVoices} from '../src/ui/audio-cues.js';
+import {Sound} from '../src/ui/audio/audio.js';
+import {cueVoices} from '../src/ui/audio/audio-cues.js';
 
 function fixture({music=true,stereo=true}={}){
   const parameter=()=>({value:0,setValueAtTime(value){this.value=value;},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){},cancelScheduledValues(){},setTargetAtTime(value){this.value=value;}});

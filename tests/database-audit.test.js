@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {mkdirSync,mkdtempSync,rmSync,readFileSync,existsSync} from 'node:fs';
 import {resolve,join,sep} from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {WalletStore} from '../server/wallet.js';
-import {inspectWalletDatabase} from '../server/database.js';
-import {copyWalletDatabase} from '../server/database-maintenance.js';
+import {WalletStore} from '../server/wallet/wallet.js';
+import {inspectWalletDatabase} from '../server/sqlite/database.js';
+import {copyWalletDatabase} from '../server/sqlite/database-maintenance.js';
 import {LEGACY_MODELS,roundFromStops,drawStops} from '../src/game/index.js';
 
 const guild='100000000000000001',user='100000000000000002',admin='100000000000000003';

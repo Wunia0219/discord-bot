@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {registerCommands} from '../server/discord-registration.js';
-import {checkDiscordReadiness} from '../server/discord-readiness.js';
-import {commandDefinitions} from '../server/commands.js';
+import {registerCommands} from '../server/discord/discord-registration.js';
+import {checkDiscordReadiness} from '../server/discord/discord-readiness.js';
+import {commandDefinitions} from '../server/discord/commands.js';
 const guild='100000000000000001',app='100000000000000002',env={DISCORD_CLIENT_ID:app,DISCORD_CLIENT_SECRET:'fixture-private',ALLOWED_GUILD_IDS:guild};
 test('registration patches existing IDs, removes only retired slash commands and preserves Launch and unrelated commands',async()=>{
   const calls=[],messages=[],guildCommands=[{type:1,name:'戲籌',id:'balance'},{type:1,name:'戲籌管理',id:'admin'},{type:1,name:'簽到',id:'retired'},{type:2,name:'簽到',id:'context'}];

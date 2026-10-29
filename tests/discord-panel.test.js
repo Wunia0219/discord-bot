@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID,generateKeyPairSync,sign} from 'node:crypto';
-import {WalletStore} from '../server/wallet.js';
-import {handleCommand,commandDefinitions} from '../server/commands.js';
-import {panelId,deferWalletInteraction} from '../server/discord-panel.js';
-import {createActivityServer} from '../server/app.js';
+import {WalletStore} from '../server/wallet/wallet.js';
+import {handleCommand,commandDefinitions} from '../server/discord/commands.js';
+import {panelId,deferWalletInteraction} from '../server/discord/discord-panel.js';
+import {createActivityServer} from '../server/http/app.js';
 const guild='100000000000000001',actor='100000000000000002',target='100000000000000003',channel='100000000000000004';
 let serial=0n;
 const snowflake=(offset=0)=>String((BigInt(Date.now()+offset)-1420070400000n)<<22n|(++serial%4194304n));
@@ -99,14 +99,22 @@ test('every callback rechecks channel, owner, guild, role, form type and mutatio
   const s=fixture(t);s.state(guild,target);const panel=await run(base(),s),confirmation=await run(click(panel,'重設全群'),s),ok=click(confirmation,'確認重設全群');
   const bad=[];let i=structuredClone(ok);i.channel_id=target;bad.push([i,/<#100000000000000004>/]);
   i=structuredClone(ok);i.member.permissions='0';bad.push([i,/需要管理員/]);
-  i=structuredClone(ok);i.member.user.id=target;bad.push([i,/另一位使用者/]);
+  i=structuredClone(ok);i.member.user.id=target;bad.push([i,/別人的面板/]);
   i=structuredClone(ok);i.guild_id=target;bad.push([i,/有開放遊戲/]);
-  i=component(panelId(base(),'ra',snowflake(-31*60000)));bad.push([i,/新的表單或確認卡/]);
+  i=component(panelId(base(),'ra',snowflake(-31*60000)));bad.push([i,/重新開啟表單或確認卡/]);
   i=structuredClone(ok);i.type=5;i.data.components=[];bad.push([i,/重新輸入 \/戲籌管理/]);
   i=structuredClone(ok);i.data.custom_id='x'.repeat(101);bad.push([i,/重新輸入 \/戲籌管理/]);
   for(const [interaction,pattern]of bad)assert.match((await run(interaction,s)).data.embeds[0].description,pattern);
   assert.equal(s.history(guild,target).filter(r=>r.kind==='reset').length,0);
   assert.throws(()=>panelId(base(),'h','x'.repeat(100)),{code:'PANEL_INVALID'});
+});
+
+test('resetting a test ledger invalidates previously opened mutation cards',async t=>{
+ const s=fixture(t);s.state(guild,target);
+ const panel=await run(base(),s),confirmation=await run(click(panel,'重設全群'),s);
+ s.resetAt=Date.now()+1;
+ assert.match((await run(click(confirmation,'確認重設全群'),s)).data.embeds[0].description,/重新開啟/);
+ assert.equal(s.history(guild,target).filter(r=>r.kind==='reset').length,0);
 });
 
 test('signed Firestore callbacks acknowledge updates immediately, while forms and launch remain synchronous',async t=>{

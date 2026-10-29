@@ -1,6 +1,6 @@
-import {firestoreSettings} from '../../server/firestore-settings.js';
-import {FirestoreWalletStore} from '../../server/firestore-wallet.js';
-import {firestoreImportPlan,importFirestore} from '../../server/firestore-import.js';
+import {firestoreSettings} from '../../server/firestore/settings.js';
+import {FirestoreWalletStore} from '../../server/firestore/wallet.js';
+import {firestoreImportPlan,importFirestore} from '../../server/firestore/import.js';
 const args=process.argv.slice(2),dryRun=args.includes('--dry-run'),input=args.filter(arg=>arg!=='--dry-run');
 if(input.length!==2||input[0]!=='--from')throw new Error('Usage: firestore:migrate -- --from <verified SQLite snapshot> [--dry-run]');
 const settings=firestoreSettings(),plan=firestoreImportPlan(input[1],settings.environment,{version:settings.schemaVersion});

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DealerPreviewControls} from '../src/ui/dealer-preview-controls.js';
+import {DealerPreviewControls} from '../src/ui/dealer/dealer-preview-controls.js';
 
 const clips={idle:{frames:72,loop:true},'win':{frames:48,loop:false},'big-win':{frames:72,loop:false}};
 

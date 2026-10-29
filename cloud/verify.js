@@ -1,7 +1,7 @@
 import {isDeepStrictEqual} from 'node:util';
 import {createHash} from 'node:crypto';
 import {auditSnapshot} from './snapshot.js';
-import {taipeiDay} from '../server/wallet-common.js';
+import {taipeiDay} from '../server/wallet/wallet-common.js';
 const requireMatch=(a,b)=>{if(!isDeepStrictEqual(a,b))throw new Error('Cloud acceptance mismatch');};
 // Private, paused acceptance only. Never permit a verification to settle a new
 // operation, even if an original retry record is unexpectedly missing.

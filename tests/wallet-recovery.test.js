@@ -5,11 +5,11 @@ import {mkdirSync,mkdtempSync,writeFileSync,readFileSync,existsSync} from 'node:
 import {resolve,join} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
-import {WalletStore} from '../server/wallet.js';
-import {snapshotForCloud} from '../server/cloud-handoff.js';
+import {WalletStore} from '../server/wallet/wallet.js';
+import {snapshotForCloud} from '../server/recovery/cloud-handoff.js';
 import {CloudState,Sealer} from '../cloud/storage.js';
 import {SnapshotVault} from '../cloud/snapshot.js';
-import {downloadRecoveryArchive,recoverySummary,recoveryNotification,sendRecoveryNotification} from '../server/wallet-recovery.js';
+import {downloadRecoveryArchive,recoverySummary,recoveryNotification,sendRecoveryNotification} from '../server/recovery/wallet-recovery.js';
 
 const guild='100000000000000001',other='100000000000000009',channel='100000000000000003',key='a'.repeat(64);
 const source={projectId:'demo-jokers-circus',namespace:'customer-production',environment:'production'};

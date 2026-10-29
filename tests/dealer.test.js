@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {dealerClipForRound,dealerPlacement,dealerFrameSequence} from '../src/ui/dealer-motion.js';
+import {dealerClipForRound,dealerPlacement,dealerFrameSequence} from '../src/ui/dealer/dealer-motion.js';
 
 test('dealer only reacts to profitable small wins while the WIN overlay owns big prizes',()=>{
   for(const bet of [20,100,200,500]){

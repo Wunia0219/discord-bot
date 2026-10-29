@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { databaseSettings } from '../../server/database-maintenance.js';
-import { inspectWalletDatabase, openWalletDatabase } from '../../server/database.js';
+import { databaseSettings } from '../../server/sqlite/database-maintenance.js';
+import { inspectWalletDatabase, openWalletDatabase } from '../../server/sqlite/database.js';
 
 const settings = databaseSettings();
 mkdirSync(dirname(settings.filename), { recursive: true });

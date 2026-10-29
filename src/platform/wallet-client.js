@@ -1,7 +1,7 @@
 import {createWalletSync} from './wallet-sync.js';
 
 export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.sessionStorage,{clock=()=>performance.now(),wait=delay=>new Promise(resolve=>globalThis.setTimeout(resolve,delay))}={}){
-  const key=`kemet-pending:${session.guildId}:${session.userId}`;
+  const key=`kemet-pending:${session.guildId}:${session.userId}${session.walletEpoch?":"+session.walletEpoch:""}`;
   let pending,nextSpinAt=0,spinPromise=null,statePromise=null,latestState=null;
   const validDelay=value=>Number.isFinite(value)&&value>0&&value<=60000;
   try{pending=JSON.parse(storage?.getItem(key)||'null');}catch{pending=null;}
@@ -9,8 +9,8 @@ export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.se
   const persist=()=>{try{if(pending)storage?.setItem(key,JSON.stringify(pending));else storage?.removeItem(key);}catch{}};
   async function request(path,body,{deferHistory=false}={}){
     let response;
-    try{response=await fetchImpl(path,{method:body?'POST':'GET',headers:{Authorization:`Bearer ${session.token}`,'X-Wallet-View':'compact-v1',...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(20000),cache:'no-store'});}
-    catch{throw new Error('網路暫時中斷。下一次按 SPIN 會先確認上一筆結果，不會重複下注。');}
+    try{response=await fetchImpl(path,{method:body?'POST':'GET',headers:{Authorization:`Bearer ${session.token}`,'X-Wallet-View':'compact-v1',...(session.walletEpoch?{'X-Wallet-Epoch':session.walletEpoch}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(20000),cache:'no-store'});}
+    catch{throw new Error('網路中斷，請再按 SPIN 確認上一局，不會重複下注。');}
     let data;try{data=await response.json();}catch{throw new Error('服務回應中斷，請稍後重試。');}
     if(!response.ok){
       const error=new Error(data.error||'服務暫時無法使用。');error.status=response.status;
@@ -24,8 +24,7 @@ export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.se
       return update;
     });
     if(!deferHistory||!data.round||!data.state)return synchronized;
-    // The round and wallet balance are already authoritative. Older history
-    // can arrive separately without delaying the reels or another valid spin.
+    // Confirmed settlement must not wait for older history.
     synchronized.catch(()=>{});
     let history=data.state.history||latestState?.history||[];
     if(!data.state.history&&data.historyRevision===data.state.historyRevision){
@@ -43,8 +42,7 @@ export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.se
         while((remaining=nextSpinAt-clock())>0)await wait(remaining);
         try{const data=await request('/api/spin',pending,options);pending=null;persist();return data;}
         catch(error){
-          // A different device can start a round after our last wallet snapshot.
-          // Only this explicit cooldown is retried, keeping the same bet and ID.
+          // Retry only an explicit cross-device cooldown, with the same bet and ID.
           if(error.code==='SPIN_COOLDOWN'&&attempt<2){nextSpinAt=Math.max(nextSpinAt,clock()+error.retryAfterMs+25);continue;}
           throw error;
         }

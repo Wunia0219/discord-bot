@@ -2,9 +2,9 @@ import {readFileSync,writeFileSync,existsSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {parseEnv} from 'node:util';
 import {resolve} from 'node:path';
-import {operationsSettings} from '../../server/operations-settings.js';
-import {snapshotForCloud,quotaForCloud,decodeCloudArchive,restoreCloudSnapshot,mergeReturnedQuota} from '../../server/cloud-handoff.js';
-import {checksum} from '../../server/automatic-backup.js';
+import {operationsSettings} from '../../server/operations/operations-settings.js';
+import {snapshotForCloud,quotaForCloud,decodeCloudArchive,restoreCloudSnapshot,mergeReturnedQuota} from '../../server/recovery/cloud-handoff.js';
+import {checksum} from '../../server/recovery/automatic-backup.js';
 import {digest} from '../../cloud/snapshot.js';
 const [command,...args]=process.argv.slice(2),flags=new Map();for(let i=0;i<args.length;i+=2){if(!args[i].startsWith('--')||!args[i+1]||flags.has(args[i]))throw new Error('Expected unique --key value arguments');flags.set(args[i],args[i+1]);}
 const need=k=>{const v=flags.get('--'+k);if(!v)throw new Error('Missing --'+k);return v;};

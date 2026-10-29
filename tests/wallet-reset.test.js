@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {mkdirSync,mkdtempSync} from 'node:fs';
 import {resolve,join} from 'node:path';
-import {WalletStore} from '../server/wallet.js';
-import {inspectWalletDatabase} from '../server/database.js';
-import {snapshotForCloud,restoreCloudSnapshot} from '../server/cloud-handoff.js';
+import {WalletStore} from '../server/wallet/wallet.js';
+import {inspectWalletDatabase} from '../server/sqlite/database.js';
+import {snapshotForCloud,restoreCloudSnapshot} from '../server/recovery/cloud-handoff.js';
 import {auditSnapshot} from '../cloud/snapshot.js';
 import {auditRows} from '../cloud/snapshot-audit.js';
-import {firestoreImportPlan} from '../server/firestore-import.js';
-import {handleCommand,commandDefinitions} from '../server/commands.js';
+import {firestoreImportPlan} from '../server/firestore/import.js';
+import {handleCommand,commandDefinitions} from '../server/discord/commands.js';
 
 const guild='100000000000000001',other='100000000000000009',admin='100000000000000003',user='100000000000000002',checkinOnly='100000000000000004';
 function fixture(t,options={}){

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {FirestoreRest} from '../cloud/firestore-rest.js';
-import {FirestoreWalletCore} from '../server/firestore-wallet-core.js';
-import {encodeHistory} from '../server/firestore-schema.js';
+import {FirestoreWalletCore} from '../server/firestore/wallet-core.js';
+import {encodeHistory} from '../server/firestore/schema.js';
 
 const guild='100000000000000001',user='100000000000000002';
 function fixture({cooldown=false,duplicate=false,commitMs=0}={}){

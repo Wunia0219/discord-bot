@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { WalletStore } from '../server/wallet.js';
+import { WalletStore } from '../server/wallet/wallet.js';
 import { createWalletClient } from '../src/platform/wallet-client.js';
-import { SpinControls } from '../src/ui/spin-controls.js';
+import { SpinControls } from '../src/ui/reels/spin-controls.js';
 
 const guild='100000000000000002',user='100000000000000004';
 

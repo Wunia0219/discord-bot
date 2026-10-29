@@ -1,0 +1,15 @@
+{
+  "sdkVersion": "2.5.0",
+  "zodVersion": "4.6.7",
+  "advisory": "GHSA-mrhx-c7xc-m3w5",
+  "files": {
+    "output/lib/zod/lib/index.mjs": {
+      "original": "3030e5b032805870bb4a8674e36fd916885552832e52c6a0f2465a929ecec231",
+      "patched": "c520fe1f39ce21e24425fdfc49ab7905e23a2be049450eb549649ef87faabe75"
+    },
+    "output/lib/zod/lib/index.cjs": {
+      "original": "feb2389d716ac303c1e7df76df1d7c4c4d7fb35d5aef3456d43718b68cf46aa1",
+      "patched": "a7ad12c2c2f0cf5b5435d7b4232f4c78adc19812ec9c4ddada333518e06cd92a"
+    }
+  }
+}

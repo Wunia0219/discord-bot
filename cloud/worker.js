@@ -1,12 +1,14 @@
+import {TestDataReset} from './test-data-reset.js';
 import {DurableObject} from 'cloudflare:workers';
+import {secureResponse} from '../server/http/security-headers.js';
 import {timingSafeEqual,randomUUID} from 'node:crypto';
 import {FirestoreRest} from './firestore-rest.js';
-import {FirestoreWalletCore} from '../server/firestore-wallet-core.js';
-import {FirestoreHighlights} from '../server/firestore-highlights-core.js';
-import {SettlementQueue} from '../server/settlement-queue.js';
-import {WalletService} from '../server/wallet-service.js';
-import {highlightSettings} from '../server/highlights.js';
-import {createActivityHandler} from '../server/app-handler.js';
+import {FirestoreWalletCore} from '../server/firestore/wallet-core.js';
+import {FirestoreHighlights} from '../server/firestore/highlights-core.js';
+import {SettlementQueue} from '../server/wallet/settlement-queue.js';
+import {WalletService} from '../server/wallet/wallet-service.js';
+import {highlightSettings} from '../server/discord/highlights.js';
+import {createActivityHandler} from '../server/http/app-handler.js';
 import {CloudState,CloudSessions,CloudLoginLimit,Sealer} from './storage.js';
 import {CloudQuota} from './quota.js';
 import {auditSnapshot,SnapshotVault,BACKUP_MAX_PARTS} from './snapshot.js';
@@ -16,7 +18,7 @@ import {MODEL_VERSION} from '../src/game/slot-math.js';
 import {audioAsset} from './audio-asset.js';
 import {handleFetch} from './http-bridge.js';
 import {APP_VERSION} from '../src/version.js';
-import {commandChannels} from '../server/discord-channel-scope.js';
+import {commandChannels} from '../server/discord/discord-channel-scope.js';
 import {operationsHealth} from './operations-health.js';
 
 // Workers supports manual redirects; every caller rejects non-2xx responses.
@@ -44,9 +46,10 @@ export class CircusProject extends DurableObject {
     const credentials=JSON.parse(this.env.GOOGLE_SERVICE_ACCOUNT_JSON||'null');if(credentials?.type!=='service_account'||credentials.project_id!==settings.projectId||!credentials.private_key||!credentials.client_email)throw new Error('Credentials mismatch');
     const sealer=new Sealer(this.env.CLOUD_ENCRYPTION_KEY),vault=new SnapshotVault(this.ctx.storage,this.state,sealer),guildIds=(this.env.ALLOWED_GUILD_IDS||'').split(',').map(x=>x.trim());
     const transport=()=>new FirestoreRest({...settings,credentials,fetchImpl:cloudFetch,endpoint:this.env.FIRESTORE_ENDPOINT}),options={guildIds,weeklyRewards:this.env.WEEKLY_CHECKIN_REWARDS,grantMax:Number(this.env.ADMIN_GRANT_MAX||100000),grantDaily:Number(this.env.ADMIN_DAILY_MAX||1000000)};
-    const store=new FirestoreWalletCore(settings,{...options,db:transport(),quota:this.quota,settlementQueue:new SettlementQueue()});
+    // This sole writer refreshes wallets after every committed operation.
+    const store=new FirestoreWalletCore(settings,{...options,db:transport(),quota:this.quota,settlementQueue:new SettlementQueue(),stateCacheMs:30000});
     // Never initialize an empty remote namespace from a public request.
-    store.checkMeta(await store.read(store.meta));store.ready=true;store.readyAt=Date.now();
+    const meta=await store.read(store.meta);store.checkMeta(meta);store.walletEpoch=meta.walletEpoch;store.resetAt=meta.resetAt;store.ready=true;store.readyAt=Date.now();
     const service=new WalletService(store,{fetchImpl:cloudFetch,sessions:new CloudSessions(this.ctx.storage,sealer)}),hs=highlightSettings(this.env,store);
     const highlights=hs?new FirestoreHighlights(new FirestoreWalletCore(settings,{...options,db:transport(),quota:new CloudQuota(this.ctx.storage,this.state,{scope:'highlights'})}),{...hs,fetchImpl:cloudFetch}):null;
     if(hs)store.highlightsGuild=hs.guild;
@@ -62,7 +65,7 @@ export class CircusProject extends DurableObject {
     if(url.pathname.startsWith('/__ops/')){
       const monitorRead=url.pathname==='/__ops/status'&&request.method==='GET'&&authorized(request,this.env,'CLOUD_MONITOR_TOKEN');
       if(!authorized(request,this.env)&&!monitorRead)return json({error:'Forbidden'},403);
-      try{const operation=this.opsTail.then(()=>this.admin(url.pathname,request));this.opsTail=operation.catch(()=>{});return await operation;}catch{return json({error:'Cloud operation refused; existing data retained'},409);}
+      try{const operation=this.opsTail.then(()=>this.admin(url.pathname,request));this.opsTail=operation.catch(()=>{});return await operation;}catch{return json({error:'Cloud operation refused; inspect status before retrying'},409);}
     }
     if(url.pathname==='/healthz')return json({ok:true,version:APP_VERSION,model:MODEL_VERSION});
     if(!apiPaths.has(url.pathname))return json({error:'找不到此功能。'},404);
@@ -81,6 +84,14 @@ export class CircusProject extends DurableObject {
       return json({...status,operations:operationsHealth(status)});
     }
     if(request.method!=='POST')return json({error:'POST required'},405);
+    if(path==='/__ops/test-reset'){
+      if(settings.environment!=='test'||!this.env.TEST_DATA_RESET_ID||this.state.get('mode')!=='paused'||this.active.size)throw new Error('Test reset unavailable');
+      const input=await body(request,2*1024**2),vault=new SnapshotVault(this.ctx.storage,this.state,new Sealer(this.env.CLOUD_ENCRYPTION_KEY));
+      const reset=new TestDataReset({state:this.state,storage:this.ctx.storage,db:new FirestoreRest({...settings,credentials:JSON.parse(this.env.GOOGLE_SERVICE_ACCOUNT_JSON),fetchImpl:cloudFetch,endpoint:this.env.FIRESTORE_ENDPOINT}),quota:this.quota,vault,settings,enabledId:this.env.TEST_DATA_RESET_ID});
+      const result=input.action==='prepare'?await reset.start(input):input.action==='step'?await reset.step(input):null;
+      if(!result)throw new Error('Unknown reset action');this.instance=null;return json(result);
+    }
+    if(this.state.get('test-reset')&&this.state.get('test-reset').phase!=='complete')throw new Error('Finish test reset before other mutations');
     if(path==='/__ops/seed'){
       if(this.state.get('source'))throw new Error('Already seeded');const input=await body(request);
       if(input.projectId!==settings.projectId||input.namespace!==settings.namespace||input.writersStopped!==true)throw new Error('Stopped source required');
@@ -89,14 +100,14 @@ export class CircusProject extends DurableObject {
       this.ctx.storage.transactionSync(()=>{this.quota.seed(input.quota,settings.projectId);vault.save('baseline',input.snapshot);vault.publish('baseline');this.state.set('source',{...settings,revision:input.snapshot.revision});this.state.set('mode','paused');this.state.set('backup-status',{ok:true,at:Date.now(),revision:input.snapshot.revision});});
       return json({seeded:true,active:false});
     }
-    if(path==='/__ops/pause'){if(this.state.get('mode')==='released')throw new Error('Ownership already released');this.state.set('mode','paused');await Promise.allSettled([...this.active]);await this.ctx.storage.deleteAlarm();return json({paused:true,drained:true});}
+    if(path==='/__ops/pause'){if(this.state.get('mode')==='released')throw new Error('Ownership already released');this.state.set('mode','paused');await Promise.allSettled([...this.active]);this.instance?.store.invalidateCache();await this.ctx.storage.deleteAlarm();return json({paused:true,drained:true});}
     if(path==='/__ops/activate'){
       if(this.state.get('mode')!=='paused')throw new Error('Paused ownership required');
       const input=await body(request,1024);if(input.writersStopped!==true||input.freePlanVerified!==true)throw new Error('Cutover prerequisites');
       const r=await this.runtime(),snapshot=r.vault.load(this.state.get('backup-latest')),meta=await r.store.read(r.store.meta);r.store.checkMeta(meta);
       if(meta.nextId!==snapshot.revision||snapshot.upstreamImportFingerprint!==(meta.importFingerprint??null))throw new Error('Source moved since backup');
       for(const w of snapshot.tables.wallets){const actual=await r.store.read(r.store.walletRef(w.guild,w.user));if(!actual||actual.balance!==w.balance||Number(actual.milestone)!==w.milestone||actual.last_spin!==w.last_spin)throw new Error('Wallet mismatch');}
-      this.state.set('mode','active');await this.schedule(1000);return json({active:true});
+      r.store.invalidateCache();this.state.set('mode','active');await this.schedule(1000);return json({active:true});
     }
     if(path==='/__ops/verify'){if(this.state.get('mode')!=='paused'||this.active.size)throw new Error('Paused writer required');const r=await this.runtime(),db=new FirestoreRest({...settings,credentials:JSON.parse(this.env.GOOGLE_SERVICE_ACCOUNT_JSON),fetchImpl:cloudFetch,readOnly:true}),store=new FirestoreWalletCore(settings,{db,quota:this.quota,guildIds:[...r.store.guildIds]});return json(await verifyCloudSnapshot(r.vault.load(this.state.get('backup-latest')),store));}
     if(path==='/__ops/backup'){if(this.state.get('mode')==='released')throw new Error('Ownership released');const r=await this.runtime();return json(await this.backupStep(r));}
@@ -140,7 +151,7 @@ export class CircusProject extends DurableObject {
   }
 }
 
-export default {async fetch(request,env){
+async function routeRequest(request,env){
   const path=new URL(request.url).pathname;
   if(path.startsWith('/api/')||path.startsWith('/__ops/')||apiPaths.has(path)){
     try{const settings=identity(env);return await env.CIRCUS_PROJECT.get(env.CIRCUS_PROJECT.idFromName(settings.projectId)).fetch(request);}catch{return json({error:'服務尚未就緒。'},503);}
@@ -148,4 +159,6 @@ export default {async fetch(request,env){
   if(!['GET','HEAD'].includes(request.method))return json({error:'不支援此操作。'},405);
   if(path.startsWith('/assets/')&&path.endsWith('.mp3'))return audioAsset(request,env.ASSETS);
   return env.ASSETS.fetch(request);
-}};
+}
+
+export default {async fetch(request,env){return secureResponse(await routeRequest(request,env));}};

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {SettlementQueue} from '../server/settlement-queue.js';
+import {SettlementQueue} from '../server/wallet/settlement-queue.js';
 import {createWalletClient} from '../src/platform/wallet-client.js';
 
 test('settlements serialize, a failed task releases its slot, overflow never starts work',async()=>{

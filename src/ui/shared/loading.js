@@ -1,0 +1,52 @@
+import { mainArt } from './main-art.js';
+export function createLoadingScreen() {
+  const screen = document.querySelector('#loading');
+  screen.querySelector('.loading-logo').innerHTML = mainArt('logo-short.png', 'loading-logo-art');
+  const track = screen.querySelector('#loading-track');
+  const status = screen.querySelector('#loading-status');
+  const fill = screen.querySelector('#loading-fill');
+  const started = performance.now();
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let progress = 0;
+  let displayed = 0, frame = 0;
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  screen.querySelector('#loading-retry').addEventListener('click', () => location.reload());
+  function update(value, message) {
+    progress = Math.max(progress, Math.min(100, value));
+    cancelAnimationFrame(frame);
+    const from = displayed, began = performance.now();
+    const draw = now => {
+      const t = reduced ? 1 : Math.min(1, (now - began) / 550);
+      displayed = from + (progress - from) * (1 - (1 - t) ** 3);
+      track.setAttribute('aria-valuenow', String(Math.floor(displayed)));
+      fill.style.width = `${displayed}%`;
+      if (t < 1) frame = requestAnimationFrame(draw);
+    };
+    draw(began);
+    status.textContent = message;
+  }
+  return {
+    update,
+    async finish() {
+      update(100, '馬戲團已開啟');
+      // Let the final fill settle; avoid flashing the screen on a cached visit.
+      await wait(reduced ? 0 : Math.max(600, 1400 - (performance.now() - started)));
+      screen.classList.add('is-leaving');
+      await wait(reduced ? 0 : 450);
+      cancelAnimationFrame(frame);
+      screen.remove();
+      document.querySelector('#app').inert = false;
+    },
+    fail(message) {
+      cancelAnimationFrame(frame);
+      screen.classList.add('has-error');
+      screen.setAttribute('aria-busy', 'false');
+      status.textContent = message;
+      status.className = 'loading-error';
+      const retry = screen.querySelector('#loading-retry');
+      retry.title = '重新開啟遊戲';retry.setAttribute('aria-label','重新開啟遊戲');
+      const label = document.createElement('span');label.textContent = '再試一次';
+      retry.querySelector('span')?.remove();retry.append(label);retry.hidden = false;
+    },
+  };
+}

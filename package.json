@@ -1,9 +1,10 @@
 {
   "name": "luna-arcade-preview",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "postinstall": "node scripts/security/patch-discord-sdk.js",
     "dev": "vite --host 127.0.0.1 --port 4187 --strictPort",
     "build": "vite build",
     "audio:preview": "node scripts/audio/render-previews.js",
@@ -32,7 +33,8 @@
     "test:firestore": "node scripts/admin/test-firestore.js",
     "test": "node --test tests/*.test.js",
     "test:bot": "node --test tests/bot-interactions.test.js tests/commands.test.js tests/entry-point.test.js tests/highlights.test.js tests/activity-server.test.js tests/wallet.test.js tests/wallet-service.test.js tests/database.test.js tests/database-audit.test.js tests/operations.test.js tests/firestore-quota.test.js tests/deferred-command.test.js",
-    "assets:webp": "python scripts/assets/optimize-images.py",
+    "assets:webp": "python scripts/assets/optimize-images.py --write",
+    "assets:audit": "python scripts/assets/optimize-images.py",
     "verify:math": "node scripts/game/verify-math.js",
     "verify:sessions": "node scripts/game/verify-sessions.js",
     "export:model": "node scripts/game/export-model.js",
@@ -45,19 +47,46 @@
     "monitor:build": "node scripts/admin/cloud-local.js monitor-build",
     "test:monitor": "node scripts/admin/cloud-local.js monitor-test",
     "validation:start": "node scripts/admin/validation-server.js",
-    "validation:test": "node --test tests/local-wallet.test.js tests/wallet-client.test.js tests/spin-controls.test.js tests/spin-shortcut.test.js"
+    "validation:test": "node --test tests/local-wallet.test.js tests/wallet-client.test.js tests/spin-controls.test.js tests/spin-shortcut.test.js",
+    "test:reset": "node scripts/admin/cloud-local.js reset-test",
+    "test:experience": "node scripts/qa/reel-experience.js",
+    "test:dealer": "node scripts/qa/dealer-resources.js",
+    "test:startup": "node scripts/qa/startup-resources.js",
+    "test:numbers": "node scripts/qa/number-rendering.js",
+    "verify": "node scripts/qa/verify.js",
+    "verify:full": "node scripts/qa/verify.js --full",
+    "verify:ci": "node scripts/qa/verify.js --ci",
+    "test:security": "node scripts/qa/security-smoke.js",
+    "test:discord-sdk": "node scripts/qa/discord-sdk.js",
+    "testdata:reset": "node scripts/admin/reset-test-data.js"
+  },
+  "engines": {
+    "node": ">=24.22.1 <25",
+    "npm": ">=12.2.1 <13"
+  },
+  "packageManager": "npm@12.2.1",
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "workerd@1.20261023.1": true,
+    "protobufjs": false,
+    "fsevents": false
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "2.5.0",
-    "@google-cloud/firestore": "9.3.1",
-    "pixi.js": "^8.22.0",
-    "vite": "^7.3.7"
+    "@google-cloud/firestore": "9.4.0",
+    "pixi.js": "8.22.0"
   },
   "devDependencies": {
-    "miniflare": "5.20261019.2-beta",
-    "wrangler": "4.152.0"
+    "esbuild": "0.28.2",
+    "miniflare": "5.20261023.1-beta",
+    "playwright": "1.64.1",
+    "vite": "8.3.5",
+    "wrangler": "4.154.0"
   },
   "overrides": {
+    "@discord/embedded-app-sdk": {
+      "zod": "4.6.7"
+    },
     "undici": "7.30.1"
   }
 }

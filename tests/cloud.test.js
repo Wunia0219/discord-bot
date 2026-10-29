@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {mkdtempSync,mkdirSync,readFileSync} from 'node:fs';
 import {resolve,join} from 'node:path';
-import {WalletService} from '../server/wallet-service.js';
+import {WalletService} from '../server/wallet/wallet-service.js';
 import {randomBytes} from 'node:crypto';
 import {CloudQuota,QUOTA_LIMITS} from '../cloud/quota.js';
 import {CloudState,Sealer,CloudSessions,CloudLoginLimit} from '../cloud/storage.js';
 import {SnapshotVault,auditSnapshot,digest} from '../cloud/snapshot.js';
-import {WalletStore} from '../server/wallet.js';
-import {FirestoreQuota} from '../server/firestore-quota.js';
-import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot,mergeReturnedQuota} from '../server/cloud-handoff.js';
+import {WalletStore} from '../server/wallet/wallet.js';
+import {FirestoreQuota} from '../server/firestore/quota.js';
+import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot,mergeReturnedQuota} from '../server/recovery/cloud-handoff.js';
 import {FirestoreRest} from '../cloud/firestore-rest.js';
 
 function fixture(t){const root=resolve('test-results/cloud-unit');mkdirSync(root,{recursive:true});const dir=mkdtempSync(join(root,'case-'));const db=new DatabaseSync(join(dir,'storage.sqlite'));let nested=0;

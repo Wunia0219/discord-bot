@@ -4,10 +4,10 @@ import {Miniflare,convertV4MiniflareOptions,Response as MFResponse} from 'minifl
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {randomUUID,generateKeyPairSync,randomBytes,sign} from 'node:crypto';
-import {WalletStore} from '../server/wallet.js';
-import {FirestoreWalletStore} from '../server/firestore-wallet.js';
-import {firestoreImportPlan,importFirestore} from '../server/firestore-import.js';
-import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot} from '../server/cloud-handoff.js';
+import {WalletStore} from '../server/wallet/wallet.js';
+import {FirestoreWalletStore} from '../server/firestore/wallet.js';
+import {firestoreImportPlan,importFirestore} from '../server/firestore/import.js';
+import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot} from '../server/recovery/cloud-handoff.js';
 import {setTimeout as delay} from 'node:timers/promises';
 import {roundFromStops} from '../src/game/index.js';
 import {QUOTA_LIMITS} from '../cloud/quota.js';

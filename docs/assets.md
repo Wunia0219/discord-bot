@@ -1,31 +1,54 @@
-# 素材與畫面維護
+# 素材與壓縮
 
-## 執行素材
+## 執行資源
 
-- `images/main.webp`＋`main.json`：機台框、Logo、按鈕及大獎素材。圖集匯出 scale 為 0.5，程式直接使用 frame 像素座標。
-- `images/symbols.webp`＋`symbols.json`：九種圖標；保留原始透明留白。穩定數學代碼與圖標名稱集中在 `src/game/symbols.js`。
-- `images/fonts/circus-gold.webp`＋`.fnt`：HUD、大獎共用的金色數字，含逗號及正負號，DOM 保留可讀文字。
-- `images/fx/circus-win-frame.webp`：紅金得獎外框。
-- `images/jokers-circus/circus-background.webp`：背景。
-- `audio/circus-background-optimized.mp3`：使用者於 2026-10-24 提供的 `Untitled.mp3`（182.76 秒、48kHz 立體聲），以 stream copy 移除內嵌封面與標籤，未重編碼。4,342,331 → 4,317,696 bytes（減少 0.57%），音訊封包與解碼 PCM 的 SHA-256 均與母檔一致。按下音樂圖示才載入，獨立循環播放；本機與雲端入口使用 `audio/mpeg` 並支援單一位元組範圍請求。
-- `images/dealer/v4/dealer.json` 與同目錄 WebP 圖集：主遊戲使用的 idle（96 格／3.2 秒）及 win（108 格／3.6 秒）人物動畫。idle 循環，小獎獲利時播放 win 並回待機；大獎沿用 WIN 演出。詳見 [角色動畫](dealer-animation.md)。
+| 資源 | 用途 |
+|---|---|
+| `images/main.webp`＋JSON | 機台、Logo、按鈕；直接使用 frame 像素，匯出 scale 0.5 |
+| `images/symbols.webp`＋JSON | 九種圖標，保留透明留白 |
+| `images/fonts/circus-gold.webp`＋FNT | HUD／大獎共用金色數字，DOM 保留文字 |
+| `images/fx/circus-win-frame.webp` | 得獎外框 |
+| `images/jokers-circus/circus-background.webp` | 背景；歷史輸出為有損 quality 90 |
+| `images/dealer/v4/` | 荷官 manifest 與 51 頁無損 WebP |
+| `audio/circus-background-optimized.mp3` | 使用者原音樂，182.76 秒、48 kHz 立體聲 |
 
-專案內 PNG 母檔已經驗證轉存並刪除。人物原畫、參考、原幀、HD 圖集及 QA 截圖改存 exact lossless WebP；現有遊戲圖集、字體與外框也為無損 WebP，背景沿用品質 90。`npm run assets:webp` 會驗證轉檔後的尺寸與透明度，無損項目另驗證完整 RGBA，再刪除 PNG；清單輸出至被忽略的 `test-results/image-compression.json`。第三方套件及 Git 內部不在清理範圍。
+MP3 僅以 stream copy 移除封面／標籤，未重編碼。音樂按開關才載入、音量 16%、循環播放，入口支援 Range。合成音效由 `src/ui/audio/` 共用 voice plan 產生，`npm run audio:preview` 可離線試聽。
 
-`scripts/assets/build-circus-font.py` 用 Windows Georgia Bold 產生 WebP 數字圖集；字型檔不打包進專案。素材產生器、人物圖集匯出器與檢查器均使用 WebP，Python 工具需要 Pillow；遊戲建置與伺服器執行只需要 Node。
+金色數字的字型上下界在模組初始化時計算一次；文字變動時僅在尺寸不同才重設 Canvas，其餘更新清除原畫布再繪製。原字型、排版、數字動畫時長與無障礙文字保持不變，`npm run test:numbers` 比對固定像素基準。
 
-程式及 JSON 內如 `spin-button.png`、`H1.png` 是沿用的圖集內部圖塊名稱，不代表載入 PNG 檔案。Discord 頭貼也使用官方 CDN WebP 路徑。
+## 無損檢查
 
-## 構圖與互動
+`npm run assets:audit` 檢查 Git 追蹤的 `images/`、`art/` 圖片；`npm run assets:webp` 只寫入更小、尺寸及完整 RGBA 逐位元一致的候選。包含透明區 RGB，不縮尺寸、不更改畫面內容。報告在 `test-results/image-compression.json`，記錄檔案／像素雜湊、編碼及大小。
 
-桌面以 1160×740 的整組機台與單排控制列等比例縮放；手機固定直向多排配置，已移除橫向側邊控制列。Discord platform 優先於瀏覽器輸入裝置判斷，版面與安全區集中在 `responsive-layout.js`；`discord-activity.js` 在 SDK READY 後將手機的一般、子母畫面及網格模式都鎖定為 PORTRAIT，不增加轉向提示。
+動畫 WebP 保留所有影格與原時序，不攤平成單張。已有有損背景及 MP3 不可還原成原始無損；維護時不再有損壓縮。圖集內 `spin-button.png` 等名稱是 frame key，不是待下載 PNG。
 
-每輪向下移動且速度不受輪帶長度影響。`presentation.js` 的 `reelLandingAnimation` 統一正常與快停的收尾：160ms 減速、60ms 逐軸間隔與 190ms 回彈；一般旋轉的第一軸目標落地為 1400ms，五軸含回彈約 1.83 秒。快停只移除空轉，結果就緒後最多約 750ms 停妥，網路等待計入正常空轉時間。另管理 960ms 雙彈動及每 1.6 秒輪播的得獎圖標；`scene.js` 依結算資料中的 cells 標示所有有效格子，不再套用固定賠線。
+Python 工具需 Pillow；`build-circus-font.py` 使用 Windows Georgia Bold，字型檔不打包。Python 模組採底線，CLI 與 JS 檔採連字號；`__pycache__` 不進版控。
 
-`spin-controls.js` 集中處理空白鍵快停、自動開轉及取消佇列；錢包與算獎不依演出速度改變。AUTO SPIN 會等候跳分或大獎演出，開啟視窗或切離頁面時停止。減少動態效果時簡化演出；音效需手動啟用。
+建置為帶內容雜湊的資源逐檔產生長期瀏覽器快取規則，減少再次開啟時的重複請求。內容更新會換檔名；HTML、固定網址與錢包 API 不套用長期快取。這不減少首次下載量，也不改變圖片、音效或遊戲流程。
 
-`game-rules.js`／`.css` 提供馬戲團風格的「遊戲規則」，分為圖標獎勵、得獎方式、操作說明三個分頁。共用既有圖集與實際倍率／WIN 門檻；圖標獎勵換算為當前下注的每組戲籌，`rules-example.js` 的 2×1×3 紅心示意交由正式算獎函式計算。手機採單欄圖標卡片，分頁支援左右方向鍵、Home／End，關閉後回到原入口。理論返還率與最高獎勵放於操作說明下方的「更多遊戲資訊」，頁尾顯示遊戲版本。
+## 荷官動畫
 
-`player-bar.js`／`player-ui.css` 管理主畫面的 Discord 頭貼、名稱、完整 ID、簽到與遊玩紀錄入口；桌面帳號區、簽到及工具列共用高度，工具按鈕為等寬方形；手機分成帳號／簽到及工具兩列。頭貼沿用已授權的 `avatar`，以 `discord-avatar.js` 建立官方 CDN 圖片網址；缺少頭貼或載入失敗時保留本機圖示，同一張圖不會因開轉或餘額更新而重新載入。`player-copy.js` 統一簽到狀態與玩家提示，不直接顯示 SDK 或後端錯誤。`player-records.js` 提供可展開的遊玩紀錄，隱去停點、內部規則代碼和交易類型；玩家工具列不提供戲籌收支。簽到領取中會鎖住開轉，開轉中則不能簽到，避免餘額顯示互相覆蓋。
+| 動作 | 格數／時長 | runtime 圖集 |
+|---|---|---|
+| idle | 96 格／3.2 秒／30fps | 24 頁 |
+| win | 108 格／3.6 秒／30fps | 27 頁 |
 
-圖片替換後需跑 `npm test`、`npm run build`，並檢查透明邊界、圖集 frame、橫直向、鍵盤焦點、得分及長位數餘額。
+idle 循環；獲利且低於 BIG WIN 播放 win，播完回待機。AUTO SPIN 等待完整致意；大獎使用原 WIN 演出。減少動態效果顯示代表姿勢，背景隱藏、前景恢復。
+
+runtime 邏輯畫布每格 576×832，原幀 1152×1664，anchor `[0.5,1600/1664]`。儲存時兩段動作共用 `(62,24)` 起始的 480×800 外框，每頁 2×2／960×1600；`sourceSize` 與 `spriteSourceSize` 還原完整邏輯畫布。保留所有 RGBA（含透明 RGB）、至少 8px 邊界及固定基準點，不縮圖、不逐格重新置中。桌面畫布 1320×700、裁切 x=-140、角色 (40,680)／比例 1.65；手機 1020×700、裁切 x=65、角色 (156,660)／比例 0.85。保持全身及第一軸前方留白。
+
+`Dealer.prepare()` 先解碼、解析圖集並上傳 GPU 才播放。idle 與舞台素材並行準備；win 在可操作後預載，回合結果也可按需預載，不阻擋首次進入。圖集以 Vite 雜湊 URL 載入。
+
+win 完整播放回待機後保留 30 秒，供短時間內的下一次得獎重用；到期若轉輪仍在運動則延後釋放。正在播放、準備播放及首次預載待用的動作保持可用；回背景會切回原 idle 並釋放可選動作，背景不另外預載 win。重新使用同一動作會取消待釋放計時，並行準備共用一份工作。載入、解析或 GPU 上傳失敗時等待同批頁面收尾，再清理成功載入的資源；離開時也等待進行中的準備與釋放完成。
+
+兩組共 51 頁，保留全部影格、像素與播放順序；RGBA 尺寸合計約 298.83 MiB，WebP 共 41,019,400 bytes。記憶體數字是圖集尺寸估算，不是裝置實測；短期重用會延長 win 貼圖駐留時間。
+
+原畫在 `art/dealer/rebuild/host-master.webp`，補件／原幀／HD 圖集在 `art/dealer/v4/`，動作設計在 `art/dealer/win-design/`。R6 使用一次致意：上身峰值 +0.95°、自由臂 +6.5°，手臂較身體延後約 191ms；支撐手、平台與靴底固定。108 格含 107 張不同像素，首尾共用中立姿勢。
+
+## 維護驗證
+
+`npm test`、`npm run build` 與 `python scripts/assets/check-dealer-v4.py --allow-duplicates --require-manifest` 核對來源、圖集及時間契約。`export-dealer-v4.py` 由原幀輸出無損圖集。畫面另檢查透明邊緣、完整人物、手機／桌面、鍵盤焦點及長位數金額；停輪規格集中在[基準](reel-timing-baseline.md)。
+
+匯出 idle／win 後，用 `python scripts/assets/repack-dealer.py` 產生共用外框候選與報告，加 `--write` 才套用。工具比較多組無損編碼參數，逐格還原 576×832 RGBA 並比對 SHA-256；若總下載量變大則拒絕套用。套用前原圖集備份與驗證報告在 `test-results/dealer-atlas-repack/`，原幀與 HD 圖集保持不變。
+
+`npm run test:dealer` 使用隔離 Edge 檢查短期重用、到期時的轉輪保護、背景釋放、併發準備與故障清理，並擷取桌機／手機全部 204 影格的渲染像素雜湊。修改前可先在同一裝置與瀏覽器執行 `npm run test:dealer -- --baseline` 保存本機基準；之後有該基準時會逐格比對像素、位置、縮放、時序與圖集峰值。報告在 `test-results/dealer-resources/`，不在正式遊戲加入測量 hooks。

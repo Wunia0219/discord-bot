@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {checkDiscordReadiness,publicOrigin} from '../server/discord-readiness.js';
-import {commandDefinitions} from '../server/commands.js';
+import {checkDiscordReadiness,publicOrigin} from '../server/discord/discord-readiness.js';
+import {commandDefinitions} from '../server/discord/commands.js';
 import {MODEL_VERSION} from '../src/game/slot-math.js';
 const id='100000000000000001',guild='100000000000000002';
 const env={DISCORD_CLIENT_ID:id,DISCORD_CLIENT_SECRET:'never-output-secret',DISCORD_PUBLIC_KEY:'a'.repeat(64),

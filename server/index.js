@@ -1,9 +1,9 @@
 import { fileURLToPath } from 'node:url';
-import { createActivityServer } from './app.js';
+import { createActivityServer } from './http/app.js';
 import { walletConfig } from './config.js';
-import { discordConfigurationReady } from './discord-config.js';
-import {operationsSettings} from './operations-settings.js';
-import {Operations} from './operations.js';
+import { discordConfigurationReady } from './discord/discord-config.js';
+import {operationsSettings} from './operations/operations-settings.js';
+import {Operations} from './operations/operations.js';
 
 const port = Number(process.env.PORT || 4188);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT');

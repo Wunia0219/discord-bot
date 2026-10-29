@@ -12,3 +12,5 @@ backups/
 .wrangler/
 .dev.vars*
 wrangler.*.local.json*
+__pycache__/
+*.pyc

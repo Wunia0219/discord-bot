@@ -2,6 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWalletClient } from '../src/platform/wallet-client.js';
 
+test('a new wallet epoch isolates old pending bets and preserves retries within the new epoch',async()=>{
+ const old={bet:100,requestId:'old-request-before-reset'},data=new Map([['kemet-pending:g:u',JSON.stringify(old)]]);
+ const storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)};
+ const session={guildId:'g',userId:'u',token:'private-session',walletEpoch:'new-ledger'};
+ let sent;
+ const client=createWalletClient(session,async(url,options)=>{
+  assert.equal(options.headers['X-Wallet-Epoch'],'new-ledger');sent=JSON.parse(options.body);throw new Error('offline');
+ },storage);
+ assert.equal(client.hasPending(),false);await assert.rejects(client.spin(20));assert.notEqual(sent.requestId,old.requestId);assert.equal(sent.bet,20);
+ const reloaded=createWalletClient(session,async(url,options)=>{assert.deepEqual(JSON.parse(options.body),sent);return Response.json({round:{id:'new'}});},storage);
+ assert.equal(reloaded.hasPending(),true);await reloaded.spin(100);assert.equal(reloaded.hasPending(),false);
+ assert.equal(data.has('kemet-pending:g:u:new-ledger'),false);
+});
+
 test('overlapping wallet refreshes share a request and failures do not prevent later refresh',async()=>{
  let release,calls=0,fail=false;
  const client=createWalletClient({guildId:'guild',userId:'user'},async()=>{

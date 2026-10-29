@@ -1,5 +1,5 @@
 import {createCipheriv,createDecipheriv,randomBytes,createHmac} from 'node:crypto';
-import {LoginRateLimit} from '../server/login-rate-limit.js';
+import {LoginRateLimit} from '../server/http/login-rate-limit.js';
 
 export class CloudState {
   constructor(storage){this.storage=storage;this.sql=storage.sql;this.sql.exec('CREATE TABLE IF NOT EXISTS cloud_state(key TEXT PRIMARY KEY,value TEXT NOT NULL)');}

@@ -1,15 +1,15 @@
 import { mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
-import { WalletStore } from './wallet.js';
-import { WalletService } from './wallet-service.js';
-import { highlightsConfig } from './highlights.js';
-import { localTestWalletConfig } from './local-test-wallet.js';
-import { assertDatabaseEnvironment } from './database.js';
-import { assertDiscordConfiguration } from './discord-config.js';
-import {commandChannels} from './discord-channel-scope.js';
+import { WalletStore } from './wallet/wallet.js';
+import { WalletService } from './wallet/wallet-service.js';
+import { highlightsConfig } from './discord/highlights.js';
+import { localTestWalletConfig } from './testing/local-test-wallet.js';
+import { assertDatabaseEnvironment } from './sqlite/database.js';
+import { assertDiscordConfiguration } from './discord/discord-config.js';
+import {commandChannels} from './discord/discord-channel-scope.js';
 
 export function walletConfig(env=process.env){
-  if(env.WALLET_ENABLED==='true'&&env.WALLET_BACKEND==='firestore')return import('./firestore-config.js').then(({firestoreWalletConfig})=>firestoreWalletConfig(env));
+  if(env.WALLET_ENABLED==='true'&&env.WALLET_BACKEND==='firestore')return import('./firestore/config.js').then(({firestoreWalletConfig})=>firestoreWalletConfig(env));
   if(env.WALLET_BACKEND&&!['sqlite','firestore'].includes(env.WALLET_BACKEND))throw new Error('Invalid WALLET_BACKEND');
   if(env.LOCAL_WALLET_TEST==='true')return localTestWalletConfig(env);
   if(env.WALLET_ENABLED!=='true')return null;

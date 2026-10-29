@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createActivityServer } from '../server/app.js';
-import { WalletStore } from '../server/wallet.js';
-import { WalletService } from '../server/wallet-service.js';
+import { createActivityServer } from '../server/http/app.js';
+import { WalletStore } from '../server/wallet/wallet.js';
+import { WalletService } from '../server/wallet/wallet-service.js';
 import { createWalletClient } from '../src/platform/wallet-client.js';
-import { LoginRateLimit } from '../server/login-rate-limit.js';
+import { LoginRateLimit } from '../server/http/login-rate-limit.js';
 
 const id='1561284960986599626';
 async function fixture(t, options={}) {

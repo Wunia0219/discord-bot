@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dailyRewardView, playerError, ledgerLabel } from '../src/ui/player-copy.js';
+import { dailyRewardView, playerError, ledgerLabel } from '../src/ui/player/player-copy.js';
 
 test('daily reward keeps a clear, disabled state during a claim and after it is claimed', () => {
   assert.deepEqual(dailyRewardView({ready:true,daily:500}), {title:'週簽到・第 1 天',detail:'可領 500 戲籌',disabled:false});
