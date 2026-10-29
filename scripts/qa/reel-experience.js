@@ -3,6 +3,7 @@ import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {freshState,createRound,INITIAL_STOPS} from '../../src/game/index.js';
 import {launchBrowser,createQaServer} from './helpers/browser.js';
 import {assertFirstDueFrame,assertReelCadence} from './helpers/reel-timing.js';
+import {clickSoundButton,verifySoundButtonInput} from './helpers/sound-button.js';
 if(process.argv.slice(2).some(arg=>!['--slow-frames','--slow-input'].includes(arg)))throw new Error('Use --slow-frames and/or --slow-input');
 
 const slowFrames=process.argv.includes('--slow-frames');
@@ -28,10 +29,16 @@ let browser;
 const report={slowFrames,slowInput,checks:[],timings:[],errors:[],clientTelemetry:[]};
 try{
   await vite.listen();browser=await launchBrowser();
+  report.soundInputChecks=await verifySoundButtonInput(browser);
   const context=await browser.newContext({viewport:{width:1440,height:900}}),page=await context.newPage();
   await page.addInitScript(()=>{
     window.__qaTimeline=[];const nativeFetch=window.fetch;
-    document.addEventListener('click',event=>{if(event.target.closest('#spin'))__qaTimeline.push({kind:'spin-input',at:performance.now()});});
+    window.__qaSoundInputs=[];
+    // Capture before toggleSound temporarily disables its button during activation.
+    document.addEventListener('click',event=>{
+      if(event.target.closest('#spin'))__qaTimeline.push({kind:'spin-input',at:performance.now()});
+      if(event.target.closest('#sound'))__qaSoundInputs.push({trusted:event.isTrusted,at:performance.now()});
+    },true);
     window.fetch=function(input,...args){if(String(input).startsWith('/api/spin'))window.__qaTimeline.push({kind:'request-start',at:performance.now()});return nativeFetch.call(this,input,...args);};
   });
   page.on('pageerror',error=>report.errors.push(error.message));
@@ -54,7 +61,10 @@ try{
   });
   await page.goto('http://127.0.0.1:4194/?wallet=local&platform=desktop');
   await page.waitForFunction(()=>document.querySelector('#spin')?.disabled===false);
-  await page.click('#sound');await page.waitForFunction(()=>__qaSound.enabled);
+  report.currentCase='enable-audio';
+  await clickSoundButton(page);await page.waitForFunction(()=>__qaSound.enabled);
+  assert.deepEqual((await page.evaluate(()=>__qaSoundInputs)).map(input=>input.trusted),[true],'audio enabled by exactly one real button click');
+  assert.equal(await page.locator('#sound').getAttribute('aria-pressed'),'true');
   if(slowFrames)await page.evaluate(()=>{__qaScene.app.ticker.maxFPS=5;});
   for(const [name,delay] of [['normal',0],['early-quick',0],['queued-quick',1500],['late-quick',0]]){
     report.currentCase=name;
@@ -206,6 +216,6 @@ try{
   await writeFile(out+'/report.json',JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));
 }catch(error){
  const pages=browser?browser.contexts().flatMap(context=>context.pages()):[];
- report.failure={case:report.currentCase,message:error.message,pages:await Promise.all(pages.map(page=>page.evaluate(()=>({url:location.href,timeline:globalThis.__qaTimeline,active:!!globalThis.__qaScene?.active,spinDisabled:document.querySelector('#spin')?.disabled,text:document.body.innerText})).catch(()=>({unavailable:true}))))};
+ report.failure={case:report.currentCase,message:error.message,pages:await Promise.all(pages.map(page=>page.evaluate(()=>({url:location.href,timeline:globalThis.__qaTimeline,active:!!globalThis.__qaScene?.active,spinDisabled:document.querySelector('#spin')?.disabled,soundInputs:globalThis.__qaSoundInputs,soundEnabled:globalThis.__qaSound?.enabled,audioContextState:globalThis.__qaSound?.context?.state,soundDisabled:document.querySelector('#sound')?.disabled,soundRect:document.querySelector('#sound')?.getBoundingClientRect().toJSON(),text:document.body.innerText})).catch(()=>({unavailable:true}))))};
  await writeFile(out+'/failure.json',JSON.stringify(report,null,2));console.error(JSON.stringify(report.failure,null,2));throw error;
 }finally{await browser?.close();await vite.close();}
