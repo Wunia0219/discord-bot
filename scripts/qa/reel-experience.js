@@ -175,6 +175,7 @@ try{
   assert.equal(await page.locator('.play-record').count(),3);
   report.checks.push('confirmed result and all reel feedback finish before older history returns; opening records waits and then displays the complete history');
   await page.click('#close-dialog');await page.screenshot({path:out+'/desktop.png'});
+  await context.close();
   const mobileContext=await browser.newContext({viewport:{width:375,height:812},isMobile:true,hasTouch:true}),mobile=await mobileContext.newPage();
   mobile.on('pageerror',error=>report.errors.push(error.message));
   await mobile.addInitScript(()=>{window.__qaTimeline=[];});

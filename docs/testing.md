@@ -40,9 +40,19 @@
 
 CSP 注入測試等待非同步違規通知，確認 `script-src-elem` 對 `inline` 執行實際阻擋（`enforce`），再檢查注入腳本未執行；通知未到仍會逾時失敗，不更改正式安全政策。`npm run test:security -- --delayed-csp-report` 將測試收集通知的時間延後 500ms，防止重新引入立即讀取的競態。
 
-`node scripts/qa/verify.js --full --list` 或 `--ci --list` 只列出步驟。一般驗證第一個失敗即停止；CI 模式會繼續獨立檢查，建置失敗時則將 CSP 建置測試標為受阻，絕不當成通過。每一步結束都更新 `test-results/verification.json`，即使稍後中斷仍可查看進度；任何失敗／受阻都保留非零結束碼。Windows ARM 的 workerd 步驟使用 `.tools/node-x64/` 中與 `.node-version` 一致的 Node；其他步驟使用啟動驗證的 Node。
+`node scripts/qa/verify.js --full --list` 或 `--ci --list` 只列出步驟。檢查清單與依賴集中在 `scripts/qa/helpers/verification-plan.js`；一般驗證第一個失敗即停止，CI 模式則繼續獨立檢查。建置失敗時，依賴它的 CSP／Worker／整合測試標為受阻，絕不當成通過。每一步結束都更新 `test-results/verification.json`；任何失敗／受阻都保留非零結束碼。Windows ARM 的 workerd 步驟使用 `.tools/node-x64/` 中與 `.node-version` 一致的 Node；其他步驟使用啟動驗證的 Node。
 
-CI 每次保留 7 天的 `verification-<run_id>-<attempt>` 診斷附件，並在執行摘要列出所有結果。附件只包含指定的 QA JSON，不包含 SQLite、玩家資料、備份或環境檔。一般停輪報告在 `test-results/reel-experience/`，壓力測試在 `test-results/reel-experience-stress/`；CSP 每次使用獨立 `run-*` 目錄，互不覆蓋。
+GitHub Actions 使用三個獨立 runner 並行驗證，各組內仍循序執行：
+
+| `--suite` | 範圍 |
+|---|---|
+| `browser` | 一般回歸、前端建置、全部瀏覽器與壓力測試、相依漏洞稽核 |
+| `wallet` | Firestore 錢包、v2、狀態快取 |
+| `services` | 自行建置前端及兩個 Worker，再驗證服務、備份、恢復、重設與監控 |
+
+重現單組使用 `npm run verify:ci -- --suite=browser`（或 `wallet`／`services`）；漏洞稽核由 workflow 另跑 `npm audit --audit-level=high`。本機完整重驗仍用 `npm run verify:ci`，不可在同一個目錄同時啟動多組，因為會共用模擬器連接埠及輸出目錄。分組覆蓋測試會檢查所有整合測試檔均分配且不重複、workflow 啟動所有組；新增檢查請同步維護清單。任一組失敗仍讓其餘組完成診斷，最後的 `Verify / verify` 只有全部成功才通過。
+
+CI 每組保留 7 天的 `verification-<suite>-<run_id>-<attempt>` 診斷附件，並在執行摘要列出各步驟結果與耗時。附件只包含指定的 QA JSON，不包含 SQLite、玩家資料、備份或環境檔。一般停輪報告在 `test-results/reel-experience/`，壓力測試在 `test-results/reel-experience-stress/`；CSP 每次使用獨立 `run-*` 目錄，互不覆蓋。
 
 ### 從零重驗
 
