@@ -27,7 +27,7 @@ npm run dev
 
 瀏覽器試玩：`http://127.0.0.1:4187/`。完整本機錢包驗收：`npm run validation:start`，開啟 `http://127.0.0.1:4192/wallet-test`。
 
-固定檢查入口為 `npm run verify`；準備 Java 21 與 Firestore emulator 後，用 `npm run verify:full` 執行包含 REST／workerd 與恢復的完整檢查。兩者只建置與驗證，不部署；步驟與 CI 見[測試文件](docs/testing.md)。
+固定檢查入口為 `npm run verify`；準備 Java 21 與 Firestore emulator 後，用 `npm run verify:full` 執行完整檢查。合併前用 `npm run verify:ci` 加跑慢幀／輸入延遲及 CSP 非同步回歸，並一次彙整獨立失敗；首次須以 `npx playwright install chromium` 安裝鎖定的瀏覽器。以上只建置與驗證，不部署；步驟與 CI 見[測試文件](docs/testing.md)。
 
 ## 文件
 

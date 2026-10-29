@@ -3,10 +3,11 @@ import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {freshState,createRound,INITIAL_STOPS} from '../../src/game/index.js';
 import {launchBrowser,createQaServer} from './helpers/browser.js';
 import {assertFirstDueFrame,assertReelCadence} from './helpers/reel-timing.js';
+if(process.argv.slice(2).some(arg=>!['--slow-frames','--slow-input'].includes(arg)))throw new Error('Use --slow-frames and/or --slow-input');
 
 const slowFrames=process.argv.includes('--slow-frames');
 const slowInput=process.argv.includes('--slow-input');
-const out='test-results/reel-experience';await mkdir(out,{recursive:true});
+const out=slowFrames||slowInput?'test-results/reel-experience-stress':'test-results/reel-experience';await mkdir(out,{recursive:true});
 const stops=JSON.parse(await readFile('docs/data/math-report.json','utf8')).examples.none.stops;
 const observe={name:'local-reel-observation',enforce:'pre',transform(source,id){
   const path=id.replaceAll('\\','/');

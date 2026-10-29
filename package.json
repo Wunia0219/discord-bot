@@ -55,6 +55,7 @@
     "test:numbers": "node scripts/qa/number-rendering.js",
     "verify": "node scripts/qa/verify.js",
     "verify:full": "node scripts/qa/verify.js --full",
+    "verify:ci": "node scripts/qa/verify.js --ci",
     "test:security": "node scripts/qa/security-smoke.js",
     "test:discord-sdk": "node scripts/qa/discord-sdk.js",
     "testdata:reset": "node scripts/admin/reset-test-data.js"

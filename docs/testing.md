@@ -8,6 +8,8 @@
 |---|---|
 | `npm run verify` | 固定順序：一般回歸、前端／Worker dry-run、啟動／荷官／數字／停輪／CSP 瀏覽器驗證 |
 | `npm run verify:full` | 上述全部，再跑官方 emulator、REST／workerd、備份恢復、重設與監控 |
+| `npm run verify:ci` | 完整驗證＋慢幀／輸入延遲＋CSP 延遲通知，共 14 項；彙整獨立失敗 |
+| `node scripts/qa/check-toolchain.js` | 安裝相依前核對 Node／npm、lockfile、Netlify、Docker 與 CI 的版本設定 |
 | `npm test` | 算獎、介面契約、Discord 權限、SQLite、備份、同步與防重送 |
 | `npm run test:bot` | 指令、HTTP、帳本與維運 |
 | `npm run test:firestore` | 官方 emulator：交易、索引、遷移、完整／增量備份 |
@@ -28,7 +30,7 @@
 
 `npm ci` 會執行 Discord SDK 的相容安全修補；不可略過專案 `postinstall`。使用 `--ignore-scripts` 安裝時，必須另執行 `node scripts/security/patch-discord-sdk.js`，再以 `--check` 核對。完整驗證與正式建置會拒絕未修補或未知的 SDK 內容；細節見[資料保護](security.md#discord-sdkzod-修補)。
 
-瀏覽器測試使用鎖定的 Playwright 開發相依；Windows 預設 Edge，Linux 預設 Chromium（先執行 `npx playwright install --with-deps chromium`）。可用 `PLAYWRIGHT_MODULE_PATH` 指定既有模組目錄、`PLAYWRIGHT_BROWSER_CHANNEL` 指定測試通道。
+瀏覽器測試使用鎖定的 Playwright 開發相依；一般驗證在 Windows 預設 Edge、Linux 預設 Chromium。`verify:ci` 在兩個平台都預設使用 Playwright 隨附的 Chromium，先執行 `npx playwright install chromium`（Linux 加 `--with-deps`）。可用 `PLAYWRIGHT_MODULE_PATH` 指定既有模組目錄、`PLAYWRIGHT_BROWSER_CHANNEL` 指定測試通道；`bundled` 表示鎖定版本的 Chromium。實際 Node／瀏覽器／Playwright 版本寫入 `test-results/browser-runtime.json`；同版瀏覽器仍不能取代遠端 Linux CI 驗證。
 
 數字測試以 `willReadFrequently: true` 固定 Canvas 軟體繪製，避免 GPU／CPU 切換造成像素雜湊差異；此設定僅限隔離測試頁，正式遊戲不受影響。固定基準位於 `tests/fixtures/number-rendering.json`，仍逐一核對像素、尺寸及無障礙文字。僅在有意更改字型／外觀，或已證實需要統一測試繪圖路徑時，用 `npm run test:numbers -- --baseline` 更新並審查差異；失敗時也會保存 `test-results/number-rendering/after.json`。
 
@@ -36,27 +38,33 @@
 
 快停案例以動畫階段同步原按鈕／觸控操作：早期與晚期案例暫停測試 ticker，排隊案例暫扣模擬回應，並斷言輸入確實發生於指定階段；晚期快停必須保留全部落地時間。`npm run test:experience -- --slow-frames --slow-input` 再將第二次操作延後兩秒，驗證 CI 輸入延遲不會改變測試情境。這些案例的牆鐘時間包含測試等待，不作效能基準。
 
-CSP 注入測試等待非同步違規通知，確認 `script-src-elem` 對 `inline` 執行實際阻擋（`enforce`），再檢查注入腳本未執行；通知未到仍會逾時失敗，不更改正式安全政策。
+CSP 注入測試等待非同步違規通知，確認 `script-src-elem` 對 `inline` 執行實際阻擋（`enforce`），再檢查注入腳本未執行；通知未到仍會逾時失敗，不更改正式安全政策。`npm run test:security -- --delayed-csp-report` 將測試收集通知的時間延後 500ms，防止重新引入立即讀取的競態。
 
-`node scripts/qa/verify.js --full --list` 只列出步驟；驗證結果保存在 `test-results/verification.json`，第一個失敗即停止，不執行部署。Windows ARM 的 workerd 步驟使用 `.tools/node-x64/` 中與 `.node-version` 一致的 Node；其他步驟使用啟動驗證的 Node。
+`node scripts/qa/verify.js --full --list` 或 `--ci --list` 只列出步驟。一般驗證第一個失敗即停止；CI 模式會繼續獨立檢查，建置失敗時則將 CSP 建置測試標為受阻，絕不當成通過。每一步結束都更新 `test-results/verification.json`，即使稍後中斷仍可查看進度；任何失敗／受阻都保留非零結束碼。Windows ARM 的 workerd 步驟使用 `.tools/node-x64/` 中與 `.node-version` 一致的 Node；其他步驟使用啟動驗證的 Node。
+
+CI 每次保留 7 天的 `verification-<run_id>-<attempt>` 診斷附件，並在執行摘要列出所有結果。附件只包含指定的 QA JSON，不包含 SQLite、玩家資料、備份或環境檔。一般停輪報告在 `test-results/reel-experience/`，壓力測試在 `test-results/reel-experience-stress/`；CSP 每次使用獨立 `run-*` 目錄，互不覆蓋。
 
 ### 從零重驗
 
 使用儲存庫外的新目錄，複製目前來源或從待驗證提交建立 checkout。不要帶入 `.env*.local`、`data/`、`backups/`、`node_modules/`、`dist/`、`.wrangler/` 或舊測試結果，也不要放在已有 `node_modules` 的父目錄下，以免 Node 向上尋找舊套件。
 
 ```sh
+node scripts/qa/check-toolchain.js
 npm ci
+npx playwright install chromium
 npm run firestore:emulator:setup
-npm run verify:full
+npm run verify:ci
 npm run verify:math
 npm run verify:sessions
 ```
+
+Linux 的瀏覽器安裝使用 `npx playwright install --with-deps chromium`。若將瀏覽器快取放在專案 `.tools/playwright`，安裝與驗證時都須將 `PLAYWRIGHT_BROWSERS_PATH` 設為該目錄的絕對路徑。
 
 Windows ARM 建議在 **Node 24 x64 環境**內完成以上全部步驟，確保 npm 安裝的原生套件與 workerd 執行架構一致；只在最後切換 Node 不足以補齊 x64 套件。Java 21 可由 `JAVA_HOME`／`FIRESTORE_JAVA_PATH` 指定；官方 emulator 會核對 SHA-256。數學驗算會重建 `docs/data/` 報告及 `src/game/model-config.js`，應與來源比對；未調整玩法時內容須一致。
 
 單獨執行 `test:security` 前需先 build；`verify` 已按此順序執行。全新目錄沒有荷官的本機影格基準時，`test:dealer` 仍檢查格數、時長及資源生命週期；要比較修改前後像素，先依[素材文件](assets.md)保存同機基準。
 
-`.github/workflows/verify.yml` 在 pull request、main 推送或手動觸發時使用相同完整入口；依 `.node-version`、`packageManager` 對齊 Node／npm，搭配 Java 21、Chromium 與經雜湊核對的官方 emulator。安裝後先稽核，high／critical 漏洞會阻止驗證通過。workflow 只有讀取程式碼權限，不注入正式憑證、不部署、不執行正式資料清理。Actions 提交已鎖定；遠端結果以實際 workflow 執行為準。設定參考 [Playwright CI 文件](https://playwright.dev/docs/ci-intro)。
+`.github/workflows/verify.yml` 在 pull request、main 推送或手動觸發時執行 `verify:ci`；安裝前先檢查 `.node-version`、`packageManager`、engine、lockfile、Netlify、Docker 與 CI 是否一致，搭配 Java 21、Chromium 與經雜湊核對的官方 emulator。安裝後先稽核，high／critical 漏洞會阻止驗證通過。workflow 只有讀取程式碼權限，不注入正式憑證、不部署、不執行正式資料清理。Actions 提交已鎖定；遠端結果以實際 workflow 執行為準。設定參考 [Playwright CI 文件](https://playwright.dev/docs/ci-intro)與 [GitHub 診斷附件](https://docs.github.com/en/actions/tutorials/store-and-share-data)。
 
 ## 本機完整錢包
 

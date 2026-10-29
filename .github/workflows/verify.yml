@@ -32,9 +32,29 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      - name: Check toolchain configuration
+        run: node scripts/qa/check-toolchain.js
       - run: npm install --global npm@12.2.1
       - run: npm ci
       - run: npm audit --audit-level=high
       - run: npx playwright install --with-deps chromium
       - run: npm run firestore:emulator:setup
-      - run: npm run verify:full
+      - run: npm run verify:ci
+      - name: Upload verification reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            test-results/verification.json
+            test-results/browser-runtime.json
+            test-results/discord-sdk/*.json
+            test-results/startup-resources/*.json
+            test-results/dealer-resources/*.json
+            test-results/number-rendering/*.json
+            test-results/reel-experience/*.json
+            test-results/reel-experience-stress/*.json
+            test-results/security-smoke/run-*/report.json
+            test-results/security-smoke/run-*/failure.json
