@@ -64,6 +64,12 @@ export class Highlights {
     await this.running;
   }
 
+  withRecipient(event){
+    const rows=this.store.db.prepare('SELECT user FROM rounds WHERE guild=? AND id=?').all(event.guild,event.round_id);
+    if(rows.length!==1||!snowflake(rows[0].user))throw new Error('Announcement round owner is ambiguous');
+    return {...event,user:rows[0].user};
+  }
+
   flush() {
     this.running ||= this.deliver().catch(() => this.warn('Discord highlights: queue unavailable')).finally(() => { this.running = null; });
     return this.running;
@@ -95,7 +101,7 @@ export class Highlights {
       }
     }
     const editing = !!board?.message_id && now - board.started < HIGHLIGHT_WINDOW_MS;
-    const entries = [...pending].reverse().map(({ name, tier, multiplier }) => ({ name, tier, multiplier }));
+    const entries = [...pending].reverse().map(event=>this.withRecipient(event)).map(({ name, tier, multiplier, user }) => ({ name, tier, multiplier, user }));
     entries.push(...(editing ? JSON.parse(board.entries) : []));
     entries.splice(HIGHLIGHT_VISIBLE);
     const total = pending.length + (editing ? board.total : 0);
@@ -160,7 +166,7 @@ export class Highlights {
     db.prepare("UPDATE highlight_events SET status='expired' WHERE guild=? AND status='pending' AND occurred<?").run(this.guild,now-HIGHLIGHT_MAX_AGE_MS);
     const event=db.prepare("SELECT * FROM highlight_events WHERE guild=? AND status='pending' ORDER BY occurred,round_id LIMIT 1").get(this.guild);if(!event)return;
     db.prepare("UPDATE highlight_events SET status='sending' WHERE guild=? AND round_id=?").run(this.guild,event.round_id);
-    const result=await this.bot.send(highlightAnnouncement(event),'win:'+this.guild+':'+event.round_id);
+    const result=await this.bot.send(highlightAnnouncement(this.withRecipient(event)),'win:'+this.guild+':'+event.round_id);
     this.store.tx(()=>{
       db.prepare('UPDATE highlight_events SET status=? WHERE guild=? AND round_id=?').run(result.kind==='retry'?'pending':result.kind,this.guild,event.round_id);
       db.prepare('INSERT OR REPLACE INTO highlight_boards VALUES(?,?,?,?,?,?)').run(this.guild,result.messageId||null,now,1,JSON.stringify([{name:event.name,tier:event.tier,multiplier:event.multiplier}]),now+(result.delay||HIGHLIGHT_INTERVAL_MS));

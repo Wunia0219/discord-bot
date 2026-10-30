@@ -1,7 +1,7 @@
 import {highlightTier,HIGHLIGHT_MAX_AGE_MS} from '../discord/highlight-card.js';
 
 export const highlightEventPath=event=>`highlightEvents/${event.guild}_${event.round_id}`;
-export const highlightEventIndex=event=>({queueKey:`${event.guild}:${event.status}:${String(event.occurred).padStart(16,'0')}:${event.round_id}`});
+export const highlightEventIndex=(event,user)=>({queueKey:`${event.guild}:${event.status}:${String(event.occurred).padStart(16,'0')}:${event.round_id}`,...(user?{recipientId:user}:{})});
 export function highlightEvent(guild,name,round,now){
   const tier=highlightTier(round.payout,round.bet),occurred=Date.parse(round.time);
   if(!tier||!Number.isSafeInteger(round.payout)||!Number.isSafeInteger(round.bet)||!Number.isFinite(occurred)
@@ -15,6 +15,7 @@ export function highlightBoardRecord(board){
 }
 const snowflake=value=>/^\d{17,20}$/.test(value||'');
 const item=row=>!!row&&typeof row.name==='string'&&row.name.length<=160&&['super','mega'].includes(row.tier)
+  &&(row.user===undefined||snowflake(row.user))
   &&Number.isFinite(row.multiplier)&&row.multiplier>=30&&(row.tier==='mega')===(row.multiplier>=100);
 export function assertHighlightEvent(row){
   if(!row||!snowflake(row.guild)||typeof row.round_id!=='string'||!/^[-\w:]{1,128}$/.test(row.round_id)||!item(row)

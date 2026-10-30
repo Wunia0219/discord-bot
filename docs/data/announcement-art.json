@@ -1,0 +1,32 @@
+[
+  {
+    "tier": "super",
+    "file": "public/announcements/super-win-bebd0e262ee5.webp",
+    "width": 1671,
+    "height": 941,
+    "pngBytes": 2730476,
+    "webpBytes": 2031480,
+    "savedPercent": 25.6,
+    "sourcePngSha256": "a5b0e948d5690fcb4289eeee651bc9d84df07117911ef4ba55516c4136a77d84",
+    "webpSha256": "bebd0e262ee579472d0ac5775a673087f5f21e6bc7daa5b8071b2b2bf784c0c1",
+    "rgbaSha256": "076767781f7b38b8ab38cebc46c8277ea6c045c0e5668498ed1ad304124ad66d",
+    "lossless": true,
+    "pixelsIdentical": true,
+    "encoder": "Pillow WebP lossless, quality=100, method=6, exact=True"
+  },
+  {
+    "tier": "mega",
+    "file": "public/announcements/mega-win-5f0adee4765d.webp",
+    "width": 1671,
+    "height": 941,
+    "pngBytes": 2895090,
+    "webpBytes": 2165818,
+    "savedPercent": 25.19,
+    "sourcePngSha256": "7b462933c2228c7042743ee564f4502c3f98b39b551f61400c999f394c9d9e75",
+    "webpSha256": "5f0adee4765da8a34ec8cb76cebd71364cd868bfb317a496c0410bd85f2c0725",
+    "rgbaSha256": "6a0765a7ff6daca95c7bf79e3ced9ba04cae838aa7b1eecb46ac28bb94b28032",
+    "lossless": true,
+    "pixelsIdentical": true,
+    "encoder": "Pillow WebP lossless, quality=100, method=6, exact=True"
+  }
+]

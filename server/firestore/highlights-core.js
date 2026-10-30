@@ -31,11 +31,13 @@ export class FirestoreHighlights {
       const row=JSON.parse(doc.get('json'));assertHighlightEvent(row);
       if(row.guild!==this.guild||row.status!==status||doc.id!==row.guild+'_'+row.round_id
         ||doc.get('queueKey')!==highlightEventIndex(row).queueKey)throw new Error('Highlight queue identity mismatch');
-      return row;
+      const user=doc.get('recipientId');
+      if(user!==undefined&&!snowflake(user))throw new Error('Invalid highlight recipient');
+      return {...row,...(user?{user}:{})};
     });
     this.store.quota.observe(Buffer.byteLength(JSON.stringify(rows)));return rows;
   }
-  event(tx,event,status){const row={...event,status};this.store.write(tx,this.store.db.doc(this.store.root.path+'/'+highlightEventPath(row)),row,{index:highlightEventIndex(row)});}
+  event(tx,event,status){const {user,...data}=event,row={...data,status};this.store.write(tx,this.store.db.doc(this.store.root.path+'/'+highlightEventPath(row)),row,{index:highlightEventIndex(row,user)});}
   async claim(){
     return this.store.db.runTransaction(async tx=>{
       const now=this.clock(),board=await this.store.read(this.board,tx)||blank(this.guild);
@@ -57,7 +59,7 @@ export class FirestoreHighlights {
       const expired=pending.filter(event=>now-event.occurred>HIGHLIGHT_MAX_AGE_MS||event.occurred>now);
       if(expired.length){for(const event of expired)this.event(tx,event,'expired');return {again:true};}
       const editing=!this.bot&&!!board.message_id&&now-board.started<HIGHLIGHT_WINDOW_MS;
-      const entries=[...pending].reverse().map(({name,tier,multiplier})=>({name,tier,multiplier}));
+      const entries=[...pending].reverse().map(({name,tier,multiplier,user})=>({name,tier,multiplier,...(user?{user}:{})}));
       entries.push(...(editing?JSON.parse(board.entries):[]));entries.splice(HIGHLIGHT_VISIBLE);
       const delivery={id:randomUUID(),until:now+leaseMs,editing,events:pending.map(event=>event.round_id),
         entries:JSON.stringify(entries),total:pending.length+(editing?board.total:0),started:editing?board.started:now};

@@ -51,6 +51,7 @@ test('Firestore atomically saves qualifying outbox events, keeps ordinary spins 
   before=h.s.quota.status().used.writes;const requestId=randomUUID(),win=await h.settle('mega',{requestId});
   assert.equal(h.s.quota.status().used.writes-before,14);const saved=await h.event(win);assert.equal(saved.status,'pending');assert.equal(saved.tier,'mega');
   assert.deepEqual(Object.keys(saved).sort(),['guild','round_id','name','tier','multiplier','occurred','status'].sort());
+  assert.equal((await h.s.root.collection('highlightEvents').doc(guild+'_'+win.round.id).get()).get('recipientId'),user);
   before=h.s.quota.status().used.writes;const repeat=await h.settle('mega',{requestId,name:'must not overwrite'});
   assert.equal(repeat.duplicate,true);assert.deepEqual(repeat.round,win.round);assert.equal(h.s.quota.status().used.writes,before);
   assert.deepEqual(await h.event(win),saved);assert.equal((await h.s.read(h.s.meta)).highlights,1);
@@ -96,7 +97,7 @@ test('durable leases coordinate independent dispatchers and coalesce five recent
   const h=await fixture(t),q=h.worker(),second=await h.create(),otherWorker=h.worker(second);
   for(let i=0;i<7;i++)await h.settle(i===6?'mega':'super',{name:'玩家 '+i});
   await Promise.all([q.flush(),otherWorker.flush()]);assert.equal(h.calls.length,1);assert.equal(h.calls[0].method,'POST');
-  assert.deepEqual(h.calls[0].payload.allowed_mentions,{parse:[]});assert.equal(h.calls[0].payload.flags,4096);
+  assert.deepEqual(h.calls[0].payload.allowed_mentions,{parse:[],users:[user]});assert.equal(h.calls[0].payload.content,`<@${user}>`);assert.equal(h.calls[0].payload.flags,4096);
   h.advance(HIGHLIGHT_INTERVAL_MS);await Promise.all([q.flush(),otherWorker.flush()]);assert.equal(h.calls.length,2);
   assert.equal(h.calls[1].method,'PATCH');assert.equal(h.calls[1].payload.flags,undefined);assert.equal(h.calls[1].payload.username,undefined);
   assert.match(h.calls[1].payload.embeds[0].footer.text,/7 次/);assert.equal(h.calls[1].payload.embeds[0].fields.length,5);
@@ -175,6 +176,7 @@ test('full and incremental snapshots retain mutable notification state across v2
     const plan=firestoreImportPlan(filename,'test',{version}),restored=await h.create({...h.settings,schemaVersion:version,namespace:'queue-restore-'+version+'-'+randomUUID()+'-test'});
     await importFirestore(restored,plan);assert.equal((await restored.read(restored.meta)).highlights,1);
     const row=await restored.read(restored.root.collection('highlightEvents').doc(guild+'_'+second.round.id));assert.equal(row.status,'sending');
+    assert.equal((await restored.root.collection('highlightEvents').doc(guild+'_'+second.round.id).get()).get('recipientId'),user,'restoring from SQLite recovers the recipient from the authoritative round owner');
     const worker=h.worker(restored);h.advance(60001);await worker.flush();h.advance(HIGHLIGHT_INTERVAL_MS);await worker.flush();
     assert.equal(h.calls.at(-1).method,'PATCH');assert.match(h.calls.at(-1).payload.embeds[0].footer.text,/2 次/);
     assert.equal((await restored.state(guild,user)).balance,second.state.balance);
@@ -202,7 +204,8 @@ test('bot mode delivers each committed win individually and never edits an earli
   const q=new FirestoreHighlights(h.s,{guild,bot,clock:()=>now});h.workers.push(q);
   await q.flush();now+=HIGHLIGHT_INTERVAL_MS;await q.flush();now+=HIGHLIGHT_INTERVAL_MS;await q.flush();
   assert.equal(messages.length,2);assert.notEqual(messages[0].id,messages[1].id);
-  assert.ok(messages.every(m=>m.payload.embeds[0].fields.length===1&&!('flags' in m.payload)));
+  assert.ok(messages.every(m=>m.payload.embeds.length===1&&m.payload.embeds[0].image.url.endsWith('.webp')&&!('flags' in m.payload)));
+  for(const message of messages){assert.ok(message.payload.content.includes(`<@${user}>`));assert.deepEqual(message.payload.allowed_mentions,{parse:[],users:[user]});}
   assert.equal((await h.event(first)).status,'sent');assert.equal((await h.event(second)).status,'sent');
   const start=await h.s.casinoAccount(guild,user);await h.s.checkin(guild,user);const after=await h.s.casinoAccount(guild,user);
   assert.equal(after.net,start.net);assert.equal(after.rounds,2);assert.ok(after.balance>start.balance);

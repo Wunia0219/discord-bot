@@ -1,8 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {CasinoVisits,VISIT_CLOSE_GRACE_MS,VISIT_TIMEOUT_MS} from '../server/discord/casino-visits.js';
+import {CasinoVisits,visitMessage,VISIT_CLOSE_GRACE_MS,VISIT_TIMEOUT_MS} from '../server/discord/casino-visits.js';
 const guild='100000000000000001',user='100000000000000002';
+test('departure copy preserves signed game results, current balance and a distinct idle departure',()=>{
+  const visit={name:'玩家',start:{net:100,rounds:2,bet:200,payout:300,balance:10100}};
+  for(const [delta,display] of [[400,'+400'],[-400,'-400'],[0,'0']]){
+    const {content}=visitMessage(visit,{net:100+delta,rounds:5,bet:500,payout:600+delta,balance:12345},'closed');
+    assert.ok(content.includes(`**${display} 戲籌**`));assert.ok(content.includes('**12,345**'));assert.ok(content.includes('**3 局**'));
+    assert.equal(content.includes('不賺不賠'),delta===0);assert.doesNotMatch(content,/連線逾時|timeout|🎰|🚪/);
+  }
+  const idle=visitMessage(visit,visit.start,'timeout').content;
+  assert.match(idle,/暫時離開/);assert.match(idle,/還沒下注/);assert.doesNotMatch(idle,/贏了|輸了/);
+});
 function fixture(){
   let now=1000000,reads=0,failure=false,balance={balance:10000,net:0,rounds:0,bet:0,payout:0};const saved=new Map(),sent=[];
   const state={get:k=>structuredClone(saved.get(k)),set:(k,v)=>saved.set(k,structuredClone(v))};
@@ -15,10 +25,12 @@ test('entry/exit persist, duplicate requests coalesce, credits are excluded from
   const f=fixture(),id=randomUUID();await f.request('enter',id);await f.request('enter',id);
   assert.equal(f.visits.status().pending,1);assert.equal(f.reads,1);
   await f.visits.flush();assert.match(f.sent[0].payload.content,/進入賭場/);assert.doesNotMatch(f.sent[0].payload.content,/@everyone/);
+  assert.ok(f.sent[0].payload.content.includes(`<@${user}>`));assert.deepEqual(f.sent[0].payload.allowed_mentions,{parse:[],users:[user]});
   for(let i=0;i<4;i++){f.advance(45000);await f.request('heartbeat',id);}assert.equal(f.reads,1,'heartbeats never read Firestore');
   f.balance={balance:11400,net:400,rounds:3,bet:300,payout:700}; // Includes a 1000 administrator grant.
   await f.request('leave',id);await f.request('leave',id);f.advance(VISIT_CLOSE_GRACE_MS);f.restart();await f.visits.sweep();await f.visits.flush();
   assert.equal(f.reads,2);assert.equal(f.sent.length,2);assert.match(f.sent[1].payload.content,/\+400 戲籌/);assert.match(f.sent[1].payload.content,/11,400/);
+  assert.ok(f.sent[1].payload.content.includes(`<@${user}>`));assert.deepEqual(f.sent[1].payload.allowed_mentions,{parse:[],users:[user]});
   assert.equal(f.visits.status().activeVisits,0);await f.request('leave',id);await f.visits.sweep();assert.equal(f.sent.length,2);
 });
 test('reload grace and multiple devices create one visit; hiding is not a server event',async()=>{
@@ -31,7 +43,7 @@ test('crash timeout closes with an explicit timeout label and preserves state on
   const f=fixture(),id=randomUUID();await f.request('enter',id);f.advance(VISIT_TIMEOUT_MS+1);f.fail(true);
   await assert.rejects(f.visits.sweep());assert.equal(f.visits.status().activeVisits,1);assert.equal(f.visits.status().pending,1);
   f.fail(false);f.restart();await f.visits.sweep();await f.visits.flush();f.advance(1000);await f.visits.flush();
-  assert.match(f.sent[1].payload.content,/連線逾時/);assert.match(f.sent[1].payload.content,/0 戲籌/);
+  assert.match(f.sent[1].payload.content,/暫時離開賭場/);assert.match(f.sent[1].payload.content,/這次還沒下注/);assert.match(f.sent[1].payload.content,/10,000/);
 });
 test('a close delivered before enter cannot create a ghost visit; forged amounts and identities are ignored',async()=>{
   const f=fixture(),id=randomUUID();await f.request('leave',id);assert.equal((await f.request('enter',id)).closed,true);assert.equal(f.reads,0);

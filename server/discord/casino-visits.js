@@ -1,5 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {playerName} from './highlight-card.js';
+import {playerMention,playerMentions} from './player-mentions.js';
 import {problem} from '../wallet/wallet-common.js';
 
 export const VISIT_HEARTBEAT_MS=45000,VISIT_TIMEOUT_MS=180000,VISIT_CLOSE_GRACE_MS=10000;
@@ -7,11 +8,13 @@ const id=value=>/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/
 const fmt=value=>value.toLocaleString('en-US'),signed=value=>(value>0?'+':'')+fmt(value);
 const account=value=>{for(const k of ['balance','net','rounds','bet','payout'])if(!Number.isSafeInteger(value?.[k]))throw new Error('Invalid visit account');return value;};
 export function visitMessage(visit,end,reason){
-  const name=playerName(visit.name);
-  if(!end)return {content:`🎰 **${name}** 進入賭場。`,allowed_mentions:{parse:[]}};
+  const name=playerMention(visit.user)||`**${playerName(visit.name)}**`,allowed_mentions=playerMentions([visit.user]);
+  if(!end)return {content:`♠ ${name} 進入賭場，歡迎入座！`,allowed_mentions};
   account(end);const net=end.net-visit.start.net,rounds=end.rounds-visit.start.rounds;
   if(!Number.isSafeInteger(net)||rounds<0)throw new Error('Visit accounting moved backwards');
-  return {content:`🚪 **${name}** 離開賭場${reason==='timeout'?'（連線逾時）':''}。\n本次遊戲盈虧：**${signed(net)} 戲籌**\n目前戲籌餘額：**${fmt(end.balance)}**\n共 ${fmt(rounds)} 局｜總下注 ${fmt(end.bet-visit.start.bet)}｜總派彩 ${fmt(end.payout-visit.start.payout)}`,allowed_mentions:{parse:[]}};
+  const goodbye=reason==='timeout'?`♣ ${name} 暫時離開賭場，先替你收好這趟的帳目。`:`♣ ${name} 離開賭場，下次見！`;
+  const result=rounds===0?'這次還沒下注。':`本次輸贏：**${signed(net)} 戲籌**${net===0?'（不賺不賠）':''} · 共玩 **${fmt(rounds)} 局**`;
+  return {content:`${goodbye}\n${result}\n手上戲籌：**${fmt(end.balance)}**`,allowed_mentions};
 }
 
 // Separate operational state; the authoritative ledger is only read on entry

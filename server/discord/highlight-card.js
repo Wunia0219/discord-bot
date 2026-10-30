@@ -1,9 +1,16 @@
 import { winTier, WIN_TITLES } from '../../src/game/win-tier.js';
+import {playerMention,playerMentions} from './player-mentions.js';
 
 export const HIGHLIGHT_WINDOW_MS = 10 * 60 * 1000;
 export const HIGHLIGHT_INTERVAL_MS = 10 * 1000;
 export const HIGHLIGHT_MAX_AGE_MS = 15 * 60 * 1000;
 export const HIGHLIGHT_VISIBLE = 5;
+// Public, versioned artwork; Discord fetches it without wallet credentials.
+export const HIGHLIGHT_ART = Object.freeze({
+  super:'https://jokers-circus-production.nini900219.workers.dev/announcements/super-win-bebd0e262ee5.webp',
+  mega:'https://jokers-circus-production.nini900219.workers.dev/announcements/mega-win-5f0adee4765d.webp',
+});
+const multiplier = value => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
 
 export function highlightTier(payout, bet) {
   const tier = winTier(payout, bet);
@@ -21,28 +28,37 @@ export function playerName(value) {
 export function highlightCard(entries, total = entries.length) {
   const recent = entries.slice(0, HIGHLIGHT_VISIBLE);
   const mega = recent.some(entry => entry.tier === 'mega');
-  const multiplier = value => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
   return {
-    allowed_mentions: { parse: [] },
+    ...((recent.some(entry=>playerMention(entry.user)))?{content:[...new Set(recent.map(entry=>playerMention(entry.user)).filter(Boolean))].join(' ')}:{}),
+    allowed_mentions: playerMentions(recent.map(entry=>entry.user)),
     flags: 4096, // SUPPRESS_NOTIFICATIONS: visible in-channel, without push alerts.
     embeds: [{
-      author: { name: 'Joker’s Circus · 群友好手氣' },
       color: mega ? 0xc85c76 : 0xd6b775,
-      title: mega ? 'MEGA WIN · 這局太猛了' : 'SUPER WIN · 漂亮的一局',
-      description: recent.length>1?'這幾局手氣都不錯，恭喜大家！':'恭喜！這次的大獎值得留個紀念。',
+      title: mega ? 'MEGA WIN｜全場為你喝采！' : 'SUPER WIN｜這局漂亮！',
+      description: recent.length>1?'大獎接連登場，恭喜各位！':'恭喜贏得大獎，掌聲送給你！',
+      image:{url:HIGHLIGHT_ART[mega?'mega':'super']},
       fields: recent.map(entry => ({
         name: playerName(entry.name),
         value: `**${WIN_TITLES[entry.tier]}**　｜　**${multiplier(entry.multiplier)}×**`,
         inline: false,
       })),
-      footer: { text: `這 10 分鐘中了 ${total} 次大獎 · 最近 ${recent.length} 次\n倍率以每局的總下注計算` },
+      footer: { text: `近 10 分鐘共 ${total} 次大獎 · 倍率以每局總下注計算` },
     }],
   };
 }
 
 export function highlightAnnouncement(entry){
-  const payload=highlightCard([entry],1);
-  delete payload.flags;
-  payload.embeds[0].footer={text:'倍率以本局總下注計算'};
-  return payload;
+  const mega=entry.tier==='mega',name=playerMention(entry.user)||playerName(entry.name),multiple=multiplier(entry.multiplier);
+  return {
+    content:mega?`${name}，全場為你喝采！`:`${name}，這局漂亮！`,
+    allowed_mentions:playerMentions([entry.user]),
+    embeds:[{
+      title:WIN_TITLES[entry.tier],
+      color:mega?0xc85c76:0xd6b775,
+      description:mega
+        ?`**${multiple} 倍下注獎金**，這一局你就是主角。`
+        :`一舉拿下 **${multiple} 倍下注獎金**，掌聲送給你。`,
+      image:{url:HIGHLIGHT_ART[entry.tier]},
+    }],
+  };
 }

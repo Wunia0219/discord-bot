@@ -102,8 +102,9 @@ for(const casino of [false,true])test(`real workerd persists quotas/sessions, Di
    await call('/api/casino-visit',{token,body:{action:'leave',instanceId:visitId}});
    for(let i=0;i<150&&!announcements.some(p=>p.content?.includes('離開賭場'));i++)await delay(100);
    assert.equal(announcements.filter(p=>p.content?.includes('進入賭場')).length,1);
-   const exits=announcements.filter(p=>p.content?.includes('離開賭場'));assert.equal(exits.length,1);assert.match(exits[0].content,/本次遊戲盈虧/);
+   const exits=announcements.filter(p=>p.content?.includes('離開賭場'));assert.equal(exits.length,1);assert.match(exits[0].content,/本次輸贏/);
    assert.ok(announcements.every(p=>p.enforce_nonce===true&&!('flags' in p)));
+   for(const announcement of announcements){assert.ok(announcement.content.includes(`<@${user}>`));assert.deepEqual(announcement.allowed_mentions,{parse:[],users:[user]});}
    const deadline=Date.now()+90000;let completed;
    do{completed=(await call('/__ops/status',{headers:monitorHeaders})).data.backup;if(completed.at>previousBackup)break;await delay(250);}while(Date.now()<deadline);
    assert.ok(completed.at>previousBackup,'short casino alarms must continue an active backup without waiting ten minutes');

@@ -12,12 +12,16 @@ function fixture({identity=applicationId,destination=guild,send}={}){
     return send?send(options):Response.json({id:'100000000000000004',channel_id:channel});
   }});return {bot,calls,advance(ms){now+=ms;}};
 }
-test('bot REST posts individual push-eligible wins as the verified bot without username overrides or mentions',async()=>{
-  const f=fixture(),payload=highlightAnnouncement({name:'A',tier:'mega',multiplier:100});
-  assert.equal('flags' in payload,false);assert.doesNotMatch(payload.embeds[0].footer.text,/10 分鐘/);
+test('bot REST posts individual wins and pings only the verified recipient',async()=>{
+  const recipient='100000000000000009',f=fixture(),payload=highlightAnnouncement({name:'@everyone',user:recipient,tier:'mega',multiplier:100});
+  assert.equal('flags' in payload,false);assert.doesNotMatch(JSON.stringify(payload),/10 分鐘/);
+  assert.match(payload.embeds[0].image.url,/\/announcements\/mega-win-[a-f0-9]+\.webp$/);
   assert.equal((await f.bot.send(payload,'win:1')).kind,'sent');assert.equal((await f.bot.send(payload,'win:1')).kind,'sent');
   const posts=f.calls.filter(c=>c.options.method==='POST').map(c=>JSON.parse(c.options.body));
-  assert.equal(posts[0].nonce,posts[1].nonce);assert.equal(posts[0].enforce_nonce,true);assert.deepEqual(posts[0].allowed_mentions,{parse:[]});assert.equal('username' in posts[0],false);
+  assert.equal(posts[0].nonce,posts[1].nonce);assert.equal(posts[0].enforce_nonce,true);assert.deepEqual(posts[0].allowed_mentions,{parse:[],users:[recipient]});assert.equal('username' in posts[0],false);
+  assert.ok(posts[0].content.includes(`<@${recipient}>`));assert.doesNotMatch(posts[0].content,/@everyone/);
+  await f.bot.send({content:'@everyone <@&100000000000000099>',allowed_mentions:{parse:['everyone','roles','users'],roles:['100000000000000099'],users:['bad',recipient,recipient]}},'negative');
+  const last=JSON.parse(f.calls.at(-1).options.body);assert.deepEqual(last.allowed_mentions,{parse:[],users:[recipient]});
 });
 test('wrong bot or guild never receives a message',async()=>{
   for(const options of [{identity:'100000000000000008'},{destination:'100000000000000009'}]){
