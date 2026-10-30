@@ -29,7 +29,7 @@ test('real workerd supplies mobile audio byte ranges even when its static asset 
  assert.equal(await (await mf.dispatchFetch('http://localhost/assets/main.js')).text(),'ordinary asset');
 });
 
-test('real workerd persists quotas/sessions, runs Discord API, backs up new progress, releases ownership and restores for rollback',async t=>{
+for(const casino of [false,true])test(`real workerd persists quotas/sessions, Discord API and recovery (${casino?'casino bot':'legacy webhook'})`,async t=>{
  const root=resolve('test-results/cloud-runtime');mkdirSync(root,{recursive:true});const dir=mkdtempSync(join(root,'case-')),guild='100000000000000001',user='100000000000000002',client='100000000000000003',namespace='runtime-'+randomUUID()+'-test';
  const source=join(dir,'source.sqlite'),local=new WalletStore({filename:source,environment:'test',guildIds:[guild],clock:()=>Date.now()-86400000,spinDelay:0});local.checkin(guild,user);local.spin(guild,user,20,'runtime-original-spin-0001');local.close();
  const settings={projectId:'demo-jokers-circus',environment:'test',namespace,schemaVersion:2,emulator:process.env.FIRESTORE_EMULATOR_HOST,quota:{filename:join(dir,'sdk-quota.sqlite'),projectId:'demo-jokers-circus'}};
@@ -39,12 +39,15 @@ test('real workerd persists quotas/sessions, runs Discord API, backs up new prog
    const u=new URL(request.url);if(u.hostname==='oauth2.googleapis.com')return MFResponse.json({access_token:'emulator-only',expires_in:3600});
    if(u.hostname==='firestore.googleapis.com'||u.hostname==='firestore.asia-east1.rep.googleapis.com'){assert.ok(u.pathname.includes('/projects/demo-jokers-circus/'));const r=await fetch('http://127.0.0.1:8787'+u.pathname+u.search,{method:request.method,headers:{'Content-Type':'application/json',Authorization:'Bearer owner'},body:await request.text()});return new MFResponse(await r.text(),{status:r.status,headers:{'Content-Type':'application/json'}});}
    if(request.url==='https://discord.com/api/oauth2/token')return MFResponse.json({access_token:'fixture-oauth-secret',scope:'identify guilds.members.read',expires_in:3600});
-   if(u.pathname==='/api/v10/users/@me')return MFResponse.json({id:user,username:'isolated-runtime-test'});
+   if(u.pathname==='/api/v10/users/@me')return MFResponse.json(request.headers.get('authorization')?.startsWith('Bot ')?{id:client,bot:true}:{id:user,username:'isolated-runtime-test'});
+   if(u.pathname==='/api/v10/channels/100000000000000006')return MFResponse.json({id:'100000000000000006',guild_id:guild,type:0});
+   if(u.pathname==='/api/v10/channels/100000000000000006/messages'){announcements.push(await request.json());return MFResponse.json({id:'100000000000000007',channel_id:'100000000000000006'});}
    if(u.pathname===`/api/v10/users/@me/guilds/${guild}/member`)return MFResponse.json({user:{id:user,bot:false},pending:false});
    if(u.pathname==='/api/webhooks/100000000000000005/isolated-fake-webhook'){if(request.method==='GET')return MFResponse.json({type:1,guild_id:guild,channel_id:'100000000000000006'});announcements.push(await request.json());return MFResponse.json({id:'100000000000000007'});}
    if(u.pathname.endsWith('/messages/@original')&&request.method==='PATCH'){replies.push(await request.json());return MFResponse.json({});}
    throw new Error('Unapproved external request in test');
  }};
+ if(casino)Object.assign(config.bindings,{DISCORD_HIGHLIGHTS_WEBHOOK_URL:'',DISCORD_CASINO_ENABLED:'true',DISCORD_CASINO_CHANNEL_ID:'100000000000000006',DISCORD_BOT_TOKEN:'isolated-bot-token-not-real-0000000000'});
  config.bindings.FIRESTORE_ENDPOINT='https://firestore.asia-east1.rep.googleapis.com';
  const monitorToken=randomBytes(32).toString('hex');config.bindings.CLOUD_MONITOR_TOKEN=monitorToken;
  let mf=new Miniflare(convertV4MiniflareOptions(config));t.after(()=>mf.dispose());const call=async(path,{body,token,adminAuth=false,headers={},method}={})=>{const r=await mf.dispatchFetch('http://localhost'+path,{method:method||(body?'POST':'GET'),headers:{...(body?{'Content-Type':'application/json'}:{}),...(token?{Authorization:'Bearer '+token}:{}),...(adminAuth?{Authorization:'Bearer '+admin}:{}),...headers},...(body?{body:JSON.stringify(body)}:{})});const data=await r.json();return {status:r.status,data};};
@@ -59,10 +62,22 @@ test('real workerd persists quotas/sessions, runs Discord API, backs up new prog
  assert.equal((await call('/__ops/activate',{adminAuth:true,body:{writersStopped:true,freePlanVerified:true}})).status,200);assert.equal((await call('/readyz')).status,200);
  const login=await call('/api/token',{body:{code:'fixture-code',guildId:guild}});assert.equal(login.status,200,JSON.stringify(login));const token=login.data.session.token;assert.equal((await call('/api/wallet',{token,headers:{origin:'https://untrusted.invalid'}})).status,403);assert.equal((await call('/api/wallet')).status,401);
  assert.equal((await call('/api/wallet',{token})).data.state.balance,snapshot.tables.wallets[0].balance);
+ const visitId=randomUUID();
+ if(casino){
+   assert.equal(login.data.session.casinoNotifications,true);
+   assert.equal((await call('/api/casino-visit',{token,body:{action:'enter',instanceId:visitId}})).data.active,true);
+   const before=(await call('/__ops/status',{headers:monitorHeaders})).data.quota.used.reads;
+   assert.equal((await call('/api/casino-visit',{token,body:{action:'heartbeat',instanceId:visitId}})).data.active,true);
+   assert.equal((await call('/__ops/status',{headers:monitorHeaders})).data.quota.used.reads,before,'visit heartbeats do not read Firestore');
+ }
  const retry=await call('/api/spin',{token,body:{bet:20,requestId:'runtime-original-spin-0001'}});assert.equal(retry.data.duplicate,true);assert.deepEqual(retry.data.round,JSON.parse(snapshot.tables.rounds[0].data));
  const checkin=await call('/api/checkin',{token,body:{}});assert.equal(checkin.status,200);assert.equal((await call('/api/checkin',{token,body:{}})).data.duplicate,true);
  const spin=await call('/api/spin',{token,body:{bet:20,requestId:'runtime-new-spin-request-0002'},headers:{'x-wallet-view':'compact-v1'}});assert.equal(spin.status,200,JSON.stringify(spin));
  const statusWithoutMeasurements=await call('/__ops/status?database=info',{adminAuth:true});assert.equal(statusWithoutMeasurements.status,200);assert.equal('spinTiming' in statusWithoutMeasurements.data,false);assert.equal('database' in statusWithoutMeasurements.data,false);
+ if(casino){
+   for(let i=0;i<150&&!announcements.some(p=>p.content?.includes('進入賭場'));i++)await delay(100);
+   assert.ok(announcements.some(p=>p.content?.includes('進入賭場')),'initial maintenance has run before the cold-restart recovery case');
+ }
  sdk.highlightsGuild=guild;sdk.spinDelay=0;const examples=JSON.parse(readFileSync('docs/data/math-report.json','utf8')).examples;
  const forced=await sdk.transact(guild,user,{kind:'spin',requestId:randomUUID(),fingerprint:'20',bet:20,outcome:roundFromStops(20,examples.mega.stops),roundId:randomUUID()},{compact:true,profileName:'isolated announcement fixture'});
  await mf.dispose();mf=new Miniflare(convertV4MiniflareOptions(config));const after=await call('/api/wallet',{token});assert.equal(after.status,200,JSON.stringify(after));assert.equal(after.data.state.balance,forced.state.balance);assert.equal((await call('/api/spin',{token,body:{bet:20,requestId:'runtime-new-spin-request-0002'}})).data.duplicate,true);
@@ -77,8 +92,22 @@ test('real workerd persists quotas/sessions, runs Discord API, backs up new prog
  assert.equal((await call('/__ops/export',{adminAuth:true,body:{}})).status,409,'backup readTime excludes later progress, so export is refused');
  for(let i=0;i<20;i++){const b=await call('/__ops/backup',{adminAuth:true,body:{}});assert.equal(b.status,200);if(b.data.complete)break;if(i===19)assert.fail('Latest backup did not finish');}
  assert.equal((await call('/__ops/activate',{adminAuth:true,body:{writersStopped:true,freePlanVerified:true}})).status,200);
- for(let i=0;i<100&&!announcements.length;i++)await delay(100);
- assert.ok(announcements.length,'durable alarm recovers outbox without enqueue hint');
+ const hasWin=()=>announcements.some(p=>p.embeds?.[0]?.title?.includes('MEGA WIN'));
+ for(let i=0;i<150&&!hasWin();i++)await delay(100);
+ assert.ok(hasWin(),'durable alarm recovers outbox without enqueue hint');
+ if(casino){
+   const previousBackup=(await call('/__ops/status',{headers:monitorHeaders})).data.backup.at;
+   const started=await call('/__ops/backup',{adminAuth:true,body:{}});
+   assert.equal(started.status,200);assert.equal(started.data.complete,false);
+   await call('/api/casino-visit',{token,body:{action:'leave',instanceId:visitId}});
+   for(let i=0;i<150&&!announcements.some(p=>p.content?.includes('離開賭場'));i++)await delay(100);
+   assert.equal(announcements.filter(p=>p.content?.includes('進入賭場')).length,1);
+   const exits=announcements.filter(p=>p.content?.includes('離開賭場'));assert.equal(exits.length,1);assert.match(exits[0].content,/本次遊戲盈虧/);
+   assert.ok(announcements.every(p=>p.enforce_nonce===true&&!('flags' in p)));
+   const deadline=Date.now()+90000;let completed;
+   do{completed=(await call('/__ops/status',{headers:monitorHeaders})).data.backup;if(completed.at>previousBackup)break;await delay(250);}while(Date.now()<deadline);
+   assert.ok(completed.at>previousBackup,'short casino alarms must continue an active backup without waiting ten minutes');
+ }
  assert.equal((await call('/__ops/pause',{adminAuth:true,body:{}})).status,200);
  for(let i=0;i<20;i++){const b=await call('/__ops/backup',{adminAuth:true,body:{}});assert.equal(b.status,200);if(i===0){await mf.dispose();mf=new Miniflare(convertV4MiniflareOptions(config));}if(b.data.complete)break;if(i===19)assert.fail('Resumed backup did not finish');}
  const verification=await call('/__ops/verify',{adminAuth:true,body:{}});assert.equal(verification.status,200,JSON.stringify(verification));assert.equal(verification.data.readOnly,true);

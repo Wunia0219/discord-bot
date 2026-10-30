@@ -1,6 +1,6 @@
 # 部署與維運
 
-本機版本以 `package.json` 為準，線上版本須另查 health。正式入口為 `https://jokers-circus-production.nini900219.workers.dev`；Cloudflare Workers Free／SQLite Durable Object 搭配獨立 Firebase Spark、台灣 `asia-east1` Firestore v2，保留原用量保護。已於 2026-10-30 切至正式群 `1503958213454856252`、頻道 `1565731918107115690`，版本 0.4.0。驗證與真人驗收範圍見[客戶交付](customer-handoff.md)。
+本機版本以 `package.json` 為準，線上版本須另查 health。正式入口為 `https://jokers-circus-production.nini900219.workers.dev`；Cloudflare Workers Free／SQLite Durable Object 搭配獨立 Firebase Spark、台灣 `asia-east1` Firestore v2，保留原用量保護。已於 2026-10-30 切至正式群 `1503958213454856252`、頻道 `1565731918107115690`，並更新至 1.0.0、啟用 REST Bot 賭場公告。驗證、來源提交與真人驗收範圍見[客戶交付](customer-handoff.md)。
 
 ## 設定與資料範圍
 
@@ -17,7 +17,7 @@ Netlify 的建置預覽由根目錄 `netlify.toml` 指定 `NPM_VERSION=12.2.1`�
 | 執行設定 | `CLOUD_PLAN=free`、`APP_ENV`、`FIRESTORE_PROJECT_ID`、`FIRESTORE_NAMESPACE`、`FIRESTORE_ENDPOINT` |
 | Discord 範圍 | `DISCORD_CLIENT_ID`、`DISCORD_PUBLIC_KEY`、`ALLOWED_GUILD_IDS`、`DISCORD_COMMAND_CHANNEL_IDS`、`ADMIN_ROLE_IDS` |
 | 遊戲限制 | `WEEKLY_CHECKIN_REWARDS`、`ADMIN_GRANT_MAX`、`ADMIN_DAILY_MAX` |
-| Secrets | `DISCORD_CLIENT_SECRET`、`GOOGLE_SERVICE_ACCOUNT_JSON`、`CLOUD_ADMIN_TOKEN`、`CLOUD_ENCRYPTION_KEY`、`CLOUD_MONITOR_TOKEN`；公告啟用時另有 `DISCORD_HIGHLIGHTS_WEBHOOK_URL` |
+| Secrets | `DISCORD_CLIENT_SECRET`、`GOOGLE_SERVICE_ACCOUNT_JSON`、`CLOUD_ADMIN_TOKEN`、`CLOUD_ENCRYPTION_KEY`、`CLOUD_MONITOR_TOKEN`；正式公告使用 `DISCORD_BOT_TOKEN`，舊 Webhook 模式使用 `DISCORD_HIGHLIGHTS_WEBHOOK_URL` |
 
 前端只放公開 client ID 與 auth／wallet 開關；私密值不得使用 `VITE_` 前綴。環境範本在 `deploy/`；既有服務更新保留同一 Worker、DO identity、全部變數、Secrets 及額度，不能重做 seed。程式發布不等於資料遷移。
 
@@ -40,6 +40,8 @@ node --env-file=.env.server.production.local scripts/admin/check-discord.js --cl
 `status`／`health` 只讀 DO 摘要，不查玩家文件、不觸發備份。`health` 會核對本機版本；未發布分支的版本差異不等於遊戲故障。下載與還原見[備份](recovery.md)。
 
 ## Discord
+
+新增的同身分大獎逐筆公告與玩家出入場公告見[賭場機器人公告](casino-announcements.md)。這是可選的 Bot REST 功能，預設停用；不需要 Gateway 常駐綠燈，也不更改既有 HTTP 指令。啟用前必須完成 bot 安裝、私密 Bot Token 與指定頻道的核對。
 
 Activity `/` URL Mapping 指向固定 HTTPS 主機；Interactions Endpoint 為該網址加 `/api/interactions`。OAuth scope 為 `identify`、`guilds.members.read`，前後端 Application ID 一致。只有調整指令定義或新群安裝時才執行 `commands:register`；定義及權限見[指令](discord-commands.md)。
 

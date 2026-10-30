@@ -195,3 +195,24 @@ test('HTTP settlement uses the verified Discord profile for the atomic event, ig
   assert.equal(response.status,200);const result=await response.json();assert.equal((await h.event(result)).name,'經驗證的暱稱');
   await q.flush();assert.equal(h.calls[0].payload.embeds[0].fields[0].name,'經驗證的暱稱');
 });
+
+test('bot mode delivers each committed win individually and never edits an earlier aggregate',async t=>{
+  const h=await fixture(t),first=await h.settle('super'),second=await h.settle('mega'),messages=[];let now=Date.now();
+  const bot={send:async(payload,id)=>{messages.push({payload,id});return {kind:'sent',messageId};}};
+  const q=new FirestoreHighlights(h.s,{guild,bot,clock:()=>now});h.workers.push(q);
+  await q.flush();now+=HIGHLIGHT_INTERVAL_MS;await q.flush();now+=HIGHLIGHT_INTERVAL_MS;await q.flush();
+  assert.equal(messages.length,2);assert.notEqual(messages[0].id,messages[1].id);
+  assert.ok(messages.every(m=>m.payload.embeds[0].fields.length===1&&!('flags' in m.payload)));
+  assert.equal((await h.event(first)).status,'sent');assert.equal((await h.event(second)).status,'sent');
+  const start=await h.s.casinoAccount(guild,user);await h.s.checkin(guild,user);const after=await h.s.casinoAccount(guild,user);
+  assert.equal(after.net,start.net);assert.equal(after.rounds,2);assert.ok(after.balance>start.balance);
+});
+
+test('bot sending recovery quarantines orphaned POSTs even when an older message ID exists',async t=>{
+  const h=await fixture(t),win=await h.settle('mega'),event=await h.event(win);let sent=0;
+  const q=new FirestoreHighlights(h.s,{guild,bot:{send:async()=>{sent++;return {kind:'sent',messageId};}}});h.workers.push(q);
+  await h.s.db.runTransaction(async tx=>{
+    q.event(tx,event,'sending');h.s.write(tx,q.board,{guild,message_id:messageId,started:0,total:1,entries:'[]',next_attempt:0});
+  });
+  await q.flush();assert.equal(sent,0);assert.equal((await h.event(win)).status,'uncertain');
+});

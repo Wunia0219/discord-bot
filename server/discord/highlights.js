@@ -1,8 +1,12 @@
 import { highlightTier, highlightCard, HIGHLIGHT_WINDOW_MS, HIGHLIGHT_INTERVAL_MS, HIGHLIGHT_MAX_AGE_MS, HIGHLIGHT_VISIBLE } from './highlight-card.js';
+import {casinoBotSettings,CasinoBot} from './casino-bot.js';
+import {highlightAnnouncement} from './highlight-card.js';
 
 const snowflake = value => /^\d{17,20}$/.test(value || '');
 
 export function highlightSettings(env, store) {
+  const bot=casinoBotSettings(env,store);
+  if(bot){if(env.DISCORD_HIGHLIGHTS_WEBHOOK_URL?.trim())throw new Error('Choose one casino announcement sender');return {guild:bot.guild,botSettings:bot};}
   const raw = env.DISCORD_HIGHLIGHTS_WEBHOOK_URL?.trim();
   if (!raw) return null;
   const guild = env.DISCORD_HIGHLIGHTS_GUILD_ID?.trim() || (store.guildIds.size === 1 ? [...store.guildIds][0] : '');
@@ -23,9 +27,10 @@ export function highlightsConfig(env, store, options = {}) {
 // A separate, persisted notification queue. Sending never participates in settlement.
 // No webhook tokens, amounts, balances, bets, or OAuth tokens enter these tables/cards.
 export class Highlights {
-  constructor(store, { guild, webhookUrl, fetchImpl = fetch, clock = Date.now, warn = message => console.warn(message) }) {
+  constructor(store, { guild, webhookUrl, botSettings, bot, fetchImpl = fetch, clock = Date.now, warn = message => console.warn(message) }) {
     store.assertGuild(guild);
     Object.assign(this, { store, guild, webhookUrl, fetchImpl, clock, warn });
+    this.bot=bot||(botSettings?new CasinoBot({...botSettings,fetchImpl,clock}):null);
     this.timer = null;
     this.running = null;
     this.destinationVerified = false;
@@ -65,6 +70,7 @@ export class Highlights {
   }
 
   async deliver() {
+    if(this.bot)return this.deliverBot();
     const { db } = this.store, now = this.clock();
     db.prepare("UPDATE highlight_events SET status='expired' WHERE guild=? AND status='pending' AND occurred<?").run(this.guild, now - HIGHLIGHT_MAX_AGE_MS);
     db.prepare('DELETE FROM highlight_events WHERE guild=? AND occurred<?').run(this.guild, now - 86400000);
@@ -147,5 +153,17 @@ export class Highlights {
     }
     // Provider responses and URLs can contain secrets. Log only a status code.
     this.warn(`Discord highlights: HTTP ${response.status}`);
+  }
+  async deliverBot(){
+    const now=this.clock(),db=this.store.db;
+    const board=db.prepare('SELECT * FROM highlight_boards WHERE guild=?').get(this.guild);if(board?.next_attempt>now)return;
+    db.prepare("UPDATE highlight_events SET status='expired' WHERE guild=? AND status='pending' AND occurred<?").run(this.guild,now-HIGHLIGHT_MAX_AGE_MS);
+    const event=db.prepare("SELECT * FROM highlight_events WHERE guild=? AND status='pending' ORDER BY occurred,round_id LIMIT 1").get(this.guild);if(!event)return;
+    db.prepare("UPDATE highlight_events SET status='sending' WHERE guild=? AND round_id=?").run(this.guild,event.round_id);
+    const result=await this.bot.send(highlightAnnouncement(event),'win:'+this.guild+':'+event.round_id);
+    this.store.tx(()=>{
+      db.prepare('UPDATE highlight_events SET status=? WHERE guild=? AND round_id=?').run(result.kind==='retry'?'pending':result.kind,this.guild,event.round_id);
+      db.prepare('INSERT OR REPLACE INTO highlight_boards VALUES(?,?,?,?,?,?)').run(this.guild,result.messageId||null,now,1,JSON.stringify([{name:event.name,tier:event.tier,multiplier:event.multiplier}]),now+(result.delay||HIGHLIGHT_INTERVAL_MS));
+    });
   }
 }

@@ -1,0 +1,34 @@
+# 賭場機器人公告
+
+版本維持 1.0.0。正式 Cloudflare Worker 可用同一個 Discord 機器人發布 SUPER／MEGA WIN、玩家入場及離場公告。一般／BIG WIN 不公告。新模式每次大獎各發一則，不更新十分鐘合併卡、不設定靜音旗標，也不 @everyone 或強制提及玩家；成員實際收到的手機通知由其 Discord 設定決定。舊 Webhook 模式保留相容，兩種發送身分不可同時設定。
+
+機器人加入伺服器成員名單後可透過 REST API 隨時發訊息，不必維持 Gateway 連線。既有遊戲及管理指令仍使用已驗證簽章的 HTTP interactions，不依賴綠色在線燈。Discord 可能將沒有 Gateway 連線的機器人列在離線成員，或依客戶端／群規模隱藏離線成員；本模式不承諾永遠顯示在在線區。
+
+## 出入場與帳目
+
+- 成功載入遊戲後建立入場紀錄。每個分頁有隨機連線 ID，同一群、同一玩家多開裝置合併為一段遊玩。
+- 每 45 秒更新連線存活狀態，只寫既有 Durable Object 的操作狀態，不輪詢 Firestore 帳本。切到背景不主動送離場。
+- 關閉頁面的 keepalive 請求為盡力傳送；最後一個分頁離開後等待 10 秒，讓重新整理可接回同一段。未收到關閉訊號時，在最後連線到期（通常約 3 分鐘）後標示「連線逾時」。手機凍結背景頁面也可能逾時，恢復後重新入場。
+- 入場與離場各讀取一份權威錢包摘要；離場等待已接受的結算佇列。盈虧為累積遊戲派彩減下注的差值，簽到、管理員發放／更正與餘額重設不計入遊戲獲利。離場餘額是當時快照，不代表訊息送達後仍相同。
+- 玩家名稱與所有數字由已驗證身分及帳本取得；瀏覽器不能指定玩家、餘額或獲利。
+
+## 傳送與限制
+
+入／離場狀態與待發事件存入同一筆 DO 操作狀態，重啟保留。大獎沿用隨帳本交易一起提交的 Firestore outbox；送訊息不參與下注交易，不會因 Discord 發送失敗倒銷遊戲結果。已知 429 與拒絕錯誤依持久重試時間等待；每筆使用固定 nonce 並啟用 Discord 的近期去重。POST 回應不明或重啟發現正在傳送時標為 uncertain，不盲目重貼；不宣稱外部網路故障下每則必達。
+
+私有 `/__ops/status` 的 `casino` 只回報活躍人數、待發及 uncertain 數量與最早待發時間，不輸出名稱、金額或 token。更新後的獨立監控對 uncertain 或等待超過十分鐘的出入場公告發出維運提醒，沿用連續兩次才通知的去重規則，不阻止遊戲。值班人員應核對；本版沒有自動重送結果不明訊息的控制介面。已完成通知最多保留約一天，容量不足時提前移除已確認送達的紀錄，待發事件不會被靜默截斷。上限為 128 個同時遊玩帳號、每帳號 8 個分頁及 256 筆公告事件；達上限暫緩公告，遊戲本身仍可使用。這些是保護界線，不是免費額度內的容量保證。
+
+每次心跳與公告仍會消耗 Worker／DO 請求和 SQL 讀寫額度；入／離場摘要及大獎 outbox 也計入原有 Firestore 預算。不提高、重設或繞過既有額度。短時出入場排程不會把十分鐘 Firestore 維護變成逐秒輪詢。保持在線的 Gateway 功能沒有啟用，也沒有新增付費主機。
+
+操作狀態不是七表帳本備份的一部分；帳本／交易資料仍依原備份恢復。全新 DO 災難恢復不重播舊出入場公告。測試資料清除會同時撤銷舊連線操作狀態。
+
+## 啟用
+
+1. 在既有應用程式安裝 `bot` 與 `applications.commands`，只授予指定頻道的「檢視頻道、傳送訊息、嵌入連結」（權限值 19456）；不需管理員或讀取訊息內容 intent。
+2. 使用 `deploy/casino-bot.env.example` 的設定，將 Bot Token 存入正式 Worker Secret。既有 Client Secret 不等於 Bot Token。
+3. 清空舊大獎 Webhook 設定。執行 `discord:check` 的正式環境變體，核對 bot ID 等於既有 Application ID，以及頻道確實位於允許的群。
+4. 維持原 Worker、DO、帳本 namespace、Secrets 與額度部署更新，不重新 seed。更新資料用途說明後，由真人確認入場、正常離場與指令；不得用正式下注製造測試大獎。
+
+出入場目前整合於正式 Cloudflare runtime；Node 本機及 SQLite QA 不會自動對真實頻道發布出入場公告。原 Webhook 功能保持相容。
+
+參考：[Discord 發訊息與 nonce](https://docs.discord.com/developers/resources/message#create-message)、[限流](https://docs.discord.com/developers/topics/rate-limits)、[DO 定價](https://developers.cloudflare.com/durable-objects/platform/pricing/)。

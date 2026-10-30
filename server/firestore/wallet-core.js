@@ -104,6 +104,17 @@ export class FirestoreWalletCore {
     const state=await this.readState(guild,user);
     return compact?state:this.completeState(guild,user,state);
   }
+  async casinoAccount(guild,user){
+    this.validate(guild,user);
+    const read=async()=>{
+      const wallet=await this.read(this.walletRef(guild,user));
+      if(!wallet||wallet.guild!==guild||wallet.user!==user)throw problem(404,'帳號尚未建立。');
+      return {balance:wallet.balance,...wallet.summary.game};
+    };
+    // A departure waits for already accepted settlements. No rounds or wallet
+    // data are changed, and signup/checkin/grants never enter the game net.
+    return this.settlementQueue?this.settlementQueue.run(read):read();
+  }
   async readState(guild,user){
     this.validate(guild,user);if(this.closed)throw this.safe({});
     this.quota.reserve({});const key=guild+':'+user,cached=this.cache.get(key);

@@ -1,12 +1,15 @@
 import {randomUUID} from 'node:crypto';
 import {highlightCard,highlightTier,HIGHLIGHT_INTERVAL_MS,HIGHLIGHT_WINDOW_MS,HIGHLIGHT_MAX_AGE_MS,HIGHLIGHT_VISIBLE} from '../discord/highlight-card.js';
 import {highlightEventPath,highlightEventIndex,assertHighlightEvent,assertHighlightBoard} from './highlight-data.js';
+import {CasinoBot} from '../discord/casino-bot.js';
+import {highlightAnnouncement} from '../discord/highlight-card.js';
 const snowflake=value=>/^\d{17,20}$/.test(value||'');
 const batchSize=5,leaseMs=60000;
 const blank=guild=>({guild,message_id:null,started:0,total:0,entries:'[]',next_attempt:0});
 export class FirestoreHighlights {
-  constructor(store,{guild,webhookUrl,fetchImpl=globalThis.fetch.bind(globalThis),clock=Date.now,warn=message=>console.warn(message),ownsStore=false}){
+  constructor(store,{guild,webhookUrl,botSettings,bot,fetchImpl=globalThis.fetch.bind(globalThis),clock=Date.now,warn=message=>console.warn(message),ownsStore=false}){
     store.assertGuild(guild);Object.assign(this,{store,guild,webhookUrl,fetchImpl,clock,warn,ownsStore});
+    this.bot=bot||(botSettings?new CasinoBot({...botSettings,fetchImpl,clock}):null);
     this.board=store.root.collection('highlightBoards').doc(guild);
     this.dirty=true;this.nextAttempt=0;this.destinationVerified=false;this.running=null;this.timer=null;this.stopping=false;
   }
@@ -49,11 +52,11 @@ export class FirestoreHighlights {
       if(board.next_attempt>now)return {wait:board.next_attempt};
       let sending=await this.query(tx,'sending',1);
       if(sending.length)sending=await this.query(tx,'sending');
-      if(sending.length){for(const event of sending)this.event(tx,event,board.message_id?'pending':'uncertain');return {again:true};}
-      const pending=await this.query(tx,'pending');if(!pending.length)return {empty:true};
+      if(sending.length){for(const event of sending)this.event(tx,event,!this.bot&&board.message_id?'pending':'uncertain');return {again:true};}
+      const pending=await this.query(tx,'pending',this.bot?1:batchSize);if(!pending.length)return {empty:true};
       const expired=pending.filter(event=>now-event.occurred>HIGHLIGHT_MAX_AGE_MS||event.occurred>now);
       if(expired.length){for(const event of expired)this.event(tx,event,'expired');return {again:true};}
-      const editing=!!board.message_id&&now-board.started<HIGHLIGHT_WINDOW_MS;
+      const editing=!this.bot&&!!board.message_id&&now-board.started<HIGHLIGHT_WINDOW_MS;
       const entries=[...pending].reverse().map(({name,tier,multiplier})=>({name,tier,multiplier}));
       entries.push(...(editing?JSON.parse(board.entries):[]));entries.splice(HIGHLIGHT_VISIBLE);
       const delivery={id:randomUUID(),until:now+leaseMs,editing,events:pending.map(event=>event.round_id),
@@ -74,6 +77,7 @@ export class FirestoreHighlights {
       else if(kind==='missing')Object.assign(board,blank(this.guild),{next_attempt:now+HIGHLIGHT_INTERVAL_MS});
       else if(delivery.editing)board.next_attempt=Math.min(Number.MAX_SAFE_INTEGER,now+delay);
       else if(kind==='retry')Object.assign(board,blank(this.guild),{next_attempt:Math.min(Number.MAX_SAFE_INTEGER,now+delay)});
+      else if(this.bot&&kind==='uncertain')board.next_attempt=now+HIGHLIGHT_INTERVAL_MS;
       // For an ambiguous create, retain the whole-window guard persisted before POST.
       for(const event of pending)this.event(tx,event,kind==='sent'?'sent':kind==='uncertain'&&!delivery.editing?'uncertain':'pending');
       this.store.write(tx,this.board,board);
@@ -82,7 +86,7 @@ export class FirestoreHighlights {
   async deliver(){
     // Clear before awaiting so a settlement during this run cannot lose its hint.
     this.dirty=false;
-    if(!this.destinationVerified){
+    if(!this.bot&&!this.destinationVerified){
       try{
         const response=await this.fetchImpl(this.webhookUrl,{signal:AbortSignal.timeout(8000),redirect:'error'});
         const webhook=response.ok?await response.json():null;
@@ -95,6 +99,10 @@ export class FirestoreHighlights {
     this.dirty=true;
     if(claim.wait){this.nextAttempt=claim.wait;return;}
     if(claim.again){this.nextAttempt=this.clock()+HIGHLIGHT_INTERVAL_MS;return;}
+    if(this.bot){
+      const event=claim.pending[0],outcome=await this.bot.send(highlightAnnouncement(event),'win:'+this.guild+':'+event.round_id);
+      await this.finish(claim,outcome);this.nextAttempt=this.clock()+(outcome.delay||HIGHLIGHT_INTERVAL_MS);return;
+    }
     const {board,delivery}=claim,payload=highlightCard(JSON.parse(delivery.entries),delivery.total);
     if(delivery.editing)delete payload.flags;else payload.username='Joker’s Circus';
     const url=delivery.editing?`${this.webhookUrl}/messages/${board.message_id}`:`${this.webhookUrl}?wait=true`;

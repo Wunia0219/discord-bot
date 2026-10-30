@@ -2,7 +2,13 @@
 
 正式來源為 `main`，版本以 `package.json` 為準。交付前須完成驗證及發布授權。
 
-使用者於 2026-10-30 要求來源版本升至 **1.0.0**，並準備自行推送至 `main`。本次版本更新不變更玩法或停輪參數；以下 0.4.0 記錄描述已完成的正式部署，1.0.0 尚未部署。GitHub 推送與 Cloudflare 正式部署為不同步驟，現有 CI 不自動部署。
+使用者於 2026-10-30 要求版本升至 **1.0.0**，並自行處理 `main` 推送。版本更新不變更玩法或停輪參數。其後依使用者要求新增賭場公告，已將遊戲及監控更新至 1.0.0；以下 0.4.0 記錄為首次切正式的歷史。GitHub 推送與 Cloudflare 正式部署為不同步驟，現有 CI 不自動部署。
+
+公告更新使用既有「🎲命運荷官」Bot，已由使用者入群並授予檢視頻道、發送訊息、嵌入連結；有效頻道權限及 Bot 身分已唯讀驗證。Bot Token 存於私密憑證目錄及正式 Worker Secret，未加入版控。REST 公告不維持 Gateway 在線，遊戲與管理員指令仍採 HTTP interactions。詳見[賭場公告](casino-announcements.md)。
+
+本次公告的 `verify:ci` 全部 14 項通過（`test-results/casino-verification.json`）；之後的公告容量修正有 6 項單元測試、冷啟動及備份續跑修正有 3 項實際 workerd 測試通過（`test-results/casino-scheduling.log`）。正式 health 為 1.0.0、ready 與維運摘要正常，證據為 `test-results/casino-production-status.json`。遊戲部署 ID `f8929859-076d-43ea-9fd0-2417fc1a7d92`，監控部署 ID `0e3c3cd6-4f12-49d1-b5fb-b6886311023b`。沒有以正式下注或假玩家公告做測試；真人入場／關閉遊戲與手機通知仍待驗收。
+
+部署來源是 `modify` 工作目錄（基底 `0742798`）的公告修改，尚未提交／推送；目前遠端 `main` 仍為 `0742798`，因此本次功能沒有新的遠端 CI 結果。使用者提交時須包含新加入的公告模組、測試與文件，勿將本機通過視為 GitHub CI 通過。
 
 1.0.0 本機合併前 `verify:ci` 已通過全部 14 項，`npm audit --audit-level=high` 回報 0 漏洞；證據為 `test-results/release-1.0.0-verification.json` 及 `test-results/release-1.0.0-audit.json`。GitHub 已確認推送權限、main 未受保護且無有效 ruleset，推送預演通過；實際提交及推送仍由使用者執行，1.0.0 遠端 CI 尚未執行。
 

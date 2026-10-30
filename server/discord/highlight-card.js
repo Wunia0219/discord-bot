@@ -39,3 +39,10 @@ export function highlightCard(entries, total = entries.length) {
     }],
   };
 }
+
+export function highlightAnnouncement(entry){
+  const payload=highlightCard([entry],1);
+  delete payload.flags;
+  payload.embeds[0].footer={text:'倍率以本局總下注計算'};
+  return payload;
+}
