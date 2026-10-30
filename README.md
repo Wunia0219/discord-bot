@@ -1,6 +1,6 @@
 # Joker’s Circus
 
-Discord Activity：5×3 轉輪、243 路，後端負責算獎、戲籌、週簽到及請求去重，各群錢包獨立。產品版本 **0.4.0**，唯一版本來源為 `package.json`；玩法識別碼 `circus-243-v2` 另行維護。
+Discord Activity：5×3 轉輪、243 路，後端負責算獎、戲籌、週簽到及請求去重，各群錢包獨立。產品版本 **1.0.0**，唯一版本來源為 `package.json`；玩法識別碼 `circus-243-v2` 另行維護。
 
 ## 開發與驗證
 
@@ -45,4 +45,4 @@ npm run dev
 | [數學](docs/game-math.md) | 輪帶、RTP、賠率與驗算 |
 | [素材](docs/assets.md) | 圖集、荷官、聲音與壓縮 |
 
-現行測試服務由 Cloudflare Worker／Durable Object 使用 Firestore v2 帳本。雲端為唯一 writer，本機 `FIRESTORE_LIVE_ENABLED=false` 保留。客戶正式群 ID 尚待提供；正式帳本使用全新資料。正式版本以 `main` 為準，開發分支的修改不代表已合併或發布。
+正式服務已於 2026-10-30 切換至獨立 Cloudflare Worker／Durable Object，使用台灣 `asia-east1` 的全新 Firestore v2 帳本；該次部署版本為 0.4.0，目前來源已更新為待發布的 1.0.0。雲端為唯一 writer，本機 `FIRESTORE_LIVE_ENABLED=false` 保留。正式群、頻道、驗證證據與真人驗收範圍見[客戶交付](docs/customer-handoff.md)。正式程式來源以 `main` 為準，開發分支的修改不代表已合併或發布。

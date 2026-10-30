@@ -38,6 +38,8 @@
 
 快停案例以動畫階段同步原按鈕／觸控操作：早期與晚期案例暫停測試 ticker，排隊案例暫扣模擬回應，並斷言輸入確實發生於指定階段；晚期快停必須保留全部落地時間。`npm run test:experience -- --slow-frames --slow-input` 再將第二次操作延後兩秒，驗證 CI 輸入延遲不會改變測試情境。這些案例的牆鐘時間包含測試等待，不作效能基準。
 
+音效按鈕是畫面內的頂部控制，停輪測試以 Playwright `scroll: 'none'` 點擊，避免曾在 Windows Chromium 卡住的自動捲動命令；仍保留可見、穩定、啟用與命中目標檢查，並確認只有一次真實點擊且音效已啟用。隔離反向案例驗證停用、遮擋、畫面外、隱藏與持續移動的按鈕都會失敗；延遲啟用案例確認實際可操作後才點擊。這不變更正式遊戲的音效或動畫。
+
 CSP 注入測試等待非同步違規通知，確認 `script-src-elem` 對 `inline` 執行實際阻擋（`enforce`），再檢查注入腳本未執行；通知未到仍會逾時失敗，不更改正式安全政策。`npm run test:security -- --delayed-csp-report` 將測試收集通知的時間延後 500ms，防止重新引入立即讀取的競態。
 
 `node scripts/qa/verify.js --full --list` 或 `--ci --list` 只列出步驟。檢查清單與依賴集中在 `scripts/qa/helpers/verification-plan.js`；一般驗證第一個失敗即停止，CI 模式則繼續獨立檢查。建置失敗時，依賴它的 CSP／Worker／整合測試標為受阻，絕不當成通過。每一步結束都更新 `test-results/verification.json`；任何失敗／受阻都保留非零結束碼。Windows ARM 的 workerd 步驟使用 `.tools/node-x64/` 中與 `.node-version` 一致的 Node；其他步驟使用啟動驗證的 Node。

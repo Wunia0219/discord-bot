@@ -1,6 +1,6 @@
 # 部署與維運
 
-本機版本以 `package.json` 為準，線上版本須另查 health。Discord 測試入口為 `https://jokers-circus.nini900219.workers.dev`；Cloudflare Workers Free／SQLite Durable Object 搭配 Firestore Blaze v2，保留原用量保護。正式客戶群尚待提供。
+本機版本以 `package.json` 為準，線上版本須另查 health。正式入口為 `https://jokers-circus-production.nini900219.workers.dev`；Cloudflare Workers Free／SQLite Durable Object 搭配獨立 Firebase Spark、台灣 `asia-east1` Firestore v2，保留原用量保護。已於 2026-10-30 切至正式群 `1503958213454856252`、頻道 `1565731918107115690`，版本 0.4.0。驗證與真人驗收範圍見[客戶交付](customer-handoff.md)。
 
 ## 設定與資料範圍
 
@@ -8,9 +8,12 @@ Netlify 的建置預覽由根目錄 `netlify.toml` 指定 `NPM_VERSION=12.2.1`�
 
 | 項目 | 設定 |
 |---|---|
-| 現有 Firestore | 專案 `slot-game-203db`，namespace `jokers-circus-v2-20261024-test`，`APP_ENV=test` |
+| 正式 Firestore | 專案 `jokers-circus-production`，namespace `jokers-circus-v2-20261030-production`，`APP_ENV=production`，`asia-east1` |
+| 正式 Worker | `jokers-circus-production`；忽略 Git 的 `wrangler.production.local.jsonc` |
+| 正式維運設定 | `.env.cloud.production.local`；Discord CLI 使用 `.env.server.production.local`（本機 live writer 關閉） |
+| 保留測試 Firestore | 專案 `slot-game-203db`，namespace `jokers-circus-v2-20261024-test`，`APP_ENV=test`；舊服務未刪除，Discord 共用應用程式入口已切正式 |
 | 測試群／頻道 | 群 `760012177326997544`，頻道 `1564243344857632818` |
-| Worker | `wrangler.jsonc`；私密覆寫為忽略 Git 的 `wrangler.cloud.local.jsonc` |
+| 測試 Worker | `wrangler.jsonc`；私密覆寫為忽略 Git 的 `wrangler.cloud.local.jsonc`，不要用於正式更新 |
 | 執行設定 | `CLOUD_PLAN=free`、`APP_ENV`、`FIRESTORE_PROJECT_ID`、`FIRESTORE_NAMESPACE`、`FIRESTORE_ENDPOINT` |
 | Discord 範圍 | `DISCORD_CLIENT_ID`、`DISCORD_PUBLIC_KEY`、`ALLOWED_GUILD_IDS`、`DISCORD_COMMAND_CHANNEL_IDS`、`ADMIN_ROLE_IDS` |
 | 遊戲限制 | `WEEKLY_CHECKIN_REWARDS`、`ADMIN_GRANT_MAX`、`ADMIN_DAILY_MAX` |
@@ -29,9 +32,9 @@ Netlify 的建置預覽由根目錄 `netlify.toml` 指定 `NPM_VERSION=12.2.1`�
 ## 日常操作
 
 ```powershell
-npm run cloud:control -- health --env .env.cloud.local
-npm run cloud:control -- status --env .env.cloud.local
-npm run discord:check -- --cloud --discord --public-origin https://jokers-circus.nini900219.workers.dev
+npm run cloud:control -- health --env .env.cloud.production.local
+npm run cloud:control -- status --env .env.cloud.production.local
+node --env-file=.env.server.production.local scripts/admin/check-discord.js --cloud --discord --public-origin https://jokers-circus-production.nini900219.workers.dev
 ```
 
 `status`／`health` 只讀 DO 摘要，不查玩家文件、不觸發備份。`health` 會核對本機版本；未發布分支的版本差異不等於遊戲故障。下載與還原見[備份](recovery.md)。
@@ -44,7 +47,7 @@ Activity `/` URL Mapping 指向固定 HTTPS 主機；Interactions Endpoint 為�
 
 ## 獨立監控
 
-`jokers-circus-monitor` 已接通[維護頻道](https://discord.com/channels/1441097301685698703/1564187899019141140)，每 10 分鐘 Cron 查遊戲私有狀態。它只有 `MONITORED_TOKEN`、`MONITOR_WEBHOOK_URL`，沒有 Google、遊戲管理或備份金鑰；遊戲的 `CLOUD_MONITOR_TOKEN` 僅允許 GET status。
+`jokers-circus-monitor` 已接通[維護頻道](https://discord.com/channels/1441097301685698703/1564187899019141140)，每 10 分鐘 Cron 查正式遊戲私有狀態，已使用新的正式唯讀 token；私密本機監控設定也已同步正式入口。它只有 `MONITORED_TOKEN`、`MONITOR_WEBHOOK_URL`，沒有 Google、遊戲管理或備份金鑰；遊戲的 `CLOUD_MONITOR_TOKEN` 僅允許 GET status。
 
 | 條件 | 告警 |
 |---|---|
