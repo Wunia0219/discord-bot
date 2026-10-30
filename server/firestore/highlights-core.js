@@ -1,8 +1,7 @@
 import {randomUUID} from 'node:crypto';
-import {highlightCard,highlightTier,HIGHLIGHT_INTERVAL_MS,HIGHLIGHT_WINDOW_MS,HIGHLIGHT_MAX_AGE_MS,HIGHLIGHT_VISIBLE} from '../discord/highlight-card.js';
+import {highlightCard,highlightTier,highlightAnnouncement,HIGHLIGHT_INTERVAL_MS,HIGHLIGHT_WINDOW_MS,HIGHLIGHT_MAX_AGE_MS,HIGHLIGHT_VISIBLE} from '../discord/highlight-card.js';
 import {highlightEventPath,highlightEventIndex,assertHighlightEvent,assertHighlightBoard} from './highlight-data.js';
 import {CasinoBot} from '../discord/casino-bot.js';
-import {highlightAnnouncement} from '../discord/highlight-card.js';
 const snowflake=value=>/^\d{17,20}$/.test(value||'');
 const batchSize=5,leaseMs=60000;
 const blank=guild=>({guild,message_id:null,started:0,total:0,entries:'[]',next_attempt:0});

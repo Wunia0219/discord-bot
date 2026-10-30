@@ -21,7 +21,7 @@ import {APP_VERSION} from '../src/version.js';
 import {commandChannels} from '../server/discord/discord-channel-scope.js';
 import {operationsHealth} from './operations-health.js';
 import {CasinoBot} from '../server/discord/casino-bot.js';
-import {CasinoVisits} from '../server/discord/casino-visits.js';
+import {CasinoVisits,casinoVisitStatus} from '../server/discord/casino-visits.js';
 
 // Workers supports manual redirects; every caller rejects non-2xx responses.
 const cloudFetch=(url,options={})=>globalThis.fetch(url,{...options,redirect:options.redirect==='error'?'manual':options.redirect});
@@ -85,8 +85,8 @@ export class CircusProject extends DurableObject {
       if(quota)quota.scopes=Object.fromEntries(['maintenance','highlights'].map(scope=>[scope,{used:this.quota.totals(scope),limits:this.quota.identity().limits[scope]}]));
       const backup=this.state.get('backup-status'),manifest=this.state.get('backup:'+this.state.get('backup-latest'));
       const status={version:APP_VERSION,mode:this.state.get('mode')||'unseeded',source:this.state.get('source'),backup:backup?{...backup,...(Number.isSafeInteger(manifest?.bytes)?{bytes:manifest.bytes,limitBytes:manifest.limitBytes,parts:manifest.parts,limitParts:manifest.format===2?BACKUP_MAX_PARTS:200}: {})}:null,alarm:this.state.get('alarm-status'),quota};
-      const casino=this.state.get('casino-visits');
-      if(casino){const pending=casino.events.filter(e=>e.status==='pending');status.casino={activeVisits:Object.keys(casino.visits).length,pending:pending.length,oldestPendingAt:pending.length?Math.min(...pending.map(e=>e.at)):null,uncertain:casino.events.filter(e=>e.status==='uncertain').length};}
+      const casino=casinoVisitStatus(this.state.get('casino-visits'));
+      if(casino)status.casino=casino;
       return json({...status,operations:operationsHealth(status)});
     }
     if(request.method!=='POST')return json({error:'POST required'},405);

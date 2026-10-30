@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {playerMentions} from './player-mentions.js';
+import {playerMentions} from './player-display.js';
 const snowflake=value=>/^\d{17,20}$/.test(value||'');
 
 export function casinoBotSettings(env,store){

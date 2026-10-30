@@ -1,6 +1,5 @@
-import { highlightTier, highlightCard, HIGHLIGHT_WINDOW_MS, HIGHLIGHT_INTERVAL_MS, HIGHLIGHT_MAX_AGE_MS, HIGHLIGHT_VISIBLE } from './highlight-card.js';
+import { highlightTier, highlightCard, highlightAnnouncement, HIGHLIGHT_WINDOW_MS, HIGHLIGHT_INTERVAL_MS, HIGHLIGHT_MAX_AGE_MS, HIGHLIGHT_VISIBLE } from './highlight-card.js';
 import {casinoBotSettings,CasinoBot} from './casino-bot.js';
-import {highlightAnnouncement} from './highlight-card.js';
 
 const snowflake = value => /^\d{17,20}$/.test(value || '');
 

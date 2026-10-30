@@ -17,3 +17,35 @@ test('a failed entry retries without throwing into gameplay and BFCache receives
   p.leave();const before=calls[0].instanceId;const event=new Event('pageshow');event.persisted=true;target.dispatchEvent(event);await Promise.resolve();
   assert.notEqual(calls.at(-1).instanceId,before);p.dispose();
 });
+
+test('late responses from a cached page cannot disable its new visit or trigger duplicate entries',async()=>{
+  for(const lateAction of ['enter','heartbeat']){
+    const target=new EventTarget(),calls=[];let release,hold=true;
+    const p=createCasinoPresence({token:'fixture'},{target,setTimer:()=>1,clearTimer:()=>{},fetchImpl:async(url,options)=>{
+      const body=JSON.parse(options.body);calls.push(body);
+      if(hold&&body.action===lateAction){hold=false;return new Promise(resolve=>{release=resolve;});}
+      return Response.json({enabled:true,active:true});
+    }});
+    let pending;
+    if(lateAction==='enter')pending=p.start();else{await p.start();pending=p.pulse();}
+    p.leave();const event=new Event('pageshow');event.persisted=true;target.dispatchEvent(event);
+    await p.start();const instance=calls.at(-1).instanceId;
+    release(Response.json({enabled:false,active:false}));await pending;
+    const before=calls.length;await p.pulse();
+    assert.equal(calls.length,before+1);assert.equal(calls.at(-1).action,'heartbeat');assert.equal(calls.at(-1).instanceId,instance);
+    p.dispose();
+  }
+});
+
+test('a stale heartbeat cannot clear the new visit single-flight request',async()=>{
+  const target=new EventTarget(),pending=[],calls=[];
+  const p=createCasinoPresence({token:'fixture'},{target,setTimer:()=>1,clearTimer:()=>{},fetchImpl:async(url,options)=>{
+    const body=JSON.parse(options.body);calls.push(body);
+    return body.action==='heartbeat'?new Promise(resolve=>pending.push(resolve)):Response.json({enabled:true,active:true});
+  }});
+  await p.start();const old=p.pulse();p.leave();const event=new Event('pageshow');event.persisted=true;target.dispatchEvent(event);
+  await p.start();const current=p.pulse();
+  pending[0](Response.json({enabled:true,active:false}));await old;
+  const before=calls.length;assert.equal(p.pulse(),current);assert.equal(calls.length,before);
+  pending[1](Response.json({enabled:true,active:true}));await current;p.dispose();
+});

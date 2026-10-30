@@ -1,12 +1,24 @@
 import {randomUUID} from 'node:crypto';
-import {playerName} from './highlight-card.js';
-import {playerMention,playerMentions} from './player-mentions.js';
+import {playerName,playerMention,playerMentions} from './player-display.js';
 import {problem} from '../wallet/wallet-common.js';
 
 export const VISIT_HEARTBEAT_MS=45000,VISIT_TIMEOUT_MS=180000,VISIT_CLOSE_GRACE_MS=10000;
 const id=value=>/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value||''),keyOf=session=>session.guild+':'+session.user;
 const fmt=value=>value.toLocaleString('en-US'),signed=value=>(value>0?'+':'')+fmt(value);
 const account=value=>{for(const k of ['balance','net','rounds','bet','payout'])if(!Number.isSafeInteger(value?.[k]))throw new Error('Invalid visit account');return value;};
+
+export function casinoVisitStatus(data){
+  if(!data)return null;
+  const status={activeVisits:Object.keys(data.visits).length,pending:0,oldestPendingAt:null,uncertain:0};
+  for(const event of data.events){
+    if(event.status==='uncertain')status.uncertain++;
+    if(event.status==='pending'){
+      status.pending++;
+      status.oldestPendingAt=Math.min(status.oldestPendingAt??event.at,event.at);
+    }
+  }
+  return status;
+}
 export function visitMessage(visit,end,reason){
   const name=playerMention(visit.user)||`**${playerName(visit.name)}**`,allowed_mentions=playerMentions([visit.user]);
   if(!end)return {content:`♠ ${name} 進入賭場，歡迎入座！`,allowed_mentions};
@@ -17,8 +29,7 @@ export function visitMessage(visit,end,reason){
   return {content:`${goodbye}\n${result}\n手上戲籌：**${fmt(end.balance)}**`,allowed_mentions};
 }
 
-// Separate operational state; the authoritative ledger is only read on entry
-// and exit. Multiple devices share one visit and one cumulative-game baseline.
+// Devices share one visit; only entry/exit read the authoritative ledger.
 export class CasinoVisits {
   constructor({state,bot,readAccount,clock=Date.now,wake=()=>{},warn=()=>{}}){
     Object.assign(this,{state,bot,readAccount,clock,wake,warn});this.tail=Promise.resolve();this.running=null;
@@ -29,7 +40,7 @@ export class CasinoVisits {
   }
   save(){this.state.set('casino-visits',this.data);}
   serial(task){const next=this.tail.then(task);this.tail=next.catch(()=>{});return next;}
-  prune(){this.data.events=this.data.events.filter(e=>e.status==='pending'||e.status==='sending'||this.clock()-e.at<86400000);}
+  prune(){const now=this.clock();this.data.events=this.data.events.filter(e=>e.status==='pending'||e.status==='sending'||now-e.at<86400000);}
   enqueue(payload){
     this.prune();
     // Completed receipts must not turn a queue bound into a daily visit limit.
@@ -105,5 +116,5 @@ export class CasinoVisits {
     if(this.data.events.some(e=>e.status==='pending'))due.push(this.data.nextAttempt);
     return due.length?Math.max(1000,Math.min(...due)-this.clock()):600000;
   }
-  status(){return {activeVisits:Object.keys(this.data.visits).length,pending:this.data.events.filter(e=>e.status==='pending').length,uncertain:this.data.events.filter(e=>e.status==='uncertain').length};}
+  status(){return casinoVisitStatus(this.data);}
 }

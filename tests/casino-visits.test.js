@@ -1,8 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {CasinoVisits,visitMessage,VISIT_CLOSE_GRACE_MS,VISIT_TIMEOUT_MS} from '../server/discord/casino-visits.js';
+import {CasinoVisits,casinoVisitStatus,visitMessage,VISIT_CLOSE_GRACE_MS,VISIT_TIMEOUT_MS} from '../server/discord/casino-visits.js';
 const guild='100000000000000001',user='100000000000000002';
+
+test('visit monitoring reports aggregate counts and the oldest pending time without player data',()=>{
+  assert.equal(casinoVisitStatus(null),null);
+  const data={visits:{one:{user,name:'private'}},events:[
+    {status:'pending',at:30,payload:{content:'private'}},{status:'sent',at:1},
+    {status:'uncertain',at:2},{status:'pending',at:20},
+  ]};
+  assert.deepEqual(casinoVisitStatus(data),{activeVisits:1,pending:2,oldestPendingAt:20,uncertain:1});
+  assert.deepEqual(casinoVisitStatus({visits:{},events:[]}),{activeVisits:0,pending:0,oldestPendingAt:null,uncertain:0});
+});
 test('departure copy preserves signed game results, current balance and a distinct idle departure',()=>{
   const visit={name:'玩家',start:{net:100,rounds:2,bet:200,payout:300,balance:10100}};
   for(const [delta,display] of [[400,'+400'],[-400,'-400'],[0,'0']]){

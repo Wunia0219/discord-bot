@@ -10,6 +10,7 @@
 | `images/fx/circus-win-frame.webp` | 得獎外框 |
 | `images/jokers-circus/circus-background.webp` | 背景；歷史輸出為有損 quality 90 |
 | `images/dealer/v4/` | 荷官 manifest 與 51 頁無損 WebP |
+| `public/announcements/` | Discord 得獎公告 WebP，不進入遊戲預載；母檔及像素紀錄見[公告文件](casino-announcements.md#程式與素材) |
 | `audio/circus-background-optimized.mp3` | 使用者原音樂，182.76 秒、48 kHz 立體聲 |
 
 MP3 僅以 stream copy 移除封面／標籤，未重編碼。音樂按開關才載入、音量 16%、循環播放，入口支援 Range。合成音效由 `src/ui/audio/` 共用 voice plan 產生，`npm run audio:preview` 可離線試聽。
