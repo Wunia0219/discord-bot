@@ -14,9 +14,9 @@ export function highlightBoardRecord(board){
   return Object.fromEntries(['guild','message_id','started','total','entries','next_attempt'].map(key=>[key,board[key]]));
 }
 const snowflake=value=>/^\d{17,20}$/.test(value||'');
-const item=row=>!!row&&typeof row.name==='string'&&row.name.length<=160&&['super','mega'].includes(row.tier)
+const item=row=>!!row&&typeof row.name==='string'&&row.name.length<=160&&['big','super','mega'].includes(row.tier)
   &&(row.user===undefined||snowflake(row.user))
-  &&Number.isFinite(row.multiplier)&&row.multiplier>=30&&(row.tier==='mega')===(row.multiplier>=100);
+  &&Number.isFinite(row.multiplier)&&row.tier===highlightTier(row.multiplier,1);
 export function assertHighlightEvent(row){
   if(!row||!snowflake(row.guild)||typeof row.round_id!=='string'||!/^[-\w:]{1,128}$/.test(row.round_id)||!item(row)
     ||!Number.isSafeInteger(row.occurred)||row.occurred<0||!['pending','sending','sent','uncertain','expired'].includes(row.status))

@@ -79,7 +79,8 @@ for(const casino of [false,true])test(`real workerd persists quotas/sessions, Di
    assert.ok(announcements.some(p=>p.content?.includes('進入賭場')),'initial maintenance has run before the cold-restart recovery case');
  }
  sdk.highlightsGuild=guild;sdk.spinDelay=0;const examples=JSON.parse(readFileSync('docs/data/math-report.json','utf8')).examples;
- const forced=await sdk.transact(guild,user,{kind:'spin',requestId:randomUUID(),fingerprint:'20',bet:20,outcome:roundFromStops(20,examples.mega.stops),roundId:randomUUID()},{compact:true,profileName:'isolated announcement fixture'});
+ const forcedTier=casino?'big':'mega';
+ const forced=await sdk.transact(guild,user,{kind:'spin',requestId:randomUUID(),fingerprint:'20',bet:20,outcome:roundFromStops(20,examples[forcedTier].stops),roundId:randomUUID()},{compact:true,profileName:'isolated announcement fixture'});
  await mf.dispose();mf=new Miniflare(convertV4MiniflareOptions(config));const after=await call('/api/wallet',{token});assert.equal(after.status,200,JSON.stringify(after));assert.equal(after.data.state.balance,forced.state.balance);assert.equal((await call('/api/spin',{token,body:{bet:20,requestId:'runtime-new-spin-request-0002'}})).data.duplicate,true);
  assert.equal((await call('/api/interactions',{body:{type:1}})).status,401);
  const interaction={type:2,id:'100000000000000004',application_id:client,guild_id:guild,token:'fixture-interaction-token',member:{user:{id:user,bot:false},permissions:'0'},data:{name:'戲籌'}},raw=JSON.stringify(interaction),timestamp=String(Math.floor(Date.now()/1000)),signature=sign(null,Buffer.from(timestamp+raw),ed.privateKey).toString('hex');
@@ -92,10 +93,12 @@ for(const casino of [false,true])test(`real workerd persists quotas/sessions, Di
  assert.equal((await call('/__ops/export',{adminAuth:true,body:{}})).status,409,'backup readTime excludes later progress, so export is refused');
  for(let i=0;i<20;i++){const b=await call('/__ops/backup',{adminAuth:true,body:{}});assert.equal(b.status,200);if(b.data.complete)break;if(i===19)assert.fail('Latest backup did not finish');}
  assert.equal((await call('/__ops/activate',{adminAuth:true,body:{writersStopped:true,freePlanVerified:true}})).status,200);
- const hasWin=()=>announcements.some(p=>p.embeds?.[0]?.title?.includes('MEGA WIN'));
+ const hasWin=()=>announcements.some(p=>p.embeds?.[0]?.title?.includes(casino?'BIG WIN':'MEGA WIN'));
  for(let i=0;i<150&&!hasWin();i++)await delay(100);
  assert.ok(hasWin(),'durable alarm recovers outbox without enqueue hint');
  if(casino){
+   const big=announcements.find(p=>p.embeds?.[0]?.title==='BIG WIN').embeds[0];
+   assert.match(big.thumbnail.url,/\/announcements\/big-win-[a-f0-9]+\.webp$/);assert.equal('image' in big,false);
    const previousBackup=(await call('/__ops/status',{headers:monitorHeaders})).data.backup.at;
    const started=await call('/__ops/backup',{adminAuth:true,body:{}});
    assert.equal(started.status,200);assert.equal(started.data.complete,false);

@@ -2,6 +2,8 @@
 
 正式來源為 `main`，版本以 `package.json` 為準。交付前須完成驗證及發布授權。
 
+2026-10-31 已依使用者指示啟用 BIG WIN 公告，正式遊戲部署 ID `7938d683-cdb9-4919-a807-861e1a76ba09`，產品版本維持 1.0.0。10 倍至未滿 30 倍派彩以短文、本人標記與 384 × 384 小方圖呈現；SUPER／MEGA 維持大橫幅，每局只發最高級別。BIG 原尺寸無損 WebP 留在 `art/announcements/`，公開縮圖為 215,632 bytes，詳見[公告文件](casino-announcements.md)。本機完整 `verify:ci` 通過 14/14 項，包含 BIG 分界、標記、去重、Firestore 備份還原及 workerd 重啟恢復；兩項需真實遷移資料的整合案例依原設定略過。正式三張圖皆回應 200、image/webp，雜湊與本機一致；健康、就緒、維運及 Discord 指令／目的地檢查通過。證據：`test-results/big-win-verification.json`、`big-win-assets-live.json`、`big-win-production-status.json`、`big-win-discord-readiness.json`。本次未發送公開測試訊息、未提交或推送 Git，未執行遠端 CI。
+
 使用者於 2026-10-30 要求版本升至 **1.0.0**，並自行處理 `main` 推送。版本更新不變更玩法或停輪參數。其後依使用者要求新增賭場公告，已將遊戲及監控更新至 1.0.0；以下 0.4.0 記錄為首次切正式的歷史。GitHub 推送與 Cloudflare 正式部署為不同步驟，現有 CI 不自動部署。
 
 公告更新使用既有「🎲命運荷官」Bot，已由使用者入群並授予檢視頻道、發送訊息、嵌入連結；有效頻道權限及 Bot 身分已唯讀驗證。Bot Token 存於私密憑證目錄及正式 Worker Secret，未加入版控。REST 公告不維持 Gateway 在線，遊戲與管理員指令仍採 HTTP interactions。詳見[賭場公告](casino-announcements.md)。

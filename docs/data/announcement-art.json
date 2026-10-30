@@ -1,5 +1,33 @@
 [
   {
+    "tier": "big",
+    "file": "public/announcements/big-win-22bea6e95a7a.webp",
+    "width": 384,
+    "height": 384,
+    "webpBytes": 215632,
+    "webpSha256": "22bea6e95a7a51b23e1750daf590b069c6589de03df8feaffc1e6e50645999ff",
+    "rgbaSha256": "6611ffddc5b5d1ebdcd9734557f663b7715c3e6c02723dcd98812f00aeea2f2e",
+    "lossless": true,
+    "pixelsIdentical": true,
+    "sourcePngSha256": "4a3fd9ca26fb2b75295919f4c269e390bcd94366cc9a734340707afe7fb3da7c",
+    "pngBytes": 2389439,
+    "sourceWidth": 1254,
+    "sourceHeight": 1254,
+    "master": {
+      "file": "art/announcements/big-win-master-364cb54ce607.webp",
+      "width": 1254,
+      "height": 1254,
+      "webpBytes": 1702042,
+      "webpSha256": "364cb54ce60703bc02613780e6d607ab5d8cd3503895a378adb4abc1094b9710",
+      "rgbaSha256": "dd3b63631a7ab0a1092a53ad490845a7828a707a74ab5c43093db65e9432769a",
+      "lossless": true,
+      "pixelsIdentical": true
+    },
+    "pixelComparison": "WebP matches the 384x384 LANCZOS thumbnail pixel-for-pixel; the master matches the approved PNG pixel-for-pixel.",
+    "resize": "384x384 LANCZOS; resizing changes source pixels before lossless encoding",
+    "encoder": "Pillow WebP lossless, quality=100, method=6, exact=True"
+  },
+  {
     "tier": "super",
     "file": "public/announcements/super-win-bebd0e262ee5.webp",
     "width": 1671,
