@@ -1,6 +1,7 @@
 import {discordConfigurationReady} from './discord-config.js';
 import {commandDefinitions,retiredCommandNames} from './commands.js';
 import {highlightSettings} from './highlights.js';
+import {CasinoBot} from './casino-bot.js';
 import {MODEL_VERSION} from '../../src/game/slot-math.js';
 
 const snowflake=value=>/^\d{17,20}$/.test(value||'');
@@ -34,7 +35,7 @@ export async function checkDiscordReadiness({env,frontend={},built=false,offline
   add('BUILD_PRESENT',built,'已建立 dist/index.html；仍須確認建置使用最新的前端設定');
   let highlights;
   try{highlights=highlightSettings(env,{guildIds:new Set(guilds),assertGuild:g=>{if(!guilds.includes(g))throw new Error('guild');}});
-    if(highlights)add('HIGHLIGHTS_CONFIG',true,'公告目的群及 Webhook 格式有效');
+    if(highlights)add('HIGHLIGHTS_CONFIG',true,highlights.botSettings?'公告機器人、目的群與頻道設定有效':'公告目的群及 Webhook 格式有效');
     else note('HIGHLIGHTS_DISABLED','尚未設定專用公告頻道；遊戲仍可運行');
   }catch{add('HIGHLIGHTS_CONFIG',false,'公告設定無效；未輸出 Webhook 或憑證');}
   const request=(url,options={})=>fetchImpl(url,{...options,signal:AbortSignal.timeout(10000),redirect:'error'});
@@ -71,7 +72,10 @@ export async function checkDiscordReadiness({env,frontend={},built=false,offline
         for(const definition of commandDefinitions)add(`COMMAND:${i+1}:${definition.name}`,
           Array.isArray(commands)&&commands.some(row=>matches(row,definition)),'已安裝的指令定義與程式一致');
       }
-      if(highlights){
+      if(highlights?.botSettings){
+        await new CasinoBot({...highlights.botSettings,fetchImpl}).verify();
+        add('CASINO_BOT_DESTINATION',true,'機器人身分與公告頻道所屬群一致；不發送訊息');
+      }else if(highlights){
         const response=await request(highlights.webhookUrl),destination=response.ok?await response.json():null;
         add('HIGHLIGHTS_DESTINATION',destination?.type===1&&destination.guild_id===highlights.guild&&snowflake(destination.channel_id),'公告 Webhook 確實屬於指定群；不發送訊息');
       }

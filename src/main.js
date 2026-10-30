@@ -21,6 +21,7 @@ import { roundFeedbackTiming } from './ui/reels/presentation.js';
 import { setBitmapNumber } from './ui/shared/bitmap-number.js';
 import { installResponsiveLayout } from './ui/shared/responsive-layout.js';
 import { createWalletClient } from './platform/wallet-client.js';
+import {createCasinoPresence} from './platform/casino-presence.js';
 import { BETS, SYMBOL_NAMES, MODEL_VERSION, drawStops, restoredStops, freshState, readState, createRound } from './game/index.js';
 
 const $ = s => document.querySelector(s);
@@ -316,7 +317,7 @@ setBusy(false);
 async function startGame() {
   const loading = createLoadingScreen();
   loading.update(8, '正在連線…');
-  let stageProgress, showStageProgress=false;
+  let stageProgress, showStageProgress=false,casinoSession;
   const activityReady=connectLocalWallet(window.location).then(activity=>activity||connectActivity());
   const stageReady=Promise.all([scene.init($('#canvas-host'),(...progress)=>{
     stageProgress=progress;
@@ -329,6 +330,7 @@ async function startGame() {
     activityMode=activity.mode;
     activityUser=activity.user || null;
     if(activity.session){walletClient=createWalletClient(activity.session);state=(await walletClient.state()).state;renderState();}
+    if(activityMode==='discord'&&activity.session?.casinoNotifications)casinoSession=activity.session;
     if(activityMode==='discord'&&import.meta.env.VITE_DISCORD_WALLET_ENABLED==='true'&&!walletClient)throw new Error('帳號錢包尚未連接，請重新開啟活動。');
     renderPlayer();
     loading.update(20, '正在準備舞台');
@@ -348,6 +350,7 @@ async function startGame() {
     scene.setStops(restoredStops(state));
     scene.app.render();
     await loading.finish();
+    if(casinoSession)await createCasinoPresence(casinoSession).start();
     ready=true;setBusy(false);
     setTimeout(()=>scene.preloadDealer(),0);
   } catch(error) {

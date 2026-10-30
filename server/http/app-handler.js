@@ -144,17 +144,21 @@ export function createActivityHandler({ clientId, clientSecret, publicKey, walle
           // Node keeps membership tokens in memory; cloud sessions use encrypted storage. Never log tokens.
           const session=wallet?await wallet.service.create(token,body.guildId):null;
           succeeded=true;
-          return json(res, 200, { access_token:token.access_token,...(session?{session}:{}) });
+          return json(res, 200, { access_token:token.access_token,...(session?{session:{...session,...(wallet.visits?{casinoNotifications:true}:{})}}:{}) });
         } finally { if(!succeeded)loginRate.failed();activeExchanges--; }
       }
-      if(['/api/wallet','/api/spin','/api/checkin','/api/ledger','/api/rounds'].includes(path)){
+      if(['/api/wallet','/api/spin','/api/checkin','/api/ledger','/api/rounds','/api/casino-visit'].includes(path)){
         if(!wallet)return json(res,503,{error:'帳號戲籌尚未開啟。'});
         if(!wallet.localTest&&req.headers.origin&&!allowedOrigins.has(req.headers.origin))return json(res,403,{error:'不允許的來源。'});
-        const write=path==='/api/spin'||path==='/api/checkin';
+        const write=path==='/api/spin'||path==='/api/checkin'||path==='/api/casino-visit';
         if(req.method!==(write?'POST':'GET'))return json(res,405,{error:'不支援此操作。'});
         const session=await wallet.service.authorize(req.headers.authorization);
         if(wallet.store.walletEpoch&&req.headers['x-wallet-epoch']!==wallet.store.walletEpoch)return json(res,401,{error:'測試帳本已更新，請重新開啟遊戲。'});
         const {guild,user}=session;
+        if(path==='/api/casino-visit'){
+          const input=await readJson(req);
+          return json(res,200,wallet.visits?await wallet.visits.request(session,input):{enabled:false});
+        }
         const view={compact:req.headers['x-wallet-view']==='compact-v1'};
         if(path==='/api/wallet')return json(res,200,{state:await wallet.store.state(guild,user,view)});
         if(path==='/api/rounds'){

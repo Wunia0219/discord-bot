@@ -22,7 +22,7 @@ export function validateTestReset(input,{settings,enabledId,manifest,mode}){
 
 export class TestDataReset {
  constructor({state,storage,db,quota,vault,settings,enabledId}){Object.assign(this,{state,storage,db,quota,vault,settings,enabledId});this.root=db.collection('circus_wallet_v1').doc(settings.namespace);this.meta=this.root.collection('meta').doc('state');}
- clearSessions(){if([...this.storage.sql.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'")].length)this.storage.sql.exec('DELETE FROM sessions');}
+ clearSessions(){if([...this.storage.sql.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'")].length)this.storage.sql.exec('DELETE FROM sessions');this.state.set('casino-visits',null);}
  async readMeta(tx){this.quota.reserve({reads:1});const doc=await (tx?tx.get(this.meta):this.meta.get());this.quota.observe(Buffer.byteLength(JSON.stringify(doc.data())));return unpack(doc);}
  checkMeta(meta,job){requireValue(meta?.environment==='test'&&meta.version===2&&meta.nextId===job.revision,'Source changed');requireValue(meta.status==='ready'||meta.status==='resetting'&&meta.testResetId===job.id&&meta.testResetPlan===job.planHash,'Unexpected maintenance state');}
  async start(input){

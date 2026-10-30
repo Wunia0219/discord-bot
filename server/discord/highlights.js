@@ -1,8 +1,11 @@
-import { highlightTier, highlightCard, HIGHLIGHT_WINDOW_MS, HIGHLIGHT_INTERVAL_MS, HIGHLIGHT_MAX_AGE_MS, HIGHLIGHT_VISIBLE } from './highlight-card.js';
+import { highlightTier, highlightCard, highlightAnnouncement, HIGHLIGHT_WINDOW_MS, HIGHLIGHT_INTERVAL_MS, HIGHLIGHT_MAX_AGE_MS, HIGHLIGHT_VISIBLE } from './highlight-card.js';
+import {casinoBotSettings,CasinoBot} from './casino-bot.js';
 
 const snowflake = value => /^\d{17,20}$/.test(value || '');
 
 export function highlightSettings(env, store) {
+  const bot=casinoBotSettings(env,store);
+  if(bot){if(env.DISCORD_HIGHLIGHTS_WEBHOOK_URL?.trim())throw new Error('Choose one casino announcement sender');return {guild:bot.guild,botSettings:bot};}
   const raw = env.DISCORD_HIGHLIGHTS_WEBHOOK_URL?.trim();
   if (!raw) return null;
   const guild = env.DISCORD_HIGHLIGHTS_GUILD_ID?.trim() || (store.guildIds.size === 1 ? [...store.guildIds][0] : '');
@@ -23,9 +26,10 @@ export function highlightsConfig(env, store, options = {}) {
 // A separate, persisted notification queue. Sending never participates in settlement.
 // No webhook tokens, amounts, balances, bets, or OAuth tokens enter these tables/cards.
 export class Highlights {
-  constructor(store, { guild, webhookUrl, fetchImpl = fetch, clock = Date.now, warn = message => console.warn(message) }) {
+  constructor(store, { guild, webhookUrl, botSettings, bot, fetchImpl = fetch, clock = Date.now, warn = message => console.warn(message) }) {
     store.assertGuild(guild);
     Object.assign(this, { store, guild, webhookUrl, fetchImpl, clock, warn });
+    this.bot=bot||(botSettings?new CasinoBot({...botSettings,fetchImpl,clock}):null);
     this.timer = null;
     this.running = null;
     this.destinationVerified = false;
@@ -59,12 +63,19 @@ export class Highlights {
     await this.running;
   }
 
+  withRecipient(event){
+    const rows=this.store.db.prepare('SELECT user FROM rounds WHERE guild=? AND id=?').all(event.guild,event.round_id);
+    if(rows.length!==1||!snowflake(rows[0].user))throw new Error('Announcement round owner is ambiguous');
+    return {...event,user:rows[0].user};
+  }
+
   flush() {
     this.running ||= this.deliver().catch(() => this.warn('Discord highlights: queue unavailable')).finally(() => { this.running = null; });
     return this.running;
   }
 
   async deliver() {
+    if(this.bot)return this.deliverBot();
     const { db } = this.store, now = this.clock();
     db.prepare("UPDATE highlight_events SET status='expired' WHERE guild=? AND status='pending' AND occurred<?").run(this.guild, now - HIGHLIGHT_MAX_AGE_MS);
     db.prepare('DELETE FROM highlight_events WHERE guild=? AND occurred<?').run(this.guild, now - 86400000);
@@ -89,7 +100,7 @@ export class Highlights {
       }
     }
     const editing = !!board?.message_id && now - board.started < HIGHLIGHT_WINDOW_MS;
-    const entries = [...pending].reverse().map(({ name, tier, multiplier }) => ({ name, tier, multiplier }));
+    const entries = [...pending].reverse().map(event=>this.withRecipient(event)).map(({ name, tier, multiplier, user }) => ({ name, tier, multiplier, user }));
     entries.push(...(editing ? JSON.parse(board.entries) : []));
     entries.splice(HIGHLIGHT_VISIBLE);
     const total = pending.length + (editing ? board.total : 0);
@@ -147,5 +158,17 @@ export class Highlights {
     }
     // Provider responses and URLs can contain secrets. Log only a status code.
     this.warn(`Discord highlights: HTTP ${response.status}`);
+  }
+  async deliverBot(){
+    const now=this.clock(),db=this.store.db;
+    const board=db.prepare('SELECT * FROM highlight_boards WHERE guild=?').get(this.guild);if(board?.next_attempt>now)return;
+    db.prepare("UPDATE highlight_events SET status='expired' WHERE guild=? AND status='pending' AND occurred<?").run(this.guild,now-HIGHLIGHT_MAX_AGE_MS);
+    const event=db.prepare("SELECT * FROM highlight_events WHERE guild=? AND status='pending' ORDER BY occurred,round_id LIMIT 1").get(this.guild);if(!event)return;
+    db.prepare("UPDATE highlight_events SET status='sending' WHERE guild=? AND round_id=?").run(this.guild,event.round_id);
+    const result=await this.bot.send(highlightAnnouncement(this.withRecipient(event)),'win:'+this.guild+':'+event.round_id);
+    this.store.tx(()=>{
+      db.prepare('UPDATE highlight_events SET status=? WHERE guild=? AND round_id=?').run(result.kind==='retry'?'pending':result.kind,this.guild,event.round_id);
+      db.prepare('INSERT OR REPLACE INTO highlight_boards VALUES(?,?,?,?,?,?)').run(this.guild,result.messageId||null,now,1,JSON.stringify([{name:event.name,tier:event.tier,multiplier:event.multiplier}]),now+(result.delay||HIGHLIGHT_INTERVAL_MS));
+    });
   }
 }

@@ -5,7 +5,7 @@
 - Discord 互動檢查 Ed25519 簽章與時間；OAuth 驗證本人及群成員，session 最長一小時，定期重驗成員資格。
 - 錢包 API 從 session 取得群與玩家，不信任請求指定的帳號。管理面板每次重驗群、頻道、開啟者與角色。
 - 登入／session 限流、JSON／互動請求大小限制、有限結算佇列；原子交易與 request ID 防重複扣款。
-- API 與私有管理回應 `no-store`；錯誤不回傳資料庫、檔案路徑或憑證。玩家名稱採文字節點，Discord 停用 mentions。
+- API 與私有管理回應 `no-store`；錯誤不回傳資料庫、檔案路徑或憑證。玩家名稱採文字節點；Discord 私人回覆及維運通知停用 mentions。賭場公告僅允許已驗證玩家 ID 的明確 mentions，不解析暱稱中的 everyone、身分組或其他標記。
 - Node 只提供 dist，拒絕隱藏檔、路徑穿越與外部符號連結。本機 QA 僅 loopback，拒絕轉送及外站 Origin。
 - Firestore 用後端服務帳號，瀏覽器規則拒絕直接讀寫。Cloud sessions 與備份加密；監控 token 只有唯讀權限。
 

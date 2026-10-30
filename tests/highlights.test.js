@@ -1,16 +1,35 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { WalletStore } from '../server/wallet/wallet.js';
 import { Highlights, highlightsConfig } from '../server/discord/highlights.js';
-import { highlightCard, highlightTier, HIGHLIGHT_WINDOW_MS, HIGHLIGHT_INTERVAL_MS, HIGHLIGHT_MAX_AGE_MS } from '../server/discord/highlight-card.js';
+import { highlightCard, highlightAnnouncement, highlightTier, HIGHLIGHT_WINDOW_MS, HIGHLIGHT_INTERVAL_MS, HIGHLIGHT_MAX_AGE_MS } from '../server/discord/highlight-card.js';
 import { roundFromStops } from '../src/game/index.js';
 import { readFileSync } from 'node:fs';
+import {assertHighlightEvent,assertHighlightBoard} from '../server/firestore/highlight-data.js';
 
 const guild = '100000000000000001', user = '100000000000000002', otherGuild = '100000000000000003';
 const channel = '100000000000000004', messageId = '100000000000000005';
 const webhookUrl = 'https://discord.com/api/webhooks/100000000000000006/fake-test-webhook';
 const examples = JSON.parse(readFileSync(new URL('../docs/data/math-report.json', import.meta.url))).examples;
+
+test('individual wins select the verified lossless artwork and keep untrusted names harmless',()=>{
+  const manifest=JSON.parse(readFileSync(new URL('../docs/data/announcement-art.json',import.meta.url)));
+  for(const [tier,multiplier] of [['big',15],['super',50],['mega',150]]){
+    const payload=highlightAnnouncement({tier,multiplier,name:'**name** @everyone <@123>',balance:999999});
+    const embed=payload.embeds[0],record=manifest.find(row=>row.tier===tier),url=new URL((tier==='big'?embed.thumbnail:embed.image).url);
+    assert.equal(tier==='big'?'image' in embed:'thumbnail' in embed,false);
+    assert.equal(url.protocol,'https:');assert.equal(url.hostname,'jokers-circus-production.nini900219.workers.dev');
+    assert.equal('public'+url.pathname,record.file);
+    const bytes=readFileSync(new URL('../'+record.file,import.meta.url));
+    assert.equal(bytes.toString('ascii',0,4),'RIFF');assert.equal(bytes.toString('ascii',8,12),'WEBP');assert.ok(bytes.includes(Buffer.from('VP8L')));
+    assert.equal(createHash('sha256').update(bytes).digest('hex'),record.webpSha256);
+    assert.equal(record.pixelsIdentical,true);assert.equal(record.lossless,true);
+    assert.match(embed.description,new RegExp(multiplier+' 倍下注獎金'));
+    assert.doesNotMatch(JSON.stringify(payload),/@everyone|<@|999999|SUPPRESS|10 分鐘/);
+    assert.deepEqual(payload.allowed_mentions,{parse:[]});assert.equal('flags' in payload,false);
+  }
+});
 
 function fixture(t, options = {}) {
   let now = Date.parse('2026-10-19T08:00:00Z');
@@ -33,12 +52,30 @@ function fixture(t, options = {}) {
   return { store, highlights, calls, warnings, session, result, advance: value => { now += value; } };
 }
 
-test('highlights follow 30/100 total-bet thresholds and publish only the highest tier', () => {
+test('highlights follow 10/30/100 total-bet thresholds and publish only the highest tier', () => {
   for (const bet of [20, 100, 200, 500]) {
-    for (const [multiple, tier] of [[0, null], [10, null], [29.99, null], [30, 'super'], [99.99, 'super'], [100, 'mega'], [2700, 'mega']]) {
+    for (const [multiple, tier] of [[0, null], [9.99, null], [10, 'big'], [29.99, 'big'], [30, 'super'], [99.99, 'super'], [100, 'mega'], [2700, 'mega']]) {
       assert.equal(highlightTier(bet * multiple, bet), tier);
     }
   }
+});
+
+test('BIG events validate tier boundaries and use a compact card with the verified recipient',async t=>{
+  for(const [tier,multiplier,valid] of [['big',10,true],['big',29.99,true],['big',9.99,false],['big',30,false],['super',29.99,false],['super',100,false],['mega',99.99,false]]){
+    const row={guild,round_id:'test-round',name:'玩家',user,tier,multiplier,occurred:1,status:'pending'};
+    if(valid)assert.doesNotThrow(()=>assertHighlightEvent(row));else assert.throws(()=>assertHighlightEvent(row));
+    const board={guild,message_id:null,total:1,started:1,next_attempt:1,entries:JSON.stringify([row])};
+    if(valid)assert.doesNotThrow(()=>assertHighlightBoard(board));else assert.throws(()=>assertHighlightBoard(board));
+  }
+  const {highlights,session,result,calls,store}=fixture(t),round=result('big');
+  assert.equal(highlights.enqueue(session,round.id),true);assert.equal(highlights.enqueue(session,round.id),false);
+  await highlights.flush();assert.equal(calls.length,1);
+  const card=calls[0].payload.embeds[0];assert.match(card.title,/^BIG WIN/);assert.ok(card.thumbnail);assert.equal('image' in card,false);
+  assert.equal(store.db.prepare('SELECT status FROM highlight_events').get().status,'sent');
+  const payload=highlightAnnouncement({tier:'big',multiplier:15,user,name:'@everyone'});
+  assert.equal(payload.content,`<@${user}>，這局手氣不錯！`);assert.deepEqual(payload.allowed_mentions,{parse:[],users:[user]});
+  const mixed=highlightCard([{tier:'big',multiplier:15,name:'A'},{tier:'super',multiplier:50,name:'B'}]).embeds[0];
+  assert.match(mixed.title,/^SUPER WIN/);assert.ok(mixed.image);assert.equal('thumbnail' in mixed,false);
 });
 
 test('cards show names and multipliers without amounts, mentions, IDs, or expanded text', () => {
@@ -49,7 +86,7 @@ test('cards show names and multipliers without amounts, mentions, IDs, or expand
   assert.equal(payload.flags, 4096);
   assert.deepEqual(payload.allowed_mentions, { parse: [] });
   const embed = payload.embeds[0];
-  assert.equal(embed.title, 'MEGA WIN · 這局太猛了');
+  assert.equal(embed.title, 'MEGA WIN｜全場為你喝采！');
   assert.equal(embed.color, 0xc85c76);
   assert.equal(embed.fields.length, 5);
   assert.match(embed.fields[0].value, /125.5×/);
@@ -67,12 +104,13 @@ test('only committed rounds for the authenticated account/guild enqueue, with du
   assert.equal(highlights.enqueue({ ...session, user: '100000000000000099' }, round.id), false);
   assert.equal(highlights.enqueue({ ...session, guild: otherGuild }, round.id), false);
   assert.equal(highlights.enqueue(session, 'forged-round'), false);
-  assert.equal(highlights.enqueue(session, result('big').id), false);
+  assert.equal(highlights.enqueue(session, result('small').id), false);
   assert.equal(highlights.enqueue(session, round.id), true);
   assert.equal(highlights.enqueue(session, round.id), false);
   await Promise.all(Array.from({ length: 20 }, () => highlights.flush()));
   assert.equal(calls.length, 1);
   assert.match(calls[0].payload.embeds[0].fields[0].value, /MEGA WIN/);
+  assert.equal(calls[0].payload.content,`<@${user}>`);assert.deepEqual(calls[0].payload.allowed_mentions,{parse:[],users:[user]});
   assert.equal(store.db.prepare('SELECT COUNT(*) count FROM highlight_events').get().count, 1);
   const restarted = new Highlights(store, { guild, webhookUrl, fetchImpl: () => assert.fail('delivered round must stay deduplicated') });
   assert.equal(restarted.enqueue(session, round.id), false);
@@ -88,7 +126,7 @@ test('busy groups batch into one card, throttle edits, cap visible rows and rota
   assert.equal(calls[0].payload.username, 'Joker’s Circus');
   assert.equal(calls[0].payload.embeds[0].fields.length, 5);
   assert.equal(calls[0].payload.embeds[0].fields[0].name, '玩家 7');
-  assert.match(calls[0].payload.embeds[0].footer.text, /中了 8 次/);
+  assert.match(calls[0].payload.embeds[0].footer.text, /共 8 次大獎/);
   highlights.enqueue(session, result().id);
   await highlights.flush(); assert.equal(calls.length, 1);
   advance(HIGHLIGHT_INTERVAL_MS);
@@ -98,12 +136,12 @@ test('busy groups batch into one card, throttle edits, cap visible rows and rota
   assert.equal(calls[1].payload.flags, undefined, 'edits omit creation-only notification flags');
   assert.equal(calls[1].payload.username, undefined, 'edits use only supported fields');
   assert.equal(calls[1].url, `${webhookUrl}/messages/${messageId}`);
-  assert.match(calls[1].payload.embeds[0].footer.text, /中了 9 次/);
+  assert.match(calls[1].payload.embeds[0].footer.text, /共 9 次大獎/);
   advance(HIGHLIGHT_WINDOW_MS);
   highlights.enqueue(session, result('mega').id);
   await highlights.flush();
   assert.equal(calls[2].method, 'POST');
-  assert.match(calls[2].payload.embeds[0].footer.text, /中了 1 次/);
+  assert.match(calls[2].payload.embeds[0].footer.text, /共 1 次大獎/);
 });
 
 test('rate limits retain the pending announcement and respect Retry-After', async t => {
@@ -139,7 +177,7 @@ test('expired announcements are skipped and a deleted board can recover on the n
   assert.equal(calls[1].method, 'PATCH');
   advance(HIGHLIGHT_INTERVAL_MS); await highlights.flush();
   assert.equal(calls[2].method, 'POST');
-  assert.match(calls[2].payload.embeds[0].footer.text, /中了 1 次/);
+  assert.match(calls[2].payload.embeds[0].footer.text, /共 1 次大獎/);
 });
 
 test('webhook configuration is explicit, constrained to Discord and isolated by guild', async t => {

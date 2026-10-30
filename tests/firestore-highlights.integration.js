@@ -47,10 +47,11 @@ async function fixture(t){
 
 test('Firestore atomically saves qualifying outbox events, keeps ordinary spins at six writes, and replays without new writes',async t=>{
   const h=await fixture(t);let before=h.s.quota.status().used.writes;
-  const ordinary=await h.settle('big');assert.equal(h.s.quota.status().used.writes-before,12);assert.equal(await h.event(ordinary),null);
+  const ordinary=await h.settle('small');assert.equal(h.s.quota.status().used.writes-before,12);assert.equal(await h.event(ordinary),null);
   before=h.s.quota.status().used.writes;const requestId=randomUUID(),win=await h.settle('mega',{requestId});
   assert.equal(h.s.quota.status().used.writes-before,14);const saved=await h.event(win);assert.equal(saved.status,'pending');assert.equal(saved.tier,'mega');
   assert.deepEqual(Object.keys(saved).sort(),['guild','round_id','name','tier','multiplier','occurred','status'].sort());
+  assert.equal((await h.s.root.collection('highlightEvents').doc(guild+'_'+win.round.id).get()).get('recipientId'),user);
   before=h.s.quota.status().used.writes;const repeat=await h.settle('mega',{requestId,name:'must not overwrite'});
   assert.equal(repeat.duplicate,true);assert.deepEqual(repeat.round,win.round);assert.equal(h.s.quota.status().used.writes,before);
   assert.deepEqual(await h.event(win),saved);assert.equal((await h.s.read(h.s.meta)).highlights,1);
@@ -96,7 +97,7 @@ test('durable leases coordinate independent dispatchers and coalesce five recent
   const h=await fixture(t),q=h.worker(),second=await h.create(),otherWorker=h.worker(second);
   for(let i=0;i<7;i++)await h.settle(i===6?'mega':'super',{name:'玩家 '+i});
   await Promise.all([q.flush(),otherWorker.flush()]);assert.equal(h.calls.length,1);assert.equal(h.calls[0].method,'POST');
-  assert.deepEqual(h.calls[0].payload.allowed_mentions,{parse:[]});assert.equal(h.calls[0].payload.flags,4096);
+  assert.deepEqual(h.calls[0].payload.allowed_mentions,{parse:[],users:[user]});assert.equal(h.calls[0].payload.content,`<@${user}>`);assert.equal(h.calls[0].payload.flags,4096);
   h.advance(HIGHLIGHT_INTERVAL_MS);await Promise.all([q.flush(),otherWorker.flush()]);assert.equal(h.calls.length,2);
   assert.equal(h.calls[1].method,'PATCH');assert.equal(h.calls[1].payload.flags,undefined);assert.equal(h.calls[1].payload.username,undefined);
   assert.match(h.calls[1].payload.embeds[0].footer.text,/7 次/);assert.equal(h.calls[1].payload.embeds[0].fields.length,5);
@@ -165,8 +166,8 @@ test('notification allowance is persistent and isolated while the disabled featu
 });
 
 test('full and incremental snapshots retain mutable notification state across v2 and v1 restoration',async t=>{
-  const h=await fixture(t),q=h.worker(),first=await h.settle();await q.flush();
-  h.advance(HIGHLIGHT_INTERVAL_MS);const second=await h.settle();const claim=await q.claim();assert.equal(claim.delivery.editing,true);
+  const h=await fixture(t),q=h.worker(),first=await h.settle('big');await q.flush();
+  h.advance(HIGHLIGHT_INTERVAL_MS);const second=await h.settle('big');const claim=await q.claim();assert.equal(claim.delivery.editing,true);
   const settings=operationsSettings(h.env),maintenance=new FirestoreWalletStore(h.settings,{guildIds:[guild],quota:new MaintenanceQuota(settings)});h.stores.push(maintenance);
   const backup=()=>performFirestoreMaintenance(settings,{store:maintenance,forceBackup:true});
   const snapshot=await backup();assert.equal(snapshot.backup?.verified,true,JSON.stringify(snapshot));
@@ -175,6 +176,7 @@ test('full and incremental snapshots retain mutable notification state across v2
     const plan=firestoreImportPlan(filename,'test',{version}),restored=await h.create({...h.settings,schemaVersion:version,namespace:'queue-restore-'+version+'-'+randomUUID()+'-test'});
     await importFirestore(restored,plan);assert.equal((await restored.read(restored.meta)).highlights,1);
     const row=await restored.read(restored.root.collection('highlightEvents').doc(guild+'_'+second.round.id));assert.equal(row.status,'sending');
+    assert.equal((await restored.root.collection('highlightEvents').doc(guild+'_'+second.round.id).get()).get('recipientId'),user,'restoring from SQLite recovers the recipient from the authoritative round owner');
     const worker=h.worker(restored);h.advance(60001);await worker.flush();h.advance(HIGHLIGHT_INTERVAL_MS);await worker.flush();
     assert.equal(h.calls.at(-1).method,'PATCH');assert.match(h.calls.at(-1).payload.embeds[0].footer.text,/2 次/);
     assert.equal((await restored.state(guild,user)).balance,second.state.balance);
@@ -194,4 +196,31 @@ test('HTTP settlement uses the verified Discord profile for the atomic event, ig
   const response=await fetch(`http://127.0.0.1:${server.address().port}/api/spin`,{method:'POST',headers:{'Content-Type':'application/json','X-Wallet-View':'compact-v1'},body:JSON.stringify({bet:20,requestId:randomUUID(),profileName:'偽造',profile:{name:'偽造'}})});
   assert.equal(response.status,200);const result=await response.json();assert.equal((await h.event(result)).name,'經驗證的暱稱');
   await q.flush();assert.equal(h.calls[0].payload.embeds[0].fields[0].name,'經驗證的暱稱');
+});
+
+test('bot mode delivers each committed win individually and never edits an earlier aggregate',async t=>{
+  const h=await fixture(t),first=await h.settle('super'),second=await h.settle('mega'),messages=[];
+  const requestId=randomUUID(),before=h.s.quota.status().used.writes,third=await h.settle('big',{requestId});
+  assert.equal(h.s.quota.status().used.writes-before,14);
+  const writes=h.s.quota.status().used.writes;assert.equal((await h.settle('big',{requestId})).duplicate,true);assert.equal(h.s.quota.status().used.writes,writes);
+  let now=Date.now();
+  const bot={send:async(payload,id)=>{messages.push({payload,id});return {kind:'sent',messageId};}};
+  const q=new FirestoreHighlights(h.s,{guild,bot,clock:()=>now});h.workers.push(q);
+  await q.flush();now+=HIGHLIGHT_INTERVAL_MS;await q.flush();now+=HIGHLIGHT_INTERVAL_MS;await q.flush();
+  assert.equal(messages.length,3);assert.equal(new Set(messages.map(m=>m.id)).size,3);
+  assert.ok(messages.every(m=>m.payload.embeds.length===1&&(m.payload.embeds[0].image||m.payload.embeds[0].thumbnail).url.endsWith('.webp')&&!('flags' in m.payload)));
+  const big=messages.find(m=>m.payload.embeds[0].title==='BIG WIN');assert.ok(big.payload.embeds[0].thumbnail);assert.equal('image' in big.payload.embeds[0],false);
+  for(const message of messages){assert.ok(message.payload.content.includes(`<@${user}>`));assert.deepEqual(message.payload.allowed_mentions,{parse:[],users:[user]});}
+  assert.equal((await h.event(first)).status,'sent');assert.equal((await h.event(second)).status,'sent');assert.equal((await h.event(third)).status,'sent');
+  const start=await h.s.casinoAccount(guild,user);await h.s.checkin(guild,user);const after=await h.s.casinoAccount(guild,user);
+  assert.equal(after.net,start.net);assert.equal(after.rounds,3);assert.ok(after.balance>start.balance);
+});
+
+test('bot sending recovery quarantines orphaned POSTs even when an older message ID exists',async t=>{
+  const h=await fixture(t),win=await h.settle('mega'),event=await h.event(win);let sent=0;
+  const q=new FirestoreHighlights(h.s,{guild,bot:{send:async()=>{sent++;return {kind:'sent',messageId};}}});h.workers.push(q);
+  await h.s.db.runTransaction(async tx=>{
+    q.event(tx,event,'sending');h.s.write(tx,q.board,{guild,message_id:messageId,started:0,total:1,entries:'[]',next_attempt:0});
+  });
+  await q.flush();assert.equal(sent,0);assert.equal((await h.event(win)).status,'uncertain');
 });

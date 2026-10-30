@@ -18,6 +18,8 @@ export function operationsHealth(status,{now=Date.now()}={}){
   if(alarmAge===null)add('ALARM_MISSING');
   else if(status.alarm.ok!==true)add('ALARM_FAILED');
   else if(alarmAge>=30*60000)add('ALARM_STALE');
+  if(status?.casino?.uncertain>0)add('CASINO_DELIVERY_UNCERTAIN','warning');
+  if(status?.casino?.pending>0&&(age(status.casino.oldestPendingAt)??0)>=10*60000)add('CASINO_DELIVERY_DELAYED','warning');
   const scopes={global:status?.quota,...status?.quota?.scopes};
   for(const [scope,quota] of Object.entries(scopes)){
     if(!['global','maintenance','highlights'].includes(scope))continue;
@@ -36,7 +38,7 @@ const labels={SERVICE_NOT_ACTIVE:'服務未啟用',SERVICE_UNREACHABLE:'無法�
 const scopes={global:'整體',maintenance:'備份維護',highlights:'得獎公告'};
 export const alertFingerprint=alerts=>JSON.stringify(alerts.map(({code,severity,scope})=>[code,severity,scope||'']).sort());
 export function notificationPayload(alerts,now){
-  const capacityLabels={BACKUP_CAPACITY_HIGH:'完整備份容量已達八成，需安排擴充或調整架構',BACKUP_CAPACITY_EXHAUSTED:'完整備份容量已達上限'};
+  const capacityLabels={BACKUP_CAPACITY_HIGH:'完整備份容量已達八成，需安排擴充或調整架構',BACKUP_CAPACITY_EXHAUSTED:'完整備份容量已達上限',CASINO_DELIVERY_UNCERTAIN:'賭場出入場公告傳送結果不明，請人工核對，勿盲目重送',CASINO_DELIVERY_DELAYED:'賭場出入場公告已等待超過十分鐘'};
   const lines=alerts.length?alerts.map(a=>'- '+(capacityLabels[a.code]||labels[a.code]||'維運狀態異常')+(scopes[a.scope]?'（'+scopes[a.scope]+'）':'')):['監控項目已恢復正常。'];
   return {content:['Joker’s Circus｜'+(alerts.length?'維運提醒':'服務恢復'),...lines,'檢查時間：'+new Date(now).toISOString()].join('\n'),allowed_mentions:{parse:[]}};
 }

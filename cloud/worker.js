@@ -20,11 +20,13 @@ import {handleFetch} from './http-bridge.js';
 import {APP_VERSION} from '../src/version.js';
 import {commandChannels} from '../server/discord/discord-channel-scope.js';
 import {operationsHealth} from './operations-health.js';
+import {CasinoBot} from '../server/discord/casino-bot.js';
+import {CasinoVisits,casinoVisitStatus} from '../server/discord/casino-visits.js';
 
 // Workers supports manual redirects; every caller rejects non-2xx responses.
 const cloudFetch=(url,options={})=>globalThis.fetch(url,{...options,redirect:options.redirect==='error'?'manual':options.redirect});
 const json=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
-const apiPaths=new Set(['/healthz','/readyz','/api/token','/api/interactions','/api/wallet','/api/spin','/api/checkin','/api/ledger','/api/rounds']);
+const apiPaths=new Set(['/healthz','/readyz','/api/token','/api/interactions','/api/wallet','/api/spin','/api/checkin','/api/ledger','/api/rounds','/api/casino-visit']);
 function identity(env){
   if(env.CLOUD_PLAN!=='free'||!['test','production'].includes(env.APP_ENV)||!/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(env.FIRESTORE_PROJECT_ID||'')||!/^[-a-z0-9]{3,80}$/.test(env.FIRESTORE_NAMESPACE||'')||!env.FIRESTORE_NAMESPACE.endsWith('-'+env.APP_ENV))throw new Error('Cloud identity not configured');
   if(env.LOCAL_WALLET_TEST==='true'||env.FIRESTORE_EMULATOR_HOST)throw new Error('Fixture configuration is not deployable');
@@ -51,12 +53,14 @@ export class CircusProject extends DurableObject {
     // Never initialize an empty remote namespace from a public request.
     const meta=await store.read(store.meta);store.checkMeta(meta);store.walletEpoch=meta.walletEpoch;store.resetAt=meta.resetAt;store.ready=true;store.readyAt=Date.now();
     const service=new WalletService(store,{fetchImpl:cloudFetch,sessions:new CloudSessions(this.ctx.storage,sealer)}),hs=highlightSettings(this.env,store);
-    const highlights=hs?new FirestoreHighlights(new FirestoreWalletCore(settings,{...options,db:transport(),quota:new CloudQuota(this.ctx.storage,this.state,{scope:'highlights'})}),{...hs,fetchImpl:cloudFetch}):null;
+    const bot=hs?.botSettings?new CasinoBot({...hs.botSettings,fetchImpl:cloudFetch}):null;
+    const visits=bot?new CasinoVisits({state:this.state,bot,readAccount:(guild,user)=>store.casinoAccount(guild,user),wake:()=>this.ctx.waitUntil(this.schedule(1000)),warn:message=>console.warn(message)}):null;
+    const highlights=hs?new FirestoreHighlights(new FirestoreWalletCore(settings,{...options,db:transport(),quota:new CloudQuota(this.ctx.storage,this.state,{scope:'highlights'})}),{...hs,bot,fetchImpl:cloudFetch}):null;
     if(hs)store.highlightsGuild=hs.guild;
     const backup=new CloudBackup(new FirestoreWalletCore(settings,{...options,db:transport(),quota:new CloudQuota(this.ctx.storage,this.state,{scope:'maintenance'})}),this.state,vault);
-    const wallet={store,service,commandChannelIds:commandChannels(this.env),adminRoles:(this.env.ADMIN_ROLE_IDS||'').split(',').filter(Boolean),highlights:highlights?{enqueue:(session,id,round)=>{if(highlights.enqueue(session,id,round)){this.state.set('highlights-dirty',true);this.ctx.waitUntil(this.schedule(10000));}}}:null};
+    const wallet={store,service,visits,commandChannelIds:commandChannels(this.env),adminRoles:(this.env.ADMIN_ROLE_IDS||'').split(',').filter(Boolean),highlights:highlights?{enqueue:(session,id,round)=>{if(highlights.enqueue(session,id,round)){this.state.set('highlights-dirty',true);this.ctx.waitUntil(this.schedule(bot?1000:10000));}}}:null};
     const handler=createActivityHandler({fetchImpl:cloudFetch,clientId:this.env.DISCORD_CLIENT_ID,clientSecret:this.env.DISCORD_CLIENT_SECRET,publicKey:this.env.DISCORD_PUBLIC_KEY,wallet,loginLimiter:new CloudLoginLimit(this.state),defer:p=>this.ctx.waitUntil(this.track(p)),operations:{isReady:()=>this.ready(),recordRequest:()=>{}}});
-    return {settings,store,service,highlights,backup,vault,handler};
+    return {settings,store,service,highlights,visits,backup,vault,handler};
   }
   ready(){const b=this.state.get('backup-status');return this.state.get('mode')==='active'&&b?.ok===true&&Date.now()-b.at<48*3600000;}
   async schedule(delay){const now=Date.now(),due=now+delay,old=await this.ctx.storage.getAlarm();if(!old||old>due)await this.ctx.storage.setAlarm(due);}
@@ -81,6 +85,8 @@ export class CircusProject extends DurableObject {
       if(quota)quota.scopes=Object.fromEntries(['maintenance','highlights'].map(scope=>[scope,{used:this.quota.totals(scope),limits:this.quota.identity().limits[scope]}]));
       const backup=this.state.get('backup-status'),manifest=this.state.get('backup:'+this.state.get('backup-latest'));
       const status={version:APP_VERSION,mode:this.state.get('mode')||'unseeded',source:this.state.get('source'),backup:backup?{...backup,...(Number.isSafeInteger(manifest?.bytes)?{bytes:manifest.bytes,limitBytes:manifest.limitBytes,parts:manifest.parts,limitParts:manifest.format===2?BACKUP_MAX_PARTS:200}: {})}:null,alarm:this.state.get('alarm-status'),quota};
+      const casino=casinoVisitStatus(this.state.get('casino-visits'));
+      if(casino)status.casino=casino;
       return json({...status,operations:operationsHealth(status)});
     }
     if(request.method!=='POST')return json({error:'POST required'},405);
@@ -135,6 +141,19 @@ export class CircusProject extends DurableObject {
   }
   async alarm(){if(this.state.get('mode')!=='active')return;await this.track(this.runAlarm());}
   async runAlarm(){
+    if(this.env.DISCORD_CASINO_ENABLED!=='true')return this.runMaintenanceAlarm();
+    const now=Date.now(),due=this.state.get('casino-maintenance-at')||0;
+    // Short presence deadlines must not turn ten-minute Firestore housekeeping
+    // into a per-second database poll. Notification failures never pause play.
+    try{
+      const r=await this.runtime();
+      const highlightDue=r.highlights&&(!r.casinoMaintenanceChecked||this.state.get('highlights-dirty'))&&now>=r.highlights.nextAttempt;
+      if(now>=due||highlightDue||this.state.get('backup-job')){await this.runMaintenanceAlarm();r.casinoMaintenanceChecked=true;if(now>=due)this.state.set('casino-maintenance-at',now+600000);}
+      await r.visits.sweep();await r.visits.flush();
+      await this.schedule(r.visits.nextDelay());
+    }catch{console.warn('Casino visit announcements deferred');await this.schedule(30000);}
+  }
+  async runMaintenanceAlarm(){
     try{
       this.ctx.storage.sql.exec('DELETE FROM sessions WHERE expires<=?',Date.now());
       const r=await this.runtime(),meta=await r.store.read(r.store.meta);r.store.checkMeta(meta);

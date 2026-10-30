@@ -45,4 +45,4 @@ npm run dev
 | [數學](docs/game-math.md) | 輪帶、RTP、賠率與驗算 |
 | [素材](docs/assets.md) | 圖集、荷官、聲音與壓縮 |
 
-正式服務已於 2026-10-30 切換至獨立 Cloudflare Worker／Durable Object，使用台灣 `asia-east1` 的全新 Firestore v2 帳本；該次部署版本為 0.4.0，目前來源已更新為待發布的 1.0.0。雲端為唯一 writer，本機 `FIRESTORE_LIVE_ENABLED=false` 保留。正式群、頻道、驗證證據與真人驗收範圍見[客戶交付](docs/customer-handoff.md)。正式程式來源以 `main` 為準，開發分支的修改不代表已合併或發布。
+正式服為 **1.0.0**，使用獨立 Cloudflare Worker／DO 與台灣 `asia-east1` Firestore v2 帳本，提供 BIG／SUPER／MEGA 及出入場公告。雲端為唯一 writer，本機 `FIRESTORE_LIVE_ENABLED=false`。正式配置、部署來源與驗收結果見[客戶交付](docs/customer-handoff.md)；Git 合併／推送與正式部署分開處理。

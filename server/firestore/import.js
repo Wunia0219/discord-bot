@@ -76,10 +76,10 @@ export function firestoreImportPlan(filename,environment,{version=1}={}){
     }
     if(audit.counts.highlight_events)for(const row of db.prepare('SELECT * FROM highlight_events ORDER BY guild,round_id').iterate()){
       assertHighlightEvent(row);
-      const rounds=db.prepare('SELECT data FROM rounds WHERE guild=? AND id=?').all(row.guild,row.round_id);
+      const rounds=db.prepare('SELECT data,user FROM rounds WHERE guild=? AND id=?').all(row.guild,row.round_id);
       const expected=rounds.length===1?highlightEvent(row.guild,row.name,JSON.parse(rounds[0].data),row.occurred):null;
       if(!expected||expected.tier!==row.tier||expected.multiplier!==row.multiplier||expected.occurred!==row.occurred)throw new Error('Highlight does not match original round');
-      put(highlightEventPath(row),{...row},highlightEventIndex(row));
+      put(highlightEventPath(row),{...row},highlightEventIndex(row,rounds[0].user));
     }
     if(audit.counts.highlight_boards)for(const row of db.prepare('SELECT * FROM highlight_boards ORDER BY guild').iterate()){
       assertHighlightBoard(row);put(`highlightBoards/${row.guild}`,{...row});

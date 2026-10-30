@@ -305,3 +305,15 @@ test('announcement failures cannot fail a settled spin or trust client identity/
   assert.equal(warning.mock.callCount(),1);
   assert.ok(!JSON.stringify(result).includes('webhook'));
 });
+
+test('casino visit endpoint requires a verified session, same origin, epoch and JSON body',async t=>{
+  const guild='100000000000000001',user='100000000000000002',seen=[];
+  const session={guild,user,profile:{name:'verified'}};
+  const request=await fixture(t,{wallet:{store:{walletEpoch:'current'},service:{authorize:async header=>{if(header!=='Bearer valid')throw Object.assign(new Error('Unauthorized'),{status:401});return session;}},visits:{request:async(s,body)=>{seen.push({session:s,body});return {enabled:true,active:true};}}}});
+  const body={action:'enter',instanceId:'00000000-0000-4000-8000-000000000000'};
+  const options={...post(body),headers:{...post(body).headers,Authorization:'Bearer valid','X-Wallet-Epoch':'current'}};
+  assert.equal((await request('/api/casino-visit',post(body))).status,401);
+  assert.equal((await request('/api/casino-visit',{...options,headers:{...options.headers,Origin:'https://evil.invalid'}})).status,403);
+  assert.equal((await request('/api/casino-visit',{...options,headers:{...options.headers,'X-Wallet-Epoch':'old'}})).status,401);
+  assert.equal((await request('/api/casino-visit',options)).status,200);assert.equal(seen.length,1);assert.equal(seen[0].session,session);
+});
