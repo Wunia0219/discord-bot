@@ -91,19 +91,30 @@ export class CloudQuota {
   updateTotals(scope,cost){const cached=this.state.quotaCache?.scopes.get(scope);if(cached)for(const key of Object.keys(QUOTA_LIMITS.global))cached[key]+=cost[key]||0;}
 
   reserve(cost={},document=null){
+    return this.reserveBatch([{cost,document}]);
+  }
+  reserveBatch(requests){
     const identity=this.identity(),scopes=this.scope==='global'?['global']:[this.scope,'global'];
-    if(this.scope==='maintenance'&&(cost.writes||cost.storageBytes||document))throw unavailable();
-    if(Object.keys(cost).some(k=>!Object.hasOwn(QUOTA_LIMITS.global,k))||Object.values(cost).some(n=>!integer(n)))throw new Error('Invalid quota cost');
-    if(document&&(!/^[a-f0-9]{64}$/.test(document.key)||!integer(document.bytes)))throw new Error('Invalid quota document');
+    if(!Array.isArray(requests)||!requests.length)throw new Error('Invalid quota batch');
+    const cost={reads:0,writes:0,egressBytes:0,storageBytes:0},documents=new Map();
+    for(const {cost:delta={},document=null} of requests){
+      if(Object.keys(delta).some(k=>!Object.hasOwn(cost,k))||Object.values(delta).some(n=>!integer(n)))throw new Error('Invalid quota cost');
+      if(this.scope==='maintenance'&&(delta.writes||delta.storageBytes||document))throw unavailable();
+      if(document&&(!/^[a-f0-9]{64}$/.test(document.key)||!integer(document.bytes)))throw new Error('Invalid quota document');
+      for(const key of Object.keys(cost)){cost[key]+=delta[key]||0;if(!integer(cost[key]))throw new Error('Quota cost overflow');}
+      if(document)documents.set(document.key,Math.max(documents.get(document.key)||0,document.bytes));
+    }
     const charged=[];
     this.storage.transactionSync(()=>{for(const scope of scopes){const limits=identity.limits[scope],current=this.totals(scope),v=Object.fromEntries(Object.keys(limits).map(k=>[k,cost[k]||0]));
-      let previous=0;
-      if(document){previous=[...this.sql.exec('SELECT bytes FROM quota_documents WHERE scope=? AND key=?',scope,document.key)][0]?.bytes||0;v.storageBytes+=Math.max(0,document.bytes-previous);}
+      const growth=[];
+      for(const [key,bytes] of documents){const previous=[...this.sql.exec('SELECT bytes FROM quota_documents WHERE scope=? AND key=?',scope,key)][0]?.bytes||0;
+        if(bytes>previous){v.storageBytes+=bytes-previous;growth.push([key,bytes]);}}
+      if(Object.values(v).some(n=>!integer(n)))throw new Error('Quota cost overflow');
       if(identity.enforcement!=='notify-only'&&Object.keys(limits).some(k=>current[k]+v[k]>limits[k]))throw unavailable();
       if(v.reads||v.writes||v.egressBytes)this.sql.exec('INSERT INTO quota_usage VALUES(?,?,?,?,?) ON CONFLICT(scope,slot) DO UPDATE SET reads=reads+excluded.reads,writes=writes+excluded.writes,egressBytes=egressBytes+excluded.egressBytes',scope,Math.floor(this.clock()/60000)*60000,v.reads,v.writes,v.egressBytes);
       if(identity.enforcement==='notify-only')this.recordMonthlyEgress(scope,v.egressBytes);
       if(v.storageBytes)this.sql.exec('UPDATE quota_growth SET bytes=bytes+? WHERE scope=?',v.storageBytes,scope);
-      if(document&&document.bytes>previous)this.sql.exec('INSERT INTO quota_documents VALUES(?,?,?) ON CONFLICT(scope,key) DO UPDATE SET bytes=MAX(bytes,excluded.bytes)',scope,document.key,document.bytes);
+      for(const [key,bytes] of growth)this.sql.exec('INSERT INTO quota_documents VALUES(?,?,?) ON CONFLICT(scope,key) DO UPDATE SET bytes=MAX(bytes,excluded.bytes)',scope,key,bytes);
       charged.push([scope,v]);
     }});
     for(const [scope,cost] of charged)this.updateTotals(scope,cost);

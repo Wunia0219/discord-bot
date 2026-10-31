@@ -99,6 +99,11 @@ export class CircusProject extends DurableObject {
       const input=await body(request,1024);if(input.mode!=='notify-only')throw new Error('Unsupported quota policy');
       return json(this.quota.enableNotificationsOnly(input));
     }
+    if(path==='/__ops/settlement-policy'){
+      if(this.state.get('mode')!=='active')throw new Error('Active writer required');
+      const input=await body(request,1024);if(typeof input.compactSettlements!=='boolean')throw new Error('Explicit settlement policy required');
+      const r=await this.runtime();return json(await r.store.settlementQueue.run(()=>r.store.settlementPolicy(input.compactSettlements)));
+    }
     if(path==='/__ops/test-reset'){
       if(settings.environment!=='test'||!this.env.TEST_DATA_RESET_ID||this.state.get('mode')!=='paused'||this.active.size)throw new Error('Test reset unavailable');
       const input=await body(request,2*1024**2),vault=new SnapshotVault(this.ctx.storage,this.state,new Sealer(this.env.CLOUD_ENCRYPTION_KEY));

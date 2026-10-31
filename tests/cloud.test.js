@@ -49,6 +49,18 @@ test('notification traffic survives daily cleanup and rolls over only at the Pac
 function fixture(t){const root=resolve('test-results/cloud-unit');mkdirSync(root,{recursive:true});const dir=mkdtempSync(join(root,'case-'));const db=new DatabaseSync(join(dir,'storage.sqlite'));let nested=0;
  const storage={sql:{exec(sql,...args){return db.prepare(sql).all(...args).map(row=>({...row}));}},transactionSync(fn){const id='tx'+nested++;db.exec('SAVEPOINT '+id);try{const result=fn();db.exec('RELEASE '+id);return result;}catch(e){db.exec('ROLLBACK TO '+id);db.exec('RELEASE '+id);throw e;}finally{nested--;}}};t.after(()=>db.close());return {dir,storage,state:new CloudState(storage)};}
 const quotaBundle=(now=Date.now())=>({projectId:'demo-jokers-circus',exportedAt:now,scopes:Object.fromEntries(Object.entries(QUOTA_LIMITS).map(([k,v])=>[k,{limits:{...v},growth:300,usage:[{slot:Math.floor(now/60000)*60000,reads:7,writes:2,egressBytes:3}],documents:[{key:'a'.repeat(64),bytes:300}]}]))});
+test('batched reservations retain all charges and high-water growth with fewer SQL mutations; refusal is atomic',t=>{
+ const now=Date.now(),a=fixture(t),b=fixture(t),qa=new CloudQuota(a.storage,a.state,{clock:()=>now}),qb=new CloudQuota(b.storage,b.state,{clock:()=>now});
+ const bundle=quotaBundle(now);qa.seed(bundle,bundle.projectId);qb.seed(bundle,bundle.projectId);
+ const mutations=f=>{let count=0;const exec=f.storage.sql.exec;f.storage.sql.exec=(sql,...args)=>{if(/^(INSERT|UPDATE)/.test(sql))count++;return exec(sql,...args);};return ()=>count;};
+ const countA=mutations(a),countB=mutations(b),requests=['b','c','d','e'].map(c=>({cost:{writes:2},document:{key:c.repeat(64),bytes:400}}));
+ for(const {cost,document} of requests)qa.reserve(cost,document);qb.reserveBatch(requests);
+ assert.deepEqual(qb.export(),qa.export());assert.equal(countA(),12);assert.equal(countB(),6);
+ const before=qb.export();assert.throws(()=>qb.reserveBatch([...requests,{cost:{writes:15000}}]),{code:'FIRESTORE_BUDGET'});assert.deepEqual(qb.export(),before);
+ qb.reserveBatch([{cost:{writes:2},document:{key:'b'.repeat(64),bytes:500}},{cost:{writes:2},document:{key:'b'.repeat(64),bytes:450}}]);
+ assert.equal(qb.status().used.writes,14);assert.equal(qb.status().used.storageBytes,2000);
+ const sub=new CloudQuota(b.storage,b.state,{scope:'maintenance',clock:()=>now});assert.throws(()=>sub.reserveBatch(requests));assert.deepEqual(qb.status().used.writes,14);
+});
 test('quota checks do not write zero costs; shared caches track subquota charges, rollback and day expiry',t=>{
  const f=fixture(t);let now=Date.now(),writes=0,sums=0;const exec=f.storage.sql.exec;
  f.storage.sql.exec=(sql,...args)=>{if(/^(INSERT|UPDATE|DELETE)/.test(sql))writes++;if(sql.includes('SUM(reads)'))sums++;return exec(sql,...args);};

@@ -1,5 +1,6 @@
 import {privateReply} from './bot-replies.js';
 import {problem} from '../wallet/wallet-common.js';
+import {recordLabel,validRecordCode} from '../firestore/record-codes.js';
 
 const id=s=>typeof s==='string'&&/^\d{17,20}$/.test(s);
 const num=n=>n.toLocaleString('en-US');
@@ -91,7 +92,7 @@ async function history(i,store,recordField,target,category='r',days=0,before){
     row(next&&button(i,'更早的紀錄','h',[target,category,days,next]),before&&button(i,'回到最新','h',[target,category,days]),button(i,'換一位玩家','hf'),home(i)),
   ];
   const grants=rows.filter(r=>r.kind==='grant'&&!r.reversal_id);
-  if(grants.length)components.push(select(i,'rv',[],grants.map(r=>({label:`#${r.id} · ${num(r.delta)} 戲籌`,value:String(r.id),description:String(r.reason).slice(0,100)})),'選擇一筆發放，收回誤發戲籌'));
+  if(grants.length)components.push(select(i,'rv',[],grants.map(r=>({label:`${recordLabel(r)} · ${num(r.delta)} 戲籌`,value:r.recordCode||String(r.id),description:String(r.reason).slice(0,100)})),'選擇一筆發放，收回誤發戲籌'));
   if(rows.some(r=>r.kind==='reset'))components.push(row(button(i,'上次重設報表','rf')));
   return response(i,store.environment,title,description,fields,components);
 }
@@ -111,17 +112,17 @@ export async function handlePanel(i,store,recordField,parsed){
   if(action==='hs'){const f=inputs(i);return history(i,store,recordField,f.member());}
   if(action==='gs'){
     fresh(args[0],store.resetAt);const f=inputs(i),target=f.member(),r=await store.grant(guild,actor,target,integer(f.one('amount')),f.one('reason'),args[0]);
-    return response(i,env,r.duplicate?'這筆已經發放過':'戲籌已發放',`${r.duplicate?'這次沒有再次發放。':'已發放 '+num(r.entry.delta)+' 戲籌給 <@'+target+'>。'}\n本筆發放前後：${num(r.entry.before)} → **${num(r.entry.after)}**\n原因：${esc(f.one('reason'))}\n紀錄編號：#${r.entry.id}`,[],[
-      row(button(i,'查看玩家紀錄','h',[target,'r',0]),button(i,'收回這筆發放','rv',[r.entry.id],4),button(i,'繼續發放','gf'),home(i)),
+    return response(i,env,r.duplicate?'這筆已經發放過':'戲籌已發放',`${r.duplicate?'這次沒有再次發放。':'已發放 '+num(r.entry.delta)+' 戲籌給 <@'+target+'>。'}\n本筆發放前後：${num(r.entry.before)} → **${num(r.entry.after)}**\n原因：${esc(f.one('reason'))}\n紀錄編號：${recordLabel({...r.entry,recordCode:r.recordCode})}`,[],[
+      row(button(i,'查看玩家紀錄','h',[target,'r',0]),button(i,'收回這筆發放','rv',[r.recordCode||r.entry.id],4),button(i,'繼續發放','gf'),home(i)),
     ],r.duplicate?'warning':'success');
   }
   if(action==='rv'){
-    const entry=String(integer(args[0]||i.data.values?.[0]));
-    return modal(i,'收回誤發戲籌','vs',[entry,request(i)],[label(`收回發放 #${entry}`,text('reason','請說明收回原因',200,'更正誤發'),'會收回該筆發放的完整金額，原始紀錄保留。')]);
+    const value=args[0]||i.data.values?.[0],entry=validRecordCode(value,'R')?value:String(integer(value));
+    return modal(i,'收回誤發戲籌','vs',[entry,request(i)],[label(`收回發放 ${entry[0]==='R'?entry:'#'+entry}`,text('reason','請說明收回原因',200,'更正誤發'),'會收回該筆發放的完整金額，原始紀錄保留。')]);
   }
   if(action==='vs'){
-    fresh(args[1],store.resetAt);const f=inputs(i),entry=integer(args[0]),r=await store.reverse(guild,actor,entry,f.one('reason'),args[1]);
-    return response(i,env,r.duplicate?'這筆已經收回過':'誤發戲籌已收回',`${r.duplicate?'這次沒有再次扣除戲籌。':'已收回 '+num(-r.entry.delta)+' 戲籌。'}\n對應發放：#${entry}\n本筆收回前後：${num(r.entry.before)} → **${num(r.entry.after)}**\n原因：${esc(f.one('reason'))}\n原始發放紀錄保留。`,[],[row(home(i))],'warning');
+    fresh(args[1],store.resetAt);const f=inputs(i),entry=validRecordCode(args[0],'R')?args[0]:integer(args[0]),r=await store.reverse(guild,actor,entry,f.one('reason'),args[1]);
+    return response(i,env,r.duplicate?'這筆已經收回過':'誤發戲籌已收回',`${r.duplicate?'這次沒有再次扣除戲籌。':'已收回 '+num(-r.entry.delta)+' 戲籌。'}\n對應發放：${r.referenceCode||'#'+r.entry.reference}\n本筆收回前後：${num(r.entry.before)} → **${num(r.entry.after)}**\n原因：${esc(f.one('reason'))}\n原始發放紀錄保留。`,[],[row(home(i))],'warning');
   }
   if(action==='h')return history(i,store,recordField,args[0],args[1],Number(args[2]),args[3]);
   if(action==='hc')return history(i,store,recordField,args[0],i.data.values?.[0],Number(args[1]));

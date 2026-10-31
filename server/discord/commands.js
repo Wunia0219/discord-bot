@@ -2,6 +2,7 @@ import { createPublicKey, verify } from 'node:crypto';
 import { problem } from '../wallet/wallet-common.js';
 import { privateReply, commandError } from './bot-replies.js';
 import {adminPanel,handlePanel,launchControls,parsePanel,panelId} from './discord-panel.js';
+import {recordLabel} from '../firestore/record-codes.js';
 
 export const commandDefinitions = [
   {name:'戲籌',description:'查看戲籌或開啟遊戲',type:1,options:[]},
@@ -64,8 +65,8 @@ export async function handleCommand(interaction, store, adminRoles=[],commandCha
       const r=await store.reverse(guild,user,args['紀錄編號'],args['原因'],interaction.id);
       return reply(r.duplicate?`這筆 **${number(-r.entry.delta)} 戲籌**已經收回過，這次沒有再扣一次。`:`已收回 **${number(-r.entry.delta)} 戲籌**，原本的發放紀錄也會保留。`,r.duplicate?'這筆已經收回了':'這筆戲籌收回了','warning',[
         {name:'這筆收回前後',value:`${number(r.entry.before)} → **${number(r.entry.after)}**`,inline:true},
-        {name:'對應發放',value:`#${args['紀錄編號']}`,inline:true},
-        {name:'這次紀錄',value:`#${r.entry.id}`,inline:true},
+        {name:'對應發放',value:r.referenceCode||`#${r.entry.reference}`,inline:true},
+        {name:'這次紀錄',value:recordLabel({...r.entry,recordCode:r.recordCode}),inline:true},
         {name:'收回原因',value:escapeText(args['原因'])},
       ]);
     }
@@ -75,7 +76,7 @@ export async function handleCommand(interaction, store, adminRoles=[],commandCha
       const r=await store.grant(guild,user,target,args['數量'],args['原因'],interaction.id);
       return reply(r.duplicate?`這筆 **${number(r.entry.delta)} 戲籌**之前已經送給 <@${target}>，這次沒有再加一次。`:`已幫 <@${target}> 加上 **${number(r.entry.delta)} 戲籌**。`,r.duplicate?'這筆已經發過了':'戲籌送到了',r.duplicate?'warning':'success',[
         {name:'這筆發放前後',value:`${number(r.entry.before)} → **${number(r.entry.after)}**`,inline:true},
-        {name:'紀錄編號',value:`#${r.entry.id}`,inline:true},
+        {name:'紀錄編號',value:recordLabel({...r.entry,recordCode:r.recordCode}),inline:true},
         {name:'發放原因',value:escapeText(args['原因'])},
       ]);
     }
@@ -122,8 +123,8 @@ function recordField(r){
   if(r.kind==='reset')return {name:`#${r.id}｜餘額重設｜重設為 ${number(r.after)} 戲籌`,value:`${taipeiTime(r.time)}\n管理員：<@${r.actor}>\n重設前餘額：${number(r.before)}\n重設後餘額：${number(r.after)}\n週簽到進度與遊玩歷史保留。`};
   const labels={grant:'收到戲籌',reversal:'收回誤發戲籌',checkin:'週簽到',spin:'遊玩紀錄',test_seed:'試玩起始戲籌',welcome:'新手戲籌'};
   const time=new Date(Date.parse(r.time)+8*3600000).toISOString().slice(0,16).replace('T',' ');
-  const status=r.kind==='grant'?`\n${r.reversal_id?`這筆已收回（#${r.reversal_id}）`:'這筆已收到'}`:r.kind==='reversal'?`\n對應發放：#${r.reference}`:'';
+  const status=r.kind==='grant'?`\n${r.reversal_id?`這筆已收回（${r.reversalCode||'#'+r.reversal_id}）`:'這筆已收到'}`:r.kind==='reversal'?`\n對應發放：${r.referenceCode||'#'+r.reference}`:'';
   const reason=r.kind==='test_seed'?'試玩時的起始戲籌':r.kind==='spin'?r.reason.replace('派彩','拿到'):r.reason;
-  return {name:`#${r.id}｜${labels[r.kind]||'其他紀錄'}｜${signed(r.delta)} 戲籌`,
+  return {name:`${recordLabel(r)}｜${labels[r.kind]||'其他紀錄'}｜${signed(r.delta)} 戲籌`,
     value:`${time}${r.actor?`｜<@${r.actor}>`:''}\n${r.kind==='spin'?'這局':'原因'}：${escapeText(reason)}\n戲籌：${number(r.before)} → ${number(r.after)}${status}`};
 }

@@ -37,7 +37,7 @@ export function operationsHealth(status,{now=Date.now()}={}){
   return {ok:alerts.length===0,level:alerts.some(a=>a.severity==='critical')?'critical':alerts.length?'warning':'ok',checkedAt:now,alerts,backupAgeSeconds:backupAge===null?null:Math.floor(backupAge/1000),alarmAgeSeconds:alarmAge===null?null:Math.floor(alarmAge/1000),quotaPercent};
 }
 
-const labels={SERVICE_NOT_ACTIVE:'服務未啟用',SERVICE_UNREACHABLE:'無法連上遊戲服務',STATUS_UNAUTHORIZED:'監控授權失效',STATUS_INVALID:'維運狀態格式異常',BACKUP_MISSING:'缺少有效備份狀態',BACKUP_FAILED:'備份失敗',BACKUP_STALE:'備份超過 48 小時',BACKUP_DELAYED:'備份超過 26 小時',ALARM_MISSING:'缺少排程狀態',ALARM_FAILED:'背景排程失敗',ALARM_STALE:'背景排程超過 30 分鐘未更新',QUOTA_UNAVAILABLE:'無法確認使用額度',QUOTA_EXHAUSTED:'使用額度已達上限',QUOTA_HIGH:'使用額度已達八成'};
+const labels={SERVICE_NOT_ACTIVE:'服務未啟用',SERVICE_UNREACHABLE:'無法連上遊戲服務',STATUS_UNAUTHORIZED:'監控授權失效',STATUS_INVALID:'維運狀態格式異常',BACKUP_MISSING:'缺少有效備份狀態',BACKUP_FAILED:'備份失敗',BACKUP_STALE:'備份超過 48 小時',BACKUP_DELAYED:'備份超過 26 小時',ALARM_MISSING:'缺少排程狀態',ALARM_FAILED:'背景排程失敗',ALARM_STALE:'背景排程超過 30 分鐘未更新',QUOTA_UNAVAILABLE:'無法確認使用額度',QUOTA_EXHAUSTED:'使用額度已達上限',QUOTA_HIGH:'Firestore 保守估算已達八成（非實際帳單用量）'};
 const scopes={global:'整體',maintenance:'備份維護',highlights:'得獎公告'};
 export const alertFingerprint=alerts=>JSON.stringify(alerts.map(({code,severity,scope})=>[code,severity,scope||'']).sort());
 export function notificationPayload(alerts,now){

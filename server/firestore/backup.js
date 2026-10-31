@@ -197,23 +197,25 @@ export async function createFirestoreSnapshot(store,settings,{now=Date.now(),pre
         docs.forEach((doc,i)=>{
           const entry=unpack(doc);if(!entry||entry.id!==ids[i])throw fail('BACKUP_LEDGER_GAP');
           insertEntry.run(...['id','guild','user','kind','delta','before','after','actor','reason','time','day','reference'].map(key=>entry[key]));
-          const key=operationKey(entry,doc);if(key)operationKeys.set(digest(entry.guild+'\0'+key),{guild:entry.guild,key});
+          const key=operationKey(entry,doc);if(key)operationKeys.set(digest(entry.guild+'\0'+key),{guild:entry.guild,key,roundStorage:doc.get('roundStorage')});
         });
       }
       const operations=[...operationKeys],opDocs=await readDocuments(store,tx,operations.map(([id])=>store.root.collection('operations').doc(id)));
       const rounds=[];
       opDocs.forEach((doc,i)=>{
-        const data=unpack(doc),{guild,key}=operations[i][1];
+        const data=unpack(doc),{guild,key,roundStorage}=operations[i][1];
         if(!data||typeof data.fingerprint!=='string'||!data.result)throw fail('BACKUP_OPERATION_MISSING');
         db.prepare('INSERT INTO operations(guild,key,fingerprint,result) VALUES(?,?,?,?)').run(guild,key,data.fingerprint,JSON.stringify(data.result));
         if(key.startsWith('spin:')){
           const round=data.result.round,user=key.split(':')[1];if(!round?.id)throw fail('BACKUP_ROUND_MISSING');
-          rounds.push({guild,user,round});
+          if(data.roundStorage!==roundStorage||roundStorage!==undefined&&roundStorage!=='operation-v1')throw fail('BACKUP_ROUND_MISMATCH');
+          rounds.push({guild,user,round,roundStorage});
         }
       });
-      const roundDocs=await readDocuments(store,tx,rounds.map(({guild,user,round})=>store.walletRef(guild,user).collection('rounds').doc(round.id)));
-      rounds.forEach(({guild,user,round},i)=>{
-        if(!isDeepStrictEqual(unpack(roundDocs[i]),round))throw fail('BACKUP_ROUND_MISMATCH');
+      const legacy=rounds.filter(r=>r.roundStorage!=='operation-v1');
+      const roundDocs=await readDocuments(store,tx,legacy.map(({guild,user,round})=>store.walletRef(guild,user).collection('rounds').doc(round.id)));
+      legacy.forEach(({round},i)=>{if(!isDeepStrictEqual(unpack(roundDocs[i]),round))throw fail('BACKUP_ROUND_MISMATCH');});
+      rounds.forEach(({guild,user,round})=>{
         db.prepare('INSERT INTO rounds(guild,user,id,data,created) VALUES(?,?,?,?,?)').run(guild,user,round.id,JSON.stringify(round),Date.parse(round.time));
       });
       remoteWallets=await readWallets(store,tx);
@@ -230,7 +232,12 @@ export async function createFirestoreSnapshot(store,settings,{now=Date.now(),pre
     const plan=firestoreImportPlan(partial,settings.environment,{version:store.schemaVersion});
     for(const wallet of remoteWallets){
       const expected=plan.resources.find(row=>row.path===`wallets/${wallet.guild}_${wallet.user}`)?.data;
-      if(!isDeepStrictEqual(expected,wallet))throw fail('BACKUP_WALLET_MISMATCH');
+      const {pendingDay,operationRoundsAfter,legacyRoundThrough,...portable}=wallet;
+      if(pendingDay){const daily=plan.resources.find(row=>row.path===`wallets/${wallet.guild}_${wallet.user}/days/${pendingDay.day}`)?.data;
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(pendingDay.day)||!daily||!isDeepStrictEqual(pendingDay.summary,daily))throw fail('BACKUP_WALLET_MISMATCH');}
+      for(const value of [operationRoundsAfter,legacyRoundThrough])if(value!==undefined&&(!Number.isSafeInteger(value)||value<0||value>wallet.historyRevision))throw fail('BACKUP_WALLET_MISMATCH');
+      if((operationRoundsAfter===undefined)!==(legacyRoundThrough===undefined)||operationRoundsAfter>legacyRoundThrough)throw fail('BACKUP_WALLET_MISMATCH');
+      if(!isDeepStrictEqual(expected,portable))throw fail('BACKUP_WALLET_MISMATCH');
     }
     if(usedBytes(settings)>settings.backupMaxBytes||freeBytes(settings.directory)<settings.minFreeBytes)throw fail('BACKUP_BUDGET_EXCEEDED');
     const record={format:1,backend:'firestore',sourceId:settings.sourceId,environment:settings.environment,

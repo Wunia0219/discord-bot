@@ -5,6 +5,7 @@ import {taipeiDay} from '../wallet/wallet.js';
 import {ledgerIndex,encodeHistory} from './schema.js';
 import {resetMarker,resetEntryIds,resetIndex} from '../wallet/wallet-admin.js';
 import {highlightEventPath,highlightEventIndex,assertHighlightEvent,assertHighlightBoard,highlightEvent} from './highlight-data.js';
+import {receiptCode,validRecordCode} from './record-codes.js';
 
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const blank=()=>({checkin:{days:0,total:0},game:{rounds:0,bet:0,payout:0,net:0}});
@@ -15,15 +16,22 @@ export function firestoreImportPlan(filename,environment,{version=1}={}){
   if(![1,2].includes(version))throw new Error('Invalid import schema version');
   const audit=inspectWalletDatabase(filename,environment);
   if(!audit.ok)throw new Error('Source database failed verification');
-  const db=new DatabaseSync(filename,{readOnly:true}),documents=new Map(),wallets=new Map(),days=new Map(),adminDays=new Map();let nextId=0;
+  const db=new DatabaseSync(filename,{readOnly:true}),documents=new Map(),wallets=new Map(),days=new Map(),adminDays=new Map(),recordCounters={};let nextId=0;
   const put=(path,data,index={})=>{if(documents.has(path))throw new Error('Duplicate import target');documents.set(path,{path,data,index});};
   try{
     db.exec('BEGIN');
-    const operationLinks=new Map(),spinRequests=new Map(),roundSequences=new Map(),resetLinks=new Map(),lastRounds=new Map();
+    const operationLinks=new Map(),spinRequests=new Map(),roundSequences=new Map(),resetLinks=new Map(),lastRounds=new Map(),codes=new Map(),referenceCodes=new Map(),seenCodes=new Set();
     for(const row of db.prepare('SELECT * FROM operations').iterate()){
       const result=JSON.parse(row.result);
+      const code=receiptCode(result);
+      if(code!==undefined){
+        const series=result.round?'P':['grant','reversal'].includes(result.entry?.kind)?'R':null;
+        if(!series||!validRecordCode(code,series)||seenCodes.has(code))throw new Error('Invalid or duplicate record code');
+        seenCodes.add(code);codes.set(row.guild+'\0'+row.key,code);recordCounters[series]=Math.max(recordCounters[series]??0,Number(code.slice(1)));
+      }
       if(row.key.startsWith('reset:'))resetLinks.set(resetEntryIds(result)[0],row.key);
       if(result.entry)operationLinks.set(result.entry.id,row.key);
+      if(result.referenceCode)referenceCodes.set(result.entry.id,result.referenceCode);
       if(result.round)spinRequests.set(row.guild+'\0'+row.key,result.round.id);
     }
     for(const row of db.prepare('SELECT * FROM wallets ORDER BY guild,user').iterate()){
@@ -39,7 +47,9 @@ export function firestoreImportPlan(filename,environment,{version=1}={}){
       }else{
         const key=entry.kind==='spin'?`spin:${entry.user}:${entry.reference}`:
           entry.kind==='checkin'?`daily:${entry.user}:${entry.day}`:entry.kind==='reset'?resetLinks.get(entry.id)||null:operationLinks.get(entry.id)||null;
-        put(`ledger/${entry.id}`,entry,{...ledgerIndex(entry),operationKey:key});
+        const recordCode=codes.get(entry.guild+'\0'+key);
+        put(`ledger/${entry.id}`,entry,{...ledgerIndex(entry),operationKey:key,...(recordCode?{recordCode,...(recordCode[0]==='R'?{rewardKey:entry.guild+':'+recordCode}:{})}:{}),
+          ...(referenceCodes.has(entry.id)?{referenceCode:referenceCodes.get(entry.id)}:{})});
         if(entry.kind==='spin'){
           const roundId=spinRequests.get(entry.guild+'\0'+key);
           if(!roundId)throw new Error('Source spin operation is missing');
@@ -52,7 +62,7 @@ export function firestoreImportPlan(filename,environment,{version=1}={}){
       }
       if(entry.kind==='spin')lastRounds.set(base,spinRequests.get(entry.guild+'\0'+`spin:${entry.user}:${entry.reference}`));
       if(entry.kind==='reset')wallet.balanceReset=resetMarker(entry,lastRounds.get(base)||null);
-      if(entry.kind==='reversal')put(`reversals/${entry.reference}`,{entryId:entry.id});
+      if(entry.kind==='reversal'){const recordCode=codes.get(entry.guild+'\0'+operationLinks.get(entry.id));put(`reversals/${entry.reference}`,{entryId:entry.id,...(recordCode?{recordCode}:{})});}
       if(entry.kind==='grant'){
         const key=`adminDays/${entry.guild}_${entry.actor}_${entry.day}`;adminDays.set(key,{used:(adminDays.get(key)?.used||0)+entry.delta});
       }
@@ -91,7 +101,7 @@ export function firestoreImportPlan(filename,environment,{version=1}={}){
   }finally{db.exec('ROLLBACK');db.close();}
   const resources=[...documents.values()].sort((a,b)=>a.path.localeCompare(b.path));
   const fingerprint=digest(JSON.stringify(resources));
-  return {version,environment,audit,resources,fingerprint,nextId};
+  return {version,environment,audit,resources,fingerprint,nextId,...(Object.keys(recordCounters).length?{recordCounters}:{})};
 }
 
 // Imports into an empty namespace only. Each chunk and its progress commit atomically.
@@ -127,6 +137,7 @@ export async function importFirestore(store,plan,{batchSize=50}={}){
       if(!(await tx.get(store.root.collection('wallets').limit(1))).empty)throw new Error('Firestore namespace is not empty; no existing wallets overwritten');
     }
     store.write(tx,store.meta,{version:store.schemaVersion,environment:plan.environment,status:'importing',nextId:plan.nextId,
+      ...(plan.recordCounters?{recordCounters:plan.recordCounters}:{}),
       ...(plan.audit.counts.highlight_events||plan.audit.counts.highlight_boards?{highlights:1}:{}),
       importFingerprint:plan.fingerprint,importDone:current?.importDone||0,importTotal:plan.resources.length});
   },{maxAttempts:3});

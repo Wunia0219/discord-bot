@@ -7,6 +7,7 @@ import {ledgerIndex,ledgerRange,sequenceKey,encodeHistory,decodeHistory} from '.
 import {highlightEvent,highlightEventPath,highlightEventIndex} from './highlight-data.js';
 import {firestoreAdminWallets} from './admin-wallets.js';
 import {INITIAL_BALANCE,openingKind,openingReason,isOpeningKind} from '../wallet/wallet-opening.js';
+import {nextRecordCode,validRecordCode} from './record-codes.js';
 
 const maxBalance=1_000_000_000_000,maxDocument=512*1024;
 const digest=value=>createHash('sha256').update(value).digest('hex');
@@ -27,7 +28,7 @@ export class FirestoreWalletCore {
     if(![1,2].includes(this.schemaVersion))throw new Error('Invalid Firestore schema version');
     this.histories=new Map();
     if(!db||!quota)throw new Error('Firestore transport and persistent quota are required');
-    this.db=db;this.quota=quota;this.settlementQueue=settlementQueue;
+    this.db=db;this.quota=quota;this.settlementQueue=settlementQueue;this.quotaBatches=new WeakMap();
     this.root=this.db.collection('circus_wallet_v1').doc(settings.namespace);
     this.meta=this.root.collection('meta').doc('state');this.cache=new Map();this.pending=new Map();this.closed=false;this.ready=false;this.readyAt=0;
   }
@@ -48,13 +49,20 @@ export class FirestoreWalletCore {
     // round trip. All reads still belong to the same atomic transaction.
     this.quota.reserve({reads:6*refs.length});
     const snapshots=await tx.getAll(...refs);
-    return snapshots.map(snapshot=>{const data=unpack(snapshot);this.quota.observe(Buffer.byteLength(JSON.stringify(data)));return data;});
+    const data=snapshots.map(unpack);
+    this.quota.observe(data.reduce((bytes,row)=>bytes+Buffer.byteLength(JSON.stringify(row)),0));
+    return data;
   }
   write(tx,ref,data,{create=false,index={}}={}){
     const body={...packed(data),...index},bytes=Buffer.byteLength(JSON.stringify(body));
     if(bytes>maxDocument)throw problem(503,'遊玩紀錄暫時無法儲存，請稍後再試。','FIRESTORE_DOCUMENT_LIMIT');
     // Count every attempted write and growth even when a transaction later aborts.
-    this.quota.reserve({writes:2},{key:digest(this.settings.projectId+':'+ref.path),bytes:bytes*4+512});
+    const cost={writes:2},document={key:digest(this.settings.projectId+':'+ref.path),bytes:bytes*4+512};
+    if(tx.beforeCommit&&this.quota.reserveBatch){
+      let requests=this.quotaBatches.get(tx);
+      if(!requests){requests=[];this.quotaBatches.set(tx,requests);tx.beforeCommit(()=>this.quota.reserveBatch(requests));}
+      requests.push({cost,document});
+    }else this.quota.reserve(cost,document);
     if(create)tx.create(ref,body);else tx.set(ref,body);
   }
   async initialize(){
@@ -68,6 +76,15 @@ export class FirestoreWalletCore {
     }catch(error){this.ready=false;throw this.safe(error);}
   }
   checkMeta(meta){if(!meta||meta.version!==this.schemaVersion||meta.environment!==this.environment||meta.status!=='ready'||!Number.isSafeInteger(meta.nextId))throw problem(503,'帳號戲籌正在維護，請稍後再試。','FIRESTORE_SCHEMA');}
+  async settlementPolicy(enabled){
+    if(this.schemaVersion!==2||typeof enabled!=='boolean')throw new Error('Explicit v2 settlement policy required');
+    const result=await this.db.runTransaction(async tx=>{
+      const meta=await this.read(this.meta,tx);this.checkMeta(meta);
+      if(meta.compactSettlements!==enabled){meta.compactSettlements=enabled;this.write(tx,this.meta,meta);}
+      return {compactSettlements:enabled,nextId:meta.nextId,recordCounters:meta.recordCounters??{}};
+    },{maxAttempts:3});
+    this.invalidateCache();return result;
+  }
   async isReady(){
     if(this.closed||this.quota.status().blocked)return false;
     if(this.ready&&this.clock()-this.readyAt<60000)return true;
@@ -184,7 +201,11 @@ export class FirestoreWalletCore {
           if(wallet.balance+(fresh?INITIAL_BALANCE:0)<operation.bet)throw problem(409,'戲籌不足，請降低下注、簽到或聯絡管理員。');
         }
         if(adminDay&&adminDay.used+operation.amount>this.grantDaily)throw problem(409,'已超過這位管理員今日的發放額度。','GRANT_DAILY');
-        const daySummary=needsDay?(savedDay||zeroSummary()):null;
+        const compactStorage=this.schemaVersion===2&&meta.compactSettlements===true;
+        // The current day is already part of the authoritative wallet write.
+        // Flush it once on a day transition, including a backward clock change.
+        const pendingDay=wallet.pendingDay;
+        const daySummary=needsDay?(pendingDay?.day===day?pendingDay.summary:(savedDay||zeroSummary())):null;
         const entries=[];
         const credit=(delta,entryKind,actor,reason,reference=null)=>{
           const before=wallet.balance,after=before+delta;
@@ -195,10 +216,12 @@ export class FirestoreWalletCore {
         };
         if(fresh)credit(INITIAL_BALANCE,openingKind(this.environment),null,openingReason(this.environment));
         let answer={},round;
+        const recordCode=(compactStorage||meta.recordCounters)?nextRecordCode(meta,kind):undefined;
         if(kind==='spin'){
           const outcome=operation.outcome,entry=credit(outcome.payout-operation.bet,'spin',user,`下注 ${operation.bet}／派彩 ${outcome.payout}`,operation.requestId);
           const milestone=entry.after>=12000&&!wallet.milestone;
-          round={...outcome,id:operation.roundId,time:new Date(now).toISOString(),bet:operation.bet,before:entry.before,after:entry.after,net:entry.delta,milestone};
+          round={...outcome,id:operation.roundId,time:new Date(now).toISOString(),bet:operation.bet,before:entry.before,after:entry.after,net:entry.delta,milestone,...(recordCode?{recordCode}:{})};
+          if(compactStorage){wallet.operationRoundsAfter??=wallet.historyRevision;wallet.legacyRoundThrough??=wallet.historyRevision;}
           wallet.last_spin=now;wallet.milestone ||= milestone;answer={round};
           if(this.schemaVersion===2){
             answer.historyBase=wallet.historyRevision;answer.historyRevision=entry.id;wallet.historyRevision=entry.id;
@@ -213,6 +236,10 @@ export class FirestoreWalletCore {
         }else if(kind==='grant')answer={entry:credit(operation.amount,'grant',operation.actor,operation.reason)};
         else if(kind==='reversal')answer={entry:credit(-original.delta,'reversal',operation.actor,operation.reason,String(operation.entryId))};
         else if(kind==='fixture')answer={entry:credit(operation.balance-wallet.balance,'test_fixture',null,'本機驗收情境初始餘額')};
+        if(recordCode&&answer.entry)answer.recordCode=recordCode;
+        if(kind==='reversal'&&operation.originalCode)answer.referenceCode=operation.originalCode;
+        if(needsDay&&(compactStorage||pendingDay))wallet.pendingDay={day,summary:daySummary};
+        if(round&&!compactStorage&&wallet.operationRoundsAfter!==undefined)wallet.legacyRoundThrough=wallet.historyRevision;
         // The announcement outbox commits with the original settlement. A lost
         // HTTP response or restart cannot lose it; a replay never creates it twice.
         const announcement=round&&this.highlightsGuild===guild?highlightEvent(guild,profileName,round,now):null;
@@ -222,15 +249,20 @@ export class FirestoreWalletCore {
           for(const entry of entries){
             if(this.schemaVersion===1)this.record(tx,ref,entry);
             this.write(tx,this.root.collection('ledger').doc(String(entry.id)),entry,{create:true,index:{operationKey:isOpeningKind(entry.kind)?null:key,
-              ...(this.schemaVersion===2?ledgerIndex(entry):{})}});
+              ...(this.schemaVersion===2?ledgerIndex(entry):{}),
+              ...(!isOpeningKind(entry.kind)&&recordCode?{recordCode,...(['grant','reversal'].includes(entry.kind)?{rewardKey:guild+':'+recordCode}:{})}:{}),
+              ...(entry.kind==='reversal'&&answer.referenceCode?{referenceCode:answer.referenceCode}:{}),
+              ...(entry.kind==='spin'&&compactStorage?{roundStorage:'operation-v1'}:{})}});
           }
           this.write(tx,this.meta,meta);this.write(tx,ref,wallet);
         }else if(fresh)this.write(tx,ref,wallet,{create:true});
-        if(needsDay)this.write(tx,dayRef,daySummary);
-        if(round)this.write(tx,ref.collection('rounds').doc(round.id),round,{create:true,index:this.schemaVersion===2?{sequence:wallet.historyRevision}:{}});
+        if(needsDay&&pendingDay&&pendingDay.day!==day)this.write(tx,ref.collection('days').doc(pendingDay.day),pendingDay.summary);
+        if(needsDay&&!compactStorage)this.write(tx,dayRef,daySummary);
+        if(round&&!compactStorage)this.write(tx,ref.collection('rounds').doc(round.id),round,{create:true,index:this.schemaVersion===2?{sequence:wallet.historyRevision}:{}});
         if(adminRef)this.write(tx,adminRef,{used:adminDay.used+operation.amount});
-        if(reversalRef)this.write(tx,reversalRef,{entryId:answer.entry.id},{create:true});
-        if(opRef)this.write(tx,opRef,{fingerprint:operation.fingerprint,result:answer},{create:true});
+        if(reversalRef)this.write(tx,reversalRef,{entryId:answer.entry.id,...(recordCode?{recordCode}:{})},{create:true});
+        if(opRef)this.write(tx,opRef,{fingerprint:operation.fingerprint,result:answer,...(round&&compactStorage?{roundStorage:'operation-v1'}:{})},
+          {create:true,index:round&&compactStorage?{roundKey:guild+'_'+user+':'+sequenceKey(wallet.historyRevision)}:{}});
         if(announcement)this.write(tx,this.db.doc(this.root.path+'/'+highlightEventPath(announcement)),announcement,{create:true,index:highlightEventIndex(announcement,user)});
         return {...answer,state:this.snapshot(wallet,now),wallet};
       },{maxAttempts:3});
@@ -256,10 +288,23 @@ export class FirestoreWalletCore {
   }
   async reverse(guild,actor,entryId,reason,requestId){
     this.validate(guild,actor);this.reason(reason);this.requestId(requestId);
+    let originalCode;
+    if(typeof entryId==='string'){
+      const code=entryId.trim().toUpperCase().replace(/^#/,'');
+      if(validRecordCode(code,'R')){
+        this.quota.reserve({reads:12});
+        const rows=await this.root.collection('ledger').where('rewardKey','==',guild+':'+code).limit(2).get();
+        this.quota.observe(Buffer.byteLength(JSON.stringify(rows.docs.map(doc=>doc.data()))));
+        if(rows.size!==1)throw problem(404,'找不到這筆管理員發放。','GRANT_MISSING');
+        entryId=unpack(rows.docs[0]).id;originalCode=code;
+      }else if(/^[1-9]\d{0,15}$/.test(code))entryId=Number(code);
+    }
     if(!Number.isSafeInteger(entryId)||entryId<1)throw problem(400,'無效的紀錄編號。','GRANT_MISSING');
-    try{const original=await this.read(this.root.collection('ledger').doc(String(entryId)));
+    try{this.quota.reserve({reads:6});
+      const doc=await this.root.collection('ledger').doc(String(entryId)).get(),original=unpack(doc);
+      this.quota.observe(Buffer.byteLength(JSON.stringify(doc.data()??null)));originalCode ||= doc.get('recordCode');
       if(!original||original.guild!==guild||original.kind!=='grant')throw problem(404,'找不到這筆管理員發放。','GRANT_MISSING');
-      return await this.transact(guild,original.user,{kind:'reversal',actor,entryId,reason,requestId,fingerprint:JSON.stringify([actor,entryId,reason])});
+      return await this.transact(guild,original.user,{kind:'reversal',actor,entryId,originalCode,reason,requestId,fingerprint:JSON.stringify([actor,entryId,reason])});
     }catch(error){throw this.safe(error);}
   }
   ensureFixture(guild,user,balance,key){
@@ -276,7 +321,9 @@ export class FirestoreWalletCore {
     this.quota.reserve({reads:6*limit});
     const snapshot=await this.root.collection('ledger').where(field,'>=',prefix+sequenceKey(0))
       .where(field,'<',prefix+sequenceKey(before)).orderBy(field,'desc').limit(limit).get();
-    const rows=snapshot.docs.map(unpack);this.quota.observe(Buffer.byteLength(JSON.stringify(rows)));return rows;
+    const rows=snapshot.docs.map(doc=>({...unpack(doc),...(filter.displayCodes&&doc.get('recordCode')?{recordCode:doc.get('recordCode')}:{}) ,
+      ...(filter.displayCodes&&doc.get('referenceCode')?{referenceCode:doc.get('referenceCode')}:{})}));
+    this.quota.observe(Buffer.byteLength(JSON.stringify(rows)));return rows;
   }
   async rounds(guild,user,{after=0,before=Number.MAX_SAFE_INTEGER,through=Number.MAX_SAFE_INTEGER,limit=100}={}){
     this.validate(guild,user);
@@ -299,10 +346,25 @@ export class FirestoreWalletCore {
           return {rows,next:selected.length>limit||(!allKnown&&reachesTail)?rows.at(-1).sequence:null};
         }
       }
-      this.quota.reserve({reads:6*(limit+1)});
-      const snapshot=await this.walletRef(guild,user).collection('rounds').where('sequence','>',after)
-        .where('sequence','<',before).where('sequence','<=',through).orderBy('sequence','desc').limit(limit+1).get();
-      const records=snapshot.docs.map(doc=>({sequence:doc.get('sequence'),round:unpack(doc)}));
+      const records=[];
+      if(wallet?.operationRoundsAfter!==undefined){
+        const prefix=guild+'_'+user+':';
+        this.quota.reserve({reads:6*(limit+1)});
+        const snapshot=await this.root.collection('operations').where('roundKey','>',prefix+sequenceKey(after))
+          .where('roundKey','<',prefix+sequenceKey(before)).where('roundKey','<=',prefix+sequenceKey(through))
+          .orderBy('roundKey','desc').limit(limit+1).get();
+        for(const doc of snapshot.docs){const receipt=unpack(doc);if(receipt.roundStorage!=='operation-v1'||!receipt.result?.round)throw new Error('Invalid round receipt');
+          records.push({sequence:Number(doc.get('roundKey').slice(prefix.length)),round:receipt.result.round});}
+      }
+      // Older documents remain readable without rewriting or deleting them.
+      const legacyThrough=wallet?.legacyRoundThrough??Number.MAX_SAFE_INTEGER;
+      if(after<legacyThrough&&(records.length<=limit||records.at(-1).sequence<=legacyThrough)){
+        this.quota.reserve({reads:6*(limit+1)});
+        const snapshot=await this.walletRef(guild,user).collection('rounds').where('sequence','>',after)
+          .where('sequence','<',before).where('sequence','<=',Math.min(through,legacyThrough)).orderBy('sequence','desc').limit(limit+1).get();
+        for(const doc of snapshot.docs)records.push({sequence:doc.get('sequence'),round:unpack(doc)});
+      }
+      records.sort((a,b)=>b.sequence-a.sequence);
       this.quota.observe(Buffer.byteLength(JSON.stringify(records)));
       const rows=records.slice(0,limit);return {rows,next:records.length>limit?rows.at(-1).sequence:null};
     }catch(error){throw this.safe(error);}
@@ -319,9 +381,9 @@ export class FirestoreWalletCore {
       const rows=await readAuditPage({category:cat,before,
         days:Array.from({length:days},(_,i)=>taipeiDay(now-i*86400000)),
         query:(name,cursor,limit)=>this.schemaVersion===2?this.queryLedger(guild,user,cursor,limit,
-          {category:cat,day:/\d{4}-\d{2}-\d{2}$/.exec(name)?.[0]}):this.query(ref.collection(name),cursor,limit)});
+          {category:cat,day:/\d{4}-\d{2}-\d{2}$/.exec(name)?.[0],displayCodes:true}):this.query(ref.collection(name),cursor,limit)});
       const selected=rows.slice(0,10);
-      for(const row of selected)if(row.kind==='grant'){const reversal=await this.read(this.root.collection('reversals').doc(String(row.id)));row.reversal_id=reversal?.entryId||null;}
+      for(const row of selected)if(row.kind==='grant'){const reversal=await this.read(this.root.collection('reversals').doc(String(row.id)));row.reversal_id=reversal?.entryId||null;if(reversal?.recordCode)row.reversalCode=reversal.recordCode;}
       return {rows:selected,next:rows.length>10?selected[9].id:null};
     }catch(error){throw this.safe(error);}
   }
@@ -329,16 +391,20 @@ export class FirestoreWalletCore {
     this.validate(guild,user);if(![0,1,7,30].includes(days))throw problem(400,'無效的紀錄查詢期間。','AUDIT_FILTER');
     try{
       if(!days)return (await this.read(this.walletRef(guild,user)))?.summary||zeroSummary();
-      const now=this.clock(),field='__name__';
+      const now=this.clock(),field='__name__',first=taipeiDay(now-(days-1)*86400000),last=taipeiDay(now);
       // ISO day document IDs already form a single-field date index. A range
       // query reads only existing days instead of billing missing point reads.
-      this.quota.reserve({reads:6*days});
-      const snapshot=await this.walletRef(guild,user).collection('days')
-        .where(field,'>=',taipeiDay(now-(days-1)*86400000)).where(field,'<=',taipeiDay(now)).limit(days).get();
-      const result=zeroSummary();for(const doc of snapshot.docs){
-        const data=unpack(doc);this.quota.observe(Buffer.byteLength(JSON.stringify(data)));
+      return await this.db.runTransaction(async tx=>{
+        const ref=this.walletRef(guild,user),wallet=await this.read(ref,tx);
+        this.quota.reserve({reads:6*days});
+        const snapshot=await tx.get(ref.collection('days').where(field,'>=',first).where(field,'<=',last).limit(days));
+        const daily=new Map(snapshot.docs.map(doc=>[doc.id,unpack(doc)]));
+        this.quota.observe(Buffer.byteLength(JSON.stringify([...daily])));
+        if(wallet?.pendingDay&&wallet.pendingDay.day>=first&&wallet.pendingDay.day<=last)daily.set(wallet.pendingDay.day,wallet.pendingDay.summary);
+        const result=zeroSummary();for(const data of daily.values()){
         for(const group of ['checkin','game'])for(const key of Object.keys(result[group]))result[group][key]+=data[group][key];
-      }return result;
+        }return result;
+      },{readOnly:true});
     }catch(error){throw this.safe(error);}
   }
   status(){return {backend:'firestore',schemaVersion:this.schemaVersion,environment:this.environment,projectId:this.settings.projectId,namespace:this.settings.namespace,quota:this.quota.status(),ready:this.ready&&!this.closed};}

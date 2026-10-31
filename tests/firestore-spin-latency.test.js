@@ -5,7 +5,7 @@ import {FirestoreWalletCore} from '../server/firestore/wallet-core.js';
 import {encodeHistory} from '../server/firestore/schema.js';
 
 const guild='100000000000000001',user='100000000000000002';
-function fixture({cooldown=false,duplicate=false,commitMs=0}={}){
+function fixture({cooldown=false,duplicate=false,commitMs=0,compactStorage=false,failCommit=false}={}){
   let now=Date.parse('2026-10-24T03:00:00Z');const began=now,calls=[],usage={reads:0,writes:0};
   const settings={projectId:'demo-jokers-circus',namespace:'latency-test',environment:'test',schemaVersion:2};
   const summary={checkin:{days:0,total:0},game:{rounds:0,bet:0,payout:0,net:0}};
@@ -16,7 +16,7 @@ function fixture({cooldown=false,duplicate=false,commitMs=0}={}){
     if(url.endsWith(':batchGet')){
       calls.push('read:'+body.documents.length);
       const rows=body.documents.map(name=>{
-        const data=name.endsWith('/meta/state')?{version:2,environment:'test',status:'ready',nextId:1}:
+        const data=name.endsWith('/meta/state')?{version:2,environment:'test',status:'ready',nextId:1,...(compactStorage?{compactSettlements:true}:{})}:
           name.includes('/wallets/')&&!name.includes('/days/')?wallet:
           duplicate&&name.includes('/operations/')?{fingerprint:'20',result:{round:{id:'original-round'}}}:null;
         return data?{found:{name,fields:{json:{stringValue:JSON.stringify(data)}}}}:{missing:name};
@@ -24,7 +24,7 @@ function fixture({cooldown=false,duplicate=false,commitMs=0}={}){
       if(body.newTransaction){assert.deepEqual(body.newTransaction,{readWrite:{}});rows.unshift({transaction:'isolated-transaction'});}
       return Response.json(rows);
     }
-    if(url.endsWith(':commit')){calls.push('commit:'+body.writes.length);now+=commitMs;return Response.json({});}
+    if(url.endsWith(':commit')){calls.push('commit:'+body.writes.length);now+=commitMs;if(failCommit)throw new Error('Uncertain network result');return Response.json({});}
     if(url.endsWith(':rollback')){calls.push('rollback');return Response.json({});}
     assert.fail('unexpected transport request');
   }});
@@ -37,6 +37,25 @@ test('a new spin opens and reads in one batch then commits, preserving four read
   const f=fixture();const result=await f.store.spin(guild,user,20,'batch-spin-latency-0001',{compact:true});
   assert.deepEqual(f.calls,['read:4','commit:6']);
   assert.deepEqual(f.usage,{reads:24,writes:12});assert.equal(result.state.balance,result.round.after);
+});
+
+test('compact settlements preserve four reads and the commit clock while writing four authoritative documents',async()=>{
+  const f=fixture({compactStorage:true,commitMs:825}),result=await f.store.spin(guild,user,20,'compact-spin-latency-0001',{compact:true});
+  assert.deepEqual(f.calls,['read:4','commit:4']);assert.deepEqual(f.usage,{reads:24,writes:8});
+  assert.equal(result.round.recordCode,'P000001');assert.equal(result.state.spinCooldownMs,1175);
+  const replay=fixture({compactStorage:true,duplicate:true});await replay.store.spin(guild,user,20,'compact-spin-latency-0001',{compact:true});
+  assert.deepEqual(replay.calls,['read:4','rollback']);assert.equal(replay.usage.writes,0);
+});
+
+test('commit batch quota refusal never reaches Firestore; unknown commits retain their reserved charge',async()=>{
+  const denied=fixture({compactStorage:true});
+  denied.store.quota.reserveBatch=()=>{throw Object.assign(new Error('Budget'),{walletProblem:true,code:'FIRESTORE_BUDGET'});};
+  await assert.rejects(denied.store.spin(guild,user,20,'compact-denied-0000001',{compact:true}),{code:'FIRESTORE_BUDGET'});
+  assert.deepEqual(denied.calls,['read:4','rollback']);assert.equal(denied.usage.writes,0);
+  const uncertain=fixture({compactStorage:true,failCommit:true});
+  uncertain.store.quota.reserveBatch=requests=>{for(const {cost} of requests)uncertain.store.quota.reserve(cost);};
+  await assert.rejects(uncertain.store.spin(guild,user,20,'compact-uncertain-00001',{compact:true}),{code:'FIRESTORE_UNAVAILABLE'});
+  assert.deepEqual(uncertain.calls,['read:4','commit:4','rollback']);assert.equal(uncertain.usage.writes,8);
 });
 
 test('weekly checkin keeps the original four reads and five atomic writes without history queries',async()=>{

@@ -41,12 +41,18 @@ test('20-player 1000-round incremental backup fits unchanged maintenance cap and
  const backupMs=Math.round(performance.now()-backupStarted);
  // Simultaneous authoritative transactions; every retry retains its original key.
  const play=new FirestoreWalletCore(settings,{db,quota:global,guildIds:[guild],settlementQueue:new SettlementQueue()});await play.initialize();
+ await play.settlementPolicy(true);
  const ids=users.map(()=>randomUUID()),concurrentStarted=performance.now();
  const attempts=await Promise.allSettled(users.map((user,i)=>play.spin(guild,user,20,ids[i],{compact:true})));
  const initialRejected=attempts.filter(x=>x.status==='rejected').length;assert.equal(initialRejected,0,'bounded queue removes shared-counter conflicts');
  const settlements=[];for(let i=0;i<users.length;i++)settlements.push(attempts[i].status==='fulfilled'?attempts[i].value:await play.spin(guild,users[i],20,ids[i],{compact:true}));
  for(let i=0;i<users.length;i++){const duplicate=await play.spin(guild,users[i],20,ids[i],{compact:true});assert.equal(duplicate.duplicate,true);assert.deepEqual(duplicate.round,settlements[i].round);}
  const meta=await play.read(play.meta);assert.equal(meta.nextId,expected.revision+20,'exactly one ledger entry per player');
+ const backupBefore=store.quota.totals().reads;
+ while(!(await backup.step()).complete){}
+ assert.equal(store.quota.totals().reads-backupBefore,81,'20 compact rounds use 40 document reads plus the unchanged 41 metadata/wallet page allowance');
+ const compactSnapshot=decodeCloudArchive(vault.archive(state.get('backup-latest')),key,'test');
+ assert.equal(compactSnapshot.tables.rounds.length,1020);assert.equal(new Set(compactSnapshot.tables.rounds.map(r=>JSON.parse(r.data).recordCode).filter(Boolean)).size,20);
  const scenarios=[];play.spinDelay=0;
  for(const count of [2,5,8,10]){
    const start=performance.now(),keys=users.slice(0,count).map(()=>randomUUID());

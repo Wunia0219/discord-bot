@@ -41,6 +41,8 @@ node scripts/admin/cloud-control.js quota-notify-only --env .env.cloud.productio
 
 ## 日常操作
 
+結算減少寫入、P/R 獨立編號、費用情境與相容版本回復方式見[結算儲存與編號](settlement-storage.md)。
+
 ```powershell
 npm run cloud:control -- health --env .env.cloud.production.local
 npm run cloud:control -- status --env .env.cloud.production.local

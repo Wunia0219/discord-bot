@@ -8,6 +8,15 @@ import {randomUUID} from 'node:crypto';
 import {WalletStore} from '../server/wallet/wallet.js';
 import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot} from '../server/recovery/cloud-handoff.js';
 
+test('real workerd SQL row accounting drops when identical quota reservations are batched',async t=>{
+ const root=resolve('test-results/quota-rows');mkdirSync(root,{recursive:true});const dir=mkdtempSync(join(root,'run-'));
+ await build({entryPoints:['tests/fixtures/quota-rows-worker.js'],bundle:true,format:'esm',platform:'node',external:['cloudflare:workers'],outfile:join(dir,'worker.js'),logLevel:'silent'});
+ const mf=new Miniflare(convertV4MiniflareOptions({modules:true,scriptPath:join(dir,'worker.js'),compatibilityDate:'2026-07-30',compatibilityFlags:['nodejs_compat'],durableObjects:{QUOTA:{className:'QuotaRowsFixture',useSQLite:true}},outboundService:()=>{throw new Error('No external services permitted');}}));t.after(()=>mf.dispose());
+ const single=await (await mf.dispatchFetch('http://localhost/single')).json(),batch=await (await mf.dispatchFetch('http://localhost/batch')).json();
+ assert.deepEqual(batch.used,single.used);assert.deepEqual(batch.documents,single.documents);assert.ok(batch.rowsWritten<single.rowsWritten);
+ writeFileSync('test-results/quota-rows-report.json',JSON.stringify({realWorkerd:true,single,batch,scope:'Identical four-write quota reservations only; excludes sessions, alarms, backups and actual settlements'},null,2));
+});
+
 test('real workerd audits and exports over 8MiB without a full-history SQL rewrite',async t=>{
  const root=resolve('test-results/segmented-workerd');mkdirSync(root,{recursive:true});const dir=mkdtempSync(join(root,'run-'));
  await build({entryPoints:['tests/fixtures/segmented-worker.js'],bundle:true,format:'esm',platform:'node',external:['cloudflare:workers'],outfile:join(dir,'worker.js'),logLevel:'silent'});
