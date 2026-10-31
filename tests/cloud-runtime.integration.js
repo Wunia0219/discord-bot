@@ -47,7 +47,7 @@ for(const casino of [false,true])test(`real workerd persists quotas/sessions, Di
    if(u.pathname.endsWith('/messages/@original')&&request.method==='PATCH'){replies.push(await request.json());return MFResponse.json({});}
    throw new Error('Unapproved external request in test');
  }};
- if(casino)Object.assign(config.bindings,{DISCORD_HIGHLIGHTS_WEBHOOK_URL:'',DISCORD_CASINO_ENABLED:'true',DISCORD_CASINO_CHANNEL_ID:'100000000000000006',DISCORD_BOT_TOKEN:'isolated-bot-token-not-real-0000000000'});
+ if(casino)Object.assign(config.bindings,{CLOUD_PLAN:'paid',DISCORD_HIGHLIGHTS_WEBHOOK_URL:'',DISCORD_CASINO_ENABLED:'true',DISCORD_CASINO_CHANNEL_ID:'100000000000000006',DISCORD_BOT_TOKEN:'isolated-bot-token-not-real-0000000000'});
  config.bindings.FIRESTORE_ENDPOINT='https://firestore.asia-east1.rep.googleapis.com';
  const monitorToken=randomBytes(32).toString('hex');config.bindings.CLOUD_MONITOR_TOKEN=monitorToken;
  let mf=new Miniflare(convertV4MiniflareOptions(config));t.after(()=>mf.dispose());const call=async(path,{body,token,adminAuth=false,headers={},method}={})=>{const r=await mf.dispatchFetch('http://localhost'+path,{method:method||(body?'POST':'GET'),headers:{...(body?{'Content-Type':'application/json'}:{}),...(token?{Authorization:'Bearer '+token}:{}),...(adminAuth?{Authorization:'Bearer '+admin}:{}),...headers},...(body?{body:JSON.stringify(body)}:{})});const data=await r.json();return {status:r.status,data};};
@@ -70,7 +70,10 @@ for(const casino of [false,true])test(`real workerd persists quotas/sessions, Di
   const policy=await call('/__ops/quota-policy',{adminAuth:true,body:{mode:'notify-only',allowPaidUsage:true}});
   assert.equal(policy.status,200);assert.equal(policy.data.enforcement,'notify-only');assert.equal(policy.data.used.writes,20000);assert.equal(policy.data.blocked,false);
  }
- assert.equal((await call('/__ops/activate',{adminAuth:true,body:{writersStopped:true,freePlanVerified:true}})).status,200);assert.equal((await call('/readyz')).status,200);
+ if(casino)assert.equal((await call('/__ops/activate',{adminAuth:true,body:{writersStopped:true,freePlanVerified:true}})).status,409,'Free-only confirmation cannot activate a Paid deployment');
+ const activation={writersStopped:true,planVerified:true,plan:config.bindings.CLOUD_PLAN};
+ assert.equal((await call('/__ops/activate',{adminAuth:true,body:activation})).status,200);assert.equal((await call('/readyz')).status,200);
+ assert.equal((await call('/__ops/status',{headers:monitorHeaders})).data.cloudPlan,config.bindings.CLOUD_PLAN);
  if(casino){
   assert.equal((await call('/__ops/settlement-policy',{body:{compactSettlements:true}})).status,403);
   assert.equal((await call('/__ops/settlement-policy',{adminAuth:true,body:{}})).status,409);
@@ -111,7 +114,7 @@ for(const casino of [false,true])test(`real workerd persists quotas/sessions, Di
  for(let i=0;i<20;i++){const b=await call('/__ops/backup',{adminAuth:true,body:{}});assert.equal(b.status,200,JSON.stringify(b));if(i===0)await sdk.grant(guild,user,user,7,'concurrent readTime fixture',randomUUID());if(b.data.complete)break;if(i===19)assert.fail('Backup did not finish');}
  assert.equal((await call('/__ops/export',{adminAuth:true,body:{}})).status,409,'backup readTime excludes later progress, so export is refused');
  for(let i=0;i<20;i++){const b=await call('/__ops/backup',{adminAuth:true,body:{}});assert.equal(b.status,200);if(b.data.complete)break;if(i===19)assert.fail('Latest backup did not finish');}
- assert.equal((await call('/__ops/activate',{adminAuth:true,body:{writersStopped:true,freePlanVerified:true}})).status,200);
+ assert.equal((await call('/__ops/activate',{adminAuth:true,body:activation})).status,200);
  const hasWin=()=>announcements.some(p=>p.embeds?.[0]?.title?.includes(casino?'BIG WIN':'MEGA WIN'));
  for(let i=0;i<150&&!hasWin();i++)await delay(100);
  assert.ok(hasWin(),'durable alarm recovers outbox without enqueue hint');

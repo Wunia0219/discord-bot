@@ -2,7 +2,7 @@ import {operationsHealth,alertFingerprint,notificationPayload} from '../cloud/op
 
 const EMPTY=alertFingerprint([]),TIMEOUT=10000,MIN_CHECK_GAP=60000;
 export function monitorSettings(env){
-  if(env.CLOUD_PLAN!=='free'||env.MONITOR_ENABLED!=='true')throw new Error('Monitor is disabled');
+  if(!['free','paid'].includes(env.CLOUD_PLAN)||env.MONITOR_ENABLED!=='true')throw new Error('Monitor is disabled');
   const origin=new URL(env.MONITORED_ORIGIN);
   if(origin.protocol!=='https:'||!/^[-a-z0-9]+\.[-a-z0-9]+\.workers\.dev$/.test(origin.hostname)||origin.pathname!=='/'||origin.port||origin.search||origin.hash||origin.username||origin.password||!/^[a-f0-9]{64}$/i.test(env.MONITORED_TOKEN||''))throw new Error('Monitor configuration required');
   let webhook=null;

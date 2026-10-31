@@ -44,8 +44,23 @@ jobs:
       - run: npm ci
       - run: npm audit --audit-level=high
         if: matrix.suite == 'browser'
+      - name: Cache matching Chromium build
+        if: matrix.suite == 'browser'
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('node_modules/playwright-core/browsers.json') }}
+      # Always run the official installer: it also verifies the locked browser
+      # revision and installs OS libraries that are not part of the cache.
       - run: npx playwright install --with-deps chromium
         if: matrix.suite == 'browser'
+      - name: Cache pinned Firestore emulator
+        if: matrix.suite != 'browser'
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .tools/cloud-firestore-emulator-v*.jar
+          key: firestore-emulator-${{ hashFiles('scripts/admin/setup-firestore-emulator.js') }}
+      # setup rechecks the pinned SHA-256 even on a cache hit.
       - run: npm run firestore:emulator:setup
         if: matrix.suite != 'browser'
       - run: npm run verify:ci -- --suite=${{ matrix.suite }}

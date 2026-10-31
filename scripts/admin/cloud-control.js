@@ -4,7 +4,7 @@ import {parseEnv} from 'node:util';
 import {operationsHealth} from '../../cloud/operations-health.js';
 import {APP_VERSION} from '../../src/version.js';
 const [command,...args]=process.argv.slice(2),flags=new Map();
-for(let i=0;i<args.length;i+=2){if(!['--env','--from','--to','--writers-stopped','--free-plan-verified','--reads','--writes','--allow-paid-usage','--compact'].includes(args[i])||!args[i+1]||flags.has(args[i]))throw new Error('Invalid operator arguments');flags.set(args[i],args[i+1]);}
+for(let i=0;i<args.length;i+=2){if(!['--env','--from','--to','--writers-stopped','--free-plan-verified','--plan-verified','--plan','--reads','--writes','--allow-paid-usage','--compact'].includes(args[i])||!args[i+1]||flags.has(args[i]))throw new Error('Invalid operator arguments');flags.set(args[i],args[i+1]);}
 const need=key=>{const value=flags.get('--'+key);if(!value)throw new Error('Missing --'+key);return value;};
 if(!['status','health','seed','verify','activate','pause','backup','archive','export','quota-limits','quota-notify-only','settlement-policy'].includes(command))throw new Error('Unknown operator command');
 const env=parseEnv(readFileSync(need('env'),'utf8')),origin=new URL(env.CLOUD_ORIGIN);
@@ -26,8 +26,14 @@ if(command==='quota-limits'){
 }
 if(command==='seed')input=JSON.parse(readFileSync(need('from'),'utf8'));
 if(command==='activate'){
-  if(need('writers-stopped')!=='true'||need('free-plan-verified')!=='true')throw new Error('Verify stopped writers and the actual Free subscription first');
-  input={writersStopped:true,freePlanVerified:true};
+  if(need('writers-stopped')!=='true')throw new Error('Verify stopped writers first');
+  if(flags.has('--plan')){
+    const plan=need('plan');if(!['free','paid'].includes(plan)||need('plan-verified')!=='true')throw new Error('Verify the actual account plan first');
+    input={writersStopped:true,planVerified:true,plan};
+  }else{
+    if(need('free-plan-verified')!=='true')throw new Error('Verify the actual Free subscription first');
+    input={writersStopped:true,freePlanVerified:true};
+  }
 }
 // Check the requested destination before releasing ownership. A lost response can
 // be exported again with the same receipt; the cloud writer stays released.

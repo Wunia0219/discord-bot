@@ -14,7 +14,7 @@ Netlify 的建置預覽由根目錄 `netlify.toml` 指定 `NPM_VERSION=12.2.1`�
 | 保留測試 Firestore | 專案 `slot-game-203db`，namespace `jokers-circus-v2-20261024-test`，`APP_ENV=test`；舊服務未刪除，Discord 共用應用程式入口已切正式 |
 | 測試群／頻道 | 群 `760012177326997544`，頻道 `1564243344857632818` |
 | 測試 Worker | `wrangler.jsonc`；私密覆寫為忽略 Git 的 `wrangler.cloud.local.jsonc`，不要用於正式更新 |
-| 執行設定 | `CLOUD_PLAN=free`、`APP_ENV`、`FIRESTORE_PROJECT_ID`、`FIRESTORE_NAMESPACE`、`FIRESTORE_ENDPOINT` |
+| 執行設定 | `CLOUD_PLAN=free|paid`（須核對實際帳戶方案）、`APP_ENV`、`FIRESTORE_PROJECT_ID`、`FIRESTORE_NAMESPACE`、`FIRESTORE_ENDPOINT` |
 | Discord 範圍 | `DISCORD_CLIENT_ID`、`DISCORD_PUBLIC_KEY`、`ALLOWED_GUILD_IDS`、`DISCORD_COMMAND_CHANNEL_IDS`、`ADMIN_ROLE_IDS` |
 | 遊戲限制 | `WEEKLY_CHECKIN_REWARDS`、`ADMIN_GRANT_MAX`、`ADMIN_DAILY_MAX` |
 | Secrets | `DISCORD_CLIENT_SECRET`、`GOOGLE_SERVICE_ACCOUNT_JSON`、`CLOUD_ADMIN_TOKEN`、`CLOUD_ENCRYPTION_KEY`、`CLOUD_MONITOR_TOKEN`；正式公告使用 `DISCORD_BOT_TOKEN`，舊 Webhook 模式使用 `DISCORD_HIGHLIGHTS_WEBHOOK_URL` |
@@ -26,6 +26,8 @@ Netlify 的建置預覽由根目錄 `netlify.toml` 指定 `NPM_VERSION=12.2.1`�
 Cloudflare 於 2026-10-30 將 Durable Object 更新預設改為最多延後 300 秒；Worker 發布成功不表示正在執行的 DO 已切換。緊急修正需立即呼叫新增管理入口時，可對已驗證版本使用 `wrangler versions deploy <VERSION_ID>@100 --config wrangler.production.local.jsonc --durable-objects-code-update-mode immediate --yes`，監控同理使用它自己的設定及版本。這只覆寫該次部署的更新策略；持久資料不清空，未確認操作仍沿原 request ID 恢復。套用後核對實際狀態欄位、`/readyz`、來源版本與原綁定，不能僅以 CLI 成功判定生效。[官方更新策略](https://developers.cloudflare.com/durable-objects/deployments/durable-objects-code-updates/)
 
 ## 用量與容量
+
+1.0.1 的 Cloudflare 費率、實測、Paid 切換前提及 CI 小幅優化見[Cloudflare 費用與優化](cloudflare-costs.md)。
 
 2026-10-31 使用者明確要求：完整使用 Firestore 免費資源、達八成時通知，超過免費額度仍繼續營運，由雇主負擔維護費。正式服採 `notify-only`，不再因讀取、寫入、傳出流量、儲存或公告／備份的內部額度拒絕操作。保留全部既有用量、失敗／未確認操作的原計數、帳本與原請求去重；不重設或折減歷史用量。Cloudflare 主機方案不變。
 
