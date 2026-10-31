@@ -33,6 +33,9 @@ test('each CI suite retains its prerequisites without sharing an emulator or bro
   }
   const workflow=readFileSync('.github/workflows/verify.yml','utf8');
   assert.deepEqual(workflow.match(/suite: \[([^\]]+)\]/)[1].split(',').map(s=>s.trim()),CI_SUITES,'workflow must schedule every suite');
+  assert.match(workflow,/npx playwright install --with-deps chromium/,'cached browsers still run the locked installer and OS dependency checks');
+  assert.match(workflow,/npm run firestore:emulator:setup/,'cached emulator still passes pinned checksum validation');
+  assert.doesNotMatch(workflow,/cache-hit.*(?:!=|==)/,'a cache hit must never skip verification or setup');
 });
 
 test('local full verification retains its coverage and invalid suite selections fail closed',()=>{

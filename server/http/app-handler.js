@@ -212,7 +212,7 @@ export function createActivityHandler({ clientId, clientSecret, publicKey, walle
       const status = error.status || (['ENOENT','ENOTDIR'].includes(error.code) ? 404 : 502);
       const cooldown=status===429&&['SPIN_COOLDOWN','SETTLEMENT_BUSY'].includes(error.code);
       if(cooldown&&!res.headersSent)res.setHeader('Retry-After',String(Math.ceil(error.retryAfterMs/1000)));
-      if (!res.headersSent) json(res, status, { error:error.status ? error.message : status === 404 ? '找不到檔案。' : '暫時無法完成請求，請稍後重試。',...(cooldown?{code:error.code,retryAfterMs:error.retryAfterMs}:{}) });
+      if (!res.headersSent) json(res, status, { error:error.status ? error.message : status === 404 ? '找不到檔案。' : '暫時無法完成請求，請稍後重試。',...(cooldown?{code:error.code,retryAfterMs:error.retryAfterMs}:status===503&&error.code==='FIRESTORE_BUDGET'?{code:error.code}:{}) });
       else res.end();
     }
   };

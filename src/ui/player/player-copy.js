@@ -12,6 +12,7 @@ export function dailyRewardView({ daily = DEFAULT_CHECKIN_REWARDS[0], weeklyChec
 export function playerError(error, { context = 'game', canClaim = false } = {}) {
   const message = String(error?.message || '');
   if (error?.status === 401) return { title: '重新連線就能繼續', message: '登入已過期，請重新開啟遊戲。', reconnect: true };
+  if (error?.status === 503 && error?.code === 'FIRESTORE_BUDGET') return { title: '遊戲暫時休息中', message: '服務使用量已達保護上限，暫時無法操作戲籌。請等候管理員處理，重新開啟遊戲無法解除。' };
   if (/戲籌不足|戲籌不夠/.test(message)) return { title: '戲籌不夠這次下注', message: canClaim ? '可先領今日簽到，或調低下注額。' : '請調低下注額，或明天簽到後再玩。' };
   if (context === 'load') return { title: '遊戲還沒準備好', message: '請重新開啟遊戲；仍無法載入時，試著更新 Discord 或瀏覽器。' };
   if (/私訊|伺服器頻道/.test(message) || error?.status === 403) return { title: '換個入口再試試', message: '請到已開放的群組頻道，重新開啟遊戲。' };

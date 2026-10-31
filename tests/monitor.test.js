@@ -56,8 +56,11 @@ test('backup lateness, stale alarms and invalid quota fail visibly at the docume
   status.mode='paused';assert.ok(operationsHealth(status,{now:START}).alerts.some(a=>a.code==='SERVICE_NOT_ACTIVE'));
 });
 
+test('free and paid account plans keep identical monitor safety checks',()=>{
+  const f=fixture();for(const plan of ['free','paid'])assert.equal(monitorSettings({...f.env,CLOUD_PLAN:plan}).origin.origin,'https://circus.fixture.workers.dev');
+});
 test('disabled or unsafe monitor configuration never contacts a target or notification endpoint',async()=>{
-  for(const change of [{MONITOR_ENABLED:'false'},{CLOUD_PLAN:'paid'},{MONITORED_ORIGIN:'http://127.0.0.1'},{MONITORED_ORIGIN:'https://circus.fixture.workers.dev/other'},{MONITORED_ORIGIN:'https://user:secret@circus.fixture.workers.dev'},{MONITORED_TOKEN:'missing'},{MONITOR_WEBHOOK_URL:'https://untrusted.invalid/token'},{DISCORD_HIGHLIGHTS_WEBHOOK_URL:webhook}]){
+  for(const change of [{MONITOR_ENABLED:'false'},{CLOUD_PLAN:'unknown'},{CLOUD_PLAN:''},{MONITORED_ORIGIN:'http://127.0.0.1'},{MONITORED_ORIGIN:'https://circus.fixture.workers.dev/other'},{MONITORED_ORIGIN:'https://user:secret@circus.fixture.workers.dev'},{MONITORED_TOKEN:'missing'},{MONITOR_WEBHOOK_URL:'https://untrusted.invalid/token'},{DISCORD_HIGHLIGHTS_WEBHOOK_URL:webhook}]){
     const f=fixture();Object.assign(f.env,change);assert.throws(()=>monitorSettings(f.env));assert.deepEqual(await f.create().check(),{configured:false,delivery:'disabled'});assert.equal(f.requests.length,0);
   }
 });
@@ -75,6 +78,14 @@ test('quota percentage changes do not spam while a newly exhausted budget gets a
   await monitor.check();await tick(f,monitor);assert.equal(f.messages.length,1);
   used=90;await tick(f,monitor);assert.equal(f.messages.length,1);
   used=100;await tick(f,monitor);await tick(f,monitor);assert.equal(f.messages.length,2);
+});
+
+test('notification-only quota warns at 80 percent and stays quiet beyond 100 without declaring an outage',async()=>{
+ const f=fixture();let used=79;f.target(()=>{const s=healthy(f.now);s.quota.used.reads=used;s.quota.enforcement='notify-only';return Response.json(s);});
+ let monitor=f.create();await monitor.check();await tick(f,monitor);assert.equal(f.messages.length,0);
+ used=80;await tick(f,monitor);await tick(f,monitor);assert.equal(f.messages.length,1);assert.match(f.messages[0].content,/八成/);
+ for(const value of [99,100,150]){used=value;monitor=f.create();await tick(f,monitor);const result=await tick(f,monitor);assert.equal(f.messages.length,1);assert.deepEqual(result.alerts,[{code:'QUOTA_HIGH',severity:'warning',scope:'global'}]);}
+ used=10;await tick(f,monitor);await tick(f,monitor);assert.equal(f.messages.length,2);assert.match(f.messages[1].content,/恢復/);
 });
 
 test('missing notification destination records confirmed health without sending; later configuration can notify',async()=>{

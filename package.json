@@ -1,6 +1,6 @@
 {
   "name": "luna-arcade-preview",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -84,6 +84,10 @@
     "wrangler": "4.154.0"
   },
   "overrides": {
+    "@google-cloud/firestore-api": {
+      "google-gax": "5.0.4",
+      "gcp-metadata": "8.1.2"
+    },
     "@discord/embedded-app-sdk": {
       "zod": "4.6.7"
     },

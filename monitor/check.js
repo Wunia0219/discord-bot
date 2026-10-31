@@ -1,16 +1,15 @@
 import {operationsHealth,alertFingerprint,notificationPayload} from '../cloud/operations-health.js';
+import {operationsWebhook,postNotification} from './discord.js';
 
 const EMPTY=alertFingerprint([]),TIMEOUT=10000,MIN_CHECK_GAP=60000;
 export function monitorSettings(env){
-  if(env.CLOUD_PLAN!=='free'||env.MONITOR_ENABLED!=='true')throw new Error('Monitor is disabled');
+  if(!['free','paid'].includes(env.CLOUD_PLAN)||env.MONITOR_ENABLED!=='true')throw new Error('Monitor is disabled');
   const origin=new URL(env.MONITORED_ORIGIN);
   if(origin.protocol!=='https:'||!/^[-a-z0-9]+\.[-a-z0-9]+\.workers\.dev$/.test(origin.hostname)||origin.pathname!=='/'||origin.port||origin.search||origin.hash||origin.username||origin.password||!/^[a-f0-9]{64}$/i.test(env.MONITORED_TOKEN||''))throw new Error('Monitor configuration required');
   let webhook=null;
   if(env.MONITOR_WEBHOOK_URL){
-    webhook=new URL(env.MONITOR_WEBHOOK_URL);
-    if(webhook.protocol!=='https:'||webhook.hostname!=='discord.com'||webhook.port||webhook.username||webhook.password||webhook.search||webhook.hash||!/^\/api(?:\/v10)?\/webhooks\/\d{17,20}\/[A-Za-z0-9_-]+$/.test(webhook.pathname))throw new Error('Separate Discord operations webhook required');
+    webhook=operationsWebhook(env.MONITOR_WEBHOOK_URL);
     if(env.DISCORD_HIGHLIGHTS_WEBHOOK_URL)throw new Error('Game announcement credentials must not be configured in the monitor');
-    webhook.searchParams.set('wait','true');
   }
   return {origin,token:env.MONITORED_TOKEN,webhook};
 }
@@ -55,21 +54,8 @@ export class ServiceMonitor {
     if(!settings.webhook){pending.status='unconfigured';return save();}
     if(pending.nextAttempt>now)return save();
     pending.status='sending';pending.at=now;await this.storage.put('monitor-state',state);
-    let response;
-    try{
-      response=await this.fetchImpl(settings.webhook,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(notificationPayload(alerts,now)),redirect:'manual',signal:AbortSignal.timeout(TIMEOUT)});
-      if(response.status===429){
-        const body=await response.json().catch(()=>({})),retry=Number(response.headers.get('retry-after')||body.retry_after);
-        pending.status='retry';pending.nextAttempt=now+Math.ceil((Number.isFinite(retry)&&retry>0?retry:3600)*1000);
-        if(!Number.isSafeInteger(pending.nextAttempt))pending.status='blocked';
-        return save();
-      }
-      if(response.ok){
-        const message=await response.json();if(!/^\d{17,20}$/.test(message.id||''))throw new Error('Unknown message');
-        pending.status='sent';state.notified=fingerprint;
-      }else if(response.status>=400&&response.status<500){pending.status='blocked';}
-      else{pending.status='uncertain';state.notified=fingerprint;}
-    }catch{pending.status='uncertain';state.notified=fingerprint;}
+    Object.assign(pending,await postNotification(settings.webhook,notificationPayload(alerts,now),{fetchImpl:this.fetchImpl,now}));
+    if(['sent','uncertain'].includes(pending.status))state.notified=fingerprint;
     return save();
   }
 }

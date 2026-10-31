@@ -28,7 +28,7 @@ const cloudFetch=(url,options={})=>globalThis.fetch(url,{...options,redirect:opt
 const json=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const apiPaths=new Set(['/healthz','/readyz','/api/token','/api/interactions','/api/wallet','/api/spin','/api/checkin','/api/ledger','/api/rounds','/api/casino-visit']);
 function identity(env){
-  if(env.CLOUD_PLAN!=='free'||!['test','production'].includes(env.APP_ENV)||!/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(env.FIRESTORE_PROJECT_ID||'')||!/^[-a-z0-9]{3,80}$/.test(env.FIRESTORE_NAMESPACE||'')||!env.FIRESTORE_NAMESPACE.endsWith('-'+env.APP_ENV))throw new Error('Cloud identity not configured');
+  if(!['free','paid'].includes(env.CLOUD_PLAN)||!['test','production'].includes(env.APP_ENV)||!/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(env.FIRESTORE_PROJECT_ID||'')||!/^[-a-z0-9]{3,80}$/.test(env.FIRESTORE_NAMESPACE||'')||!env.FIRESTORE_NAMESPACE.endsWith('-'+env.APP_ENV))throw new Error('Cloud identity not configured');
   if(env.LOCAL_WALLET_TEST==='true'||env.FIRESTORE_EMULATOR_HOST)throw new Error('Fixture configuration is not deployable');
   return {projectId:env.FIRESTORE_PROJECT_ID,namespace:env.FIRESTORE_NAMESPACE,environment:env.APP_ENV,schemaVersion:2};
 }
@@ -75,21 +75,35 @@ export class CircusProject extends DurableObject {
     if(!apiPaths.has(url.pathname))return json({error:'找不到此功能。'},404);
     if(!this.ready())return json({error:'帳號戲籌正在維護，請稍後再試。'},503);
     const origin=request.headers.get('origin');if(origin&&origin!==`https://${this.env.DISCORD_CLIENT_ID}.discordsays.com`)return json({error:'不允許的來源。'},403);
-    const run=async()=>{try{const rt=await this.runtime();if(!this.ready())return json({error:'服務正在維護。'},503);return await handleFetch(rt.handler,request);}catch{return json({error:'暫時無法完成請求，請沿用原請求重試。'},503);}};
+    const run=async()=>{try{const rt=await this.runtime();if(!this.ready())return json({error:'服務正在維護。'},503);return await handleFetch(rt.handler,request);}catch(error){return json({error:'暫時無法完成請求，請沿用原請求重試。',...(error?.code==='FIRESTORE_BUDGET'?{code:error.code}:{})},503);}};
     return this.track(run());
   }
   async admin(path,request){
     const settings=identity(this.env);
     if(path==='/__ops/status'&&request.method==='GET'){
       const quota=this.state.get('quota-identity')?this.quota.status():null;
-      if(quota)quota.scopes=Object.fromEntries(['maintenance','highlights'].map(scope=>[scope,{used:this.quota.totals(scope),limits:this.quota.identity().limits[scope]}]));
+      if(quota)quota.scopes=Object.fromEntries(['maintenance','highlights'].map(scope=>[scope,{used:this.quota.totals(scope),limits:this.quota.identity().limits[scope],...(quota.enforcement?{enforcement:quota.enforcement}: {})}]));
       const backup=this.state.get('backup-status'),manifest=this.state.get('backup:'+this.state.get('backup-latest'));
-      const status={version:APP_VERSION,mode:this.state.get('mode')||'unseeded',source:this.state.get('source'),backup:backup?{...backup,...(Number.isSafeInteger(manifest?.bytes)?{bytes:manifest.bytes,limitBytes:manifest.limitBytes,parts:manifest.parts,limitParts:manifest.format===2?BACKUP_MAX_PARTS:200}: {})}:null,alarm:this.state.get('alarm-status'),quota};
+      const status={version:APP_VERSION,cloudPlan:this.env.CLOUD_PLAN,mode:this.state.get('mode')||'unseeded',source:this.state.get('source'),backup:backup?{...backup,...(Number.isSafeInteger(manifest?.bytes)?{bytes:manifest.bytes,limitBytes:manifest.limitBytes,parts:manifest.parts,limitParts:manifest.format===2?BACKUP_MAX_PARTS:200}: {})}:null,alarm:this.state.get('alarm-status'),quota};
       const casino=casinoVisitStatus(this.state.get('casino-visits'));
       if(casino)status.casino=casino;
       return json({...status,operations:operationsHealth(status)});
     }
     if(request.method!=='POST')return json({error:'POST required'},405);
+    if(path==='/__ops/quota-limits'){
+      if(this.quota.identity().projectId!==settings.projectId)throw new Error('Quota identity mismatch');
+      return json(this.quota.raiseDocumentLimits(await body(request,1024)));
+    }
+    if(path==='/__ops/quota-policy'){
+      if(this.quota.identity().projectId!==settings.projectId)throw new Error('Quota identity mismatch');
+      const input=await body(request,1024);if(input.mode!=='notify-only')throw new Error('Unsupported quota policy');
+      return json(this.quota.enableNotificationsOnly(input));
+    }
+    if(path==='/__ops/settlement-policy'){
+      if(this.state.get('mode')!=='active')throw new Error('Active writer required');
+      const input=await body(request,1024);if(typeof input.compactSettlements!=='boolean')throw new Error('Explicit settlement policy required');
+      const r=await this.runtime();return json(await r.store.settlementQueue.run(()=>r.store.settlementPolicy(input.compactSettlements)));
+    }
     if(path==='/__ops/test-reset'){
       if(settings.environment!=='test'||!this.env.TEST_DATA_RESET_ID||this.state.get('mode')!=='paused'||this.active.size)throw new Error('Test reset unavailable');
       const input=await body(request,2*1024**2),vault=new SnapshotVault(this.ctx.storage,this.state,new Sealer(this.env.CLOUD_ENCRYPTION_KEY));
@@ -109,7 +123,8 @@ export class CircusProject extends DurableObject {
     if(path==='/__ops/pause'){if(this.state.get('mode')==='released')throw new Error('Ownership already released');this.state.set('mode','paused');await Promise.allSettled([...this.active]);this.instance?.store.invalidateCache();await this.ctx.storage.deleteAlarm();return json({paused:true,drained:true});}
     if(path==='/__ops/activate'){
       if(this.state.get('mode')!=='paused')throw new Error('Paused ownership required');
-      const input=await body(request,1024);if(input.writersStopped!==true||input.freePlanVerified!==true)throw new Error('Cutover prerequisites');
+      const input=await body(request,1024),planVerified=input.planVerified===true&&input.plan===this.env.CLOUD_PLAN||this.env.CLOUD_PLAN==='free'&&input.freePlanVerified===true;
+      if(input.writersStopped!==true||!planVerified)throw new Error('Cutover prerequisites');
       const r=await this.runtime(),snapshot=r.vault.load(this.state.get('backup-latest')),meta=await r.store.read(r.store.meta);r.store.checkMeta(meta);
       if(meta.nextId!==snapshot.revision||snapshot.upstreamImportFingerprint!==(meta.importFingerprint??null))throw new Error('Source moved since backup');
       for(const w of snapshot.tables.wallets){const actual=await r.store.read(r.store.walletRef(w.guild,w.user));if(!actual||actual.balance!==w.balance||Number(actual.milestone)!==w.milestone||actual.last_spin!==w.last_spin)throw new Error('Wallet mismatch');}

@@ -47,7 +47,7 @@ for(const casino of [false,true])test(`real workerd persists quotas/sessions, Di
    if(u.pathname.endsWith('/messages/@original')&&request.method==='PATCH'){replies.push(await request.json());return MFResponse.json({});}
    throw new Error('Unapproved external request in test');
  }};
- if(casino)Object.assign(config.bindings,{DISCORD_HIGHLIGHTS_WEBHOOK_URL:'',DISCORD_CASINO_ENABLED:'true',DISCORD_CASINO_CHANNEL_ID:'100000000000000006',DISCORD_BOT_TOKEN:'isolated-bot-token-not-real-0000000000'});
+ if(casino)Object.assign(config.bindings,{CLOUD_PLAN:'paid',DISCORD_HIGHLIGHTS_WEBHOOK_URL:'',DISCORD_CASINO_ENABLED:'true',DISCORD_CASINO_CHANNEL_ID:'100000000000000006',DISCORD_BOT_TOKEN:'isolated-bot-token-not-real-0000000000'});
  config.bindings.FIRESTORE_ENDPOINT='https://firestore.asia-east1.rep.googleapis.com';
  const monitorToken=randomBytes(32).toString('hex');config.bindings.CLOUD_MONITOR_TOKEN=monitorToken;
  let mf=new Miniflare(convertV4MiniflareOptions(config));t.after(()=>mf.dispose());const call=async(path,{body,token,adminAuth=false,headers={},method}={})=>{const r=await mf.dispatchFetch('http://localhost'+path,{method:method||(body?'POST':'GET'),headers:{...(body?{'Content-Type':'application/json'}:{}),...(token?{Authorization:'Bearer '+token}:{}),...(adminAuth?{Authorization:'Bearer '+admin}:{}),...headers},...(body?{body:JSON.stringify(body)}:{})});const data=await r.json();return {status:r.status,data};};
@@ -55,11 +55,30 @@ for(const casino of [false,true])test(`real workerd persists quotas/sessions, Di
  assert.equal((await call('/healthz')).data.version,APP_VERSION);
  const monitorHeaders={Authorization:'Bearer '+monitorToken};
  const beforeSeed=await call('/__ops/status',{headers:monitorHeaders});assert.equal(beforeSeed.status,200);assert.equal(beforeSeed.data.mode,'unseeded');assert.equal(beforeSeed.data.operations.ok,false);
- for(const path of ['/__ops/seed','/__ops/pause','/__ops/activate','/__ops/backup','/__ops/archive','/__ops/export','/__ops/verify','/__ops/status'])assert.equal((await call(path,{body:{},headers:monitorHeaders})).status,403,path+' is not authorized by a monitor token');
+ for(const path of ['/__ops/seed','/__ops/pause','/__ops/activate','/__ops/backup','/__ops/archive','/__ops/export','/__ops/verify','/__ops/status','/__ops/quota-limits','/__ops/quota-policy','/__ops/settlement-policy'])assert.equal((await call(path,{body:{},headers:monitorHeaders})).status,403,path+' is not authorized by a monitor token');
  const snapshot=snapshotForCloud(source,'test',{upstreamImportFingerprint:plan.fingerprint}),quota={projectId:settings.projectId,exportedAt:Date.now(),scopes:Object.fromEntries(Object.entries(QUOTA_LIMITS).map(([k,v])=>[k,{limits:{...v},growth:300,usage:[{slot:Math.floor(Date.now()/60000)*60000,reads:37,writes:k==='maintenance'?0:13,egressBytes:3}],documents:[]}]))};
+ if(casino)quota.scopes.global.usage[0].writes=20000;
  const seeded=await call('/__ops/seed',{adminAuth:true,body:{projectId:settings.projectId,namespace,writersStopped:true,snapshot,quota}});assert.equal(seeded.status,200,JSON.stringify(seeded));assert.equal((await call('/__ops/seed',{adminAuth:true,body:{}})).status,409);
  const aggregate=await call('/__ops/status',{headers:monitorHeaders});assert.equal(aggregate.data.version,APP_VERSION);assert.deepEqual(Object.keys(aggregate.data.quota.scopes).sort(),['highlights','maintenance']);assert.equal(aggregate.data.quota.used.reads,37,'private status does not consume Firestore quota');
- assert.equal((await call('/__ops/activate',{adminAuth:true,body:{writersStopped:true,freePlanVerified:true}})).status,200);assert.equal((await call('/readyz')).status,200);
+ assert.equal((await call('/__ops/quota-limits',{body:{reads:50000,writes:20000}})).status,403);
+ assert.equal((await call('/__ops/quota-limits',{adminAuth:true,body:{reads:50000,writes:20001}})).status,409);
+ const raised=await call('/__ops/quota-limits',{adminAuth:true,body:{reads:50000,writes:20000}});
+ assert.equal(raised.status,200);assert.equal(raised.data.limits.writes,20000);assert.deepEqual(raised.data.used,aggregate.data.quota.used);
+ if(casino){
+  assert.equal((await call('/__ops/quota-policy',{body:{mode:'notify-only',allowPaidUsage:true}})).status,403);
+  assert.equal((await call('/__ops/quota-policy',{adminAuth:true,body:{mode:'notify-only'}})).status,409);
+  const policy=await call('/__ops/quota-policy',{adminAuth:true,body:{mode:'notify-only',allowPaidUsage:true}});
+  assert.equal(policy.status,200);assert.equal(policy.data.enforcement,'notify-only');assert.equal(policy.data.used.writes,20000);assert.equal(policy.data.blocked,false);
+ }
+ if(casino)assert.equal((await call('/__ops/activate',{adminAuth:true,body:{writersStopped:true,freePlanVerified:true}})).status,409,'Free-only confirmation cannot activate a Paid deployment');
+ const activation={writersStopped:true,planVerified:true,plan:config.bindings.CLOUD_PLAN};
+ assert.equal((await call('/__ops/activate',{adminAuth:true,body:activation})).status,200);assert.equal((await call('/readyz')).status,200);
+ assert.equal((await call('/__ops/status',{headers:monitorHeaders})).data.cloudPlan,config.bindings.CLOUD_PLAN);
+ if(casino){
+  assert.equal((await call('/__ops/settlement-policy',{body:{compactSettlements:true}})).status,403);
+  assert.equal((await call('/__ops/settlement-policy',{adminAuth:true,body:{}})).status,409);
+  const policy=await call('/__ops/settlement-policy',{adminAuth:true,body:{compactSettlements:true}});assert.equal(policy.status,200,JSON.stringify(policy));assert.equal(policy.data.compactSettlements,true);
+ }
  const login=await call('/api/token',{body:{code:'fixture-code',guildId:guild}});assert.equal(login.status,200,JSON.stringify(login));const token=login.data.session.token;assert.equal((await call('/api/wallet',{token,headers:{origin:'https://untrusted.invalid'}})).status,403);assert.equal((await call('/api/wallet')).status,401);
  assert.equal((await call('/api/wallet',{token})).data.state.balance,snapshot.tables.wallets[0].balance);
  const visitId=randomUUID();
@@ -73,6 +92,8 @@ for(const casino of [false,true])test(`real workerd persists quotas/sessions, Di
  const retry=await call('/api/spin',{token,body:{bet:20,requestId:'runtime-original-spin-0001'}});assert.equal(retry.data.duplicate,true);assert.deepEqual(retry.data.round,JSON.parse(snapshot.tables.rounds[0].data));
  const checkin=await call('/api/checkin',{token,body:{}});assert.equal(checkin.status,200);assert.equal((await call('/api/checkin',{token,body:{}})).data.duplicate,true);
  const spin=await call('/api/spin',{token,body:{bet:20,requestId:'runtime-new-spin-request-0002'},headers:{'x-wallet-view':'compact-v1'}});assert.equal(spin.status,200,JSON.stringify(spin));
+ if(casino)assert.equal(spin.data.round.recordCode,'P000001');
+ if(casino){const current=(await call('/__ops/status',{headers:monitorHeaders})).data;assert.ok(current.quota.used.writes>20000);assert.equal(current.quota.enforcement,'notify-only');assert.equal(current.quota.scopes.highlights.enforcement,'notify-only');assert.deepEqual(current.operations.alerts.filter(alert=>alert.code.startsWith('QUOTA_')),[{code:'QUOTA_HIGH',severity:'warning',scope:'global'}],'quota stays a warning even before the first maintenance alarm has run');}
  const statusWithoutMeasurements=await call('/__ops/status?database=info',{adminAuth:true});assert.equal(statusWithoutMeasurements.status,200);assert.equal('spinTiming' in statusWithoutMeasurements.data,false);assert.equal('database' in statusWithoutMeasurements.data,false);
  if(casino){
    for(let i=0;i<150&&!announcements.some(p=>p.content?.includes('進入賭場'));i++)await delay(100);
@@ -82,6 +103,7 @@ for(const casino of [false,true])test(`real workerd persists quotas/sessions, Di
  const forcedTier=casino?'big':'mega';
  const forced=await sdk.transact(guild,user,{kind:'spin',requestId:randomUUID(),fingerprint:'20',bet:20,outcome:roundFromStops(20,examples[forcedTier].stops),roundId:randomUUID()},{compact:true,profileName:'isolated announcement fixture'});
  await mf.dispose();mf=new Miniflare(convertV4MiniflareOptions(config));const after=await call('/api/wallet',{token});assert.equal(after.status,200,JSON.stringify(after));assert.equal(after.data.state.balance,forced.state.balance);assert.equal((await call('/api/spin',{token,body:{bet:20,requestId:'runtime-new-spin-request-0002'}})).data.duplicate,true);
+ assert.equal((await call('/__ops/status',{headers:monitorHeaders})).data.quota.limits.writes,20000,'explicit limits persist across workerd restart');
  assert.equal((await call('/api/interactions',{body:{type:1}})).status,401);
  const interaction={type:2,id:'100000000000000004',application_id:client,guild_id:guild,token:'fixture-interaction-token',member:{user:{id:user,bot:false},permissions:'0'},data:{name:'戲籌'}},raw=JSON.stringify(interaction),timestamp=String(Math.floor(Date.now()/1000)),signature=sign(null,Buffer.from(timestamp+raw),ed.privateKey).toString('hex');
  const r=await mf.dispatchFetch('http://localhost/api/interactions',{method:'POST',headers:{'x-signature-timestamp':timestamp,'x-signature-ed25519':signature,'Content-Type':'application/json'},body:raw});assert.deepEqual(await r.json(),{type:5,data:{flags:64}});
@@ -92,7 +114,7 @@ for(const casino of [false,true])test(`real workerd persists quotas/sessions, Di
  for(let i=0;i<20;i++){const b=await call('/__ops/backup',{adminAuth:true,body:{}});assert.equal(b.status,200,JSON.stringify(b));if(i===0)await sdk.grant(guild,user,user,7,'concurrent readTime fixture',randomUUID());if(b.data.complete)break;if(i===19)assert.fail('Backup did not finish');}
  assert.equal((await call('/__ops/export',{adminAuth:true,body:{}})).status,409,'backup readTime excludes later progress, so export is refused');
  for(let i=0;i<20;i++){const b=await call('/__ops/backup',{adminAuth:true,body:{}});assert.equal(b.status,200);if(b.data.complete)break;if(i===19)assert.fail('Latest backup did not finish');}
- assert.equal((await call('/__ops/activate',{adminAuth:true,body:{writersStopped:true,freePlanVerified:true}})).status,200);
+ assert.equal((await call('/__ops/activate',{adminAuth:true,body:activation})).status,200);
  const hasWin=()=>announcements.some(p=>p.embeds?.[0]?.title?.includes(casino?'BIG WIN':'MEGA WIN'));
  for(let i=0;i<150&&!hasWin();i++)await delay(100);
  assert.ok(hasWin(),'durable alarm recovers outbox without enqueue hint');

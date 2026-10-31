@@ -13,6 +13,7 @@ import {createWalletClient} from '../src/platform/wallet-client.js';
 import {operationsSettings} from '../server/operations/operations-settings.js';
 import {MaintenanceQuota,performFirestoreMaintenance} from '../server/firestore/backup.js';
 import {checksum} from '../server/recovery/automatic-backup.js';
+import {handleCommand} from '../server/discord/commands.js';
 
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8787');
 const guild='100000000000000001',user='100000000000000002',admin='100000000000000003',other='100000000000000004';
@@ -282,4 +283,53 @@ test('real compact HTTP clients preserve recent history across devices and can l
   assert.equal((await fetch(base+'/api/rounds?limit=10000',{headers:{Authorization:'Bearer test'}})).status,400);
   // Old clients still receive the full snapshot, with no protocol negotiation.
   assert.equal((await (await fetch(base+'/api/wallet',{headers:{Authorization:'Bearer test'}})).json()).state.history.length,100);
+});
+
+test('compact writes retain mixed history, independent codes, cross-day summaries and safe policy rollback',async t=>{
+  const h=await fixture(t),s=h.s;let now=Date.parse('2026-10-30T15:59:50Z');s.clock=()=>now;
+  const legacy=await s.spin(guild,user,20,randomUUID(),compact),oldGrant=await s.grant(guild,admin,user,100,'legacy',randomUUID());
+  await s.settlementPolicy(true);let before=s.quota.status().used.writes;
+  const id=randomUUID(),first=await s.spin(guild,user,20,id,compact);
+  assert.equal((s.quota.status().used.writes-before)/2,4);assert.equal(first.round.recordCode,'P000001');
+  assert.equal((await s.walletRef(guild,user).collection('rounds').doc(first.round.id).get()).exists,false);
+  const grant=await s.grant(guild,admin,user,100,'new',randomUUID());assert.equal(grant.recordCode,'R000001');
+  before=s.quota.status().used.writes;const repeated=await s.spin(guild,user,20,id,compact);assert.deepEqual(repeated.round,first.round);assert.equal(repeated.duplicate,true);assert.equal(s.quota.status().used.writes,before);
+  await assert.rejects(s.spin(guild,user,100,id,compact),{code:'REQUEST_CONFLICT'});
+  for(let i=0;i<102;i++)await s.spin(guild,user,20,randomUUID(),compact);
+  now+=20000;before=s.quota.status().used.writes;await s.spin(guild,user,20,randomUUID(),compact);
+  assert.equal((s.quota.status().used.writes-before)/2,5,'one previous-day flush only');
+  await s.checkin(guild,user,compact);assert.equal((await s.auditSummary(guild,user,1)).game.rounds,1);
+  assert.equal((await s.auditSummary(guild,user,7)).game.rounds,105);assert.equal((await s.auditSummary(guild,user,1)).checkin.days,1);
+  // A backwards day change flushes the newer day, then restores the older total.
+  now-=20000;await assert.rejects(s.spin(guild,user,20,randomUUID(),compact),{code:'SPIN_COOLDOWN'});
+  await s.checkin(guild,user,compact);assert.equal((await s.auditSummary(guild,user,1)).game.rounds,104);
+  now+=20000;await s.spin(guild,user,20,randomUUID(),compact);
+  const reversalId=String((BigInt(Date.now())-1420070400000n)<<22n),base={id:reversalId,guild_id:guild,member:{user:{id:admin},permissions:'8'}};
+  const modal=await handleCommand({...base,type:3,data:{custom_id:`jc|rv|${guild}|${admin}`,values:[grant.recordCode]}},s);
+  assert.equal(modal.type,9);assert.match(modal.data.components[0].label,/R000001/);
+  const submitted=await handleCommand({...base,type:5,data:{custom_id:modal.data.custom_id,components:[{type:18,component:{type:4,custom_id:'reason',value:'correction'}}]}},s);
+  assert.match(submitted.data.embeds[0].description,/對應發放：R000001/);
+  const reversed=await s.reverse(guild,admin,grant.recordCode,'correction',reversalId);assert.equal(reversed.recordCode,'R000002');assert.equal(reversed.referenceCode,'R000001');assert.equal(reversed.duplicate,true);
+  assert.equal((await s.reverse(guild,admin,grant.entry.id,'correction',reversalId)).duplicate,true);
+  await assert.rejects(s.reverse(other,admin,grant.recordCode,'wrong guild',randomUUID()),{code:'GRANT_MISSING'});
+  await assert.rejects(s.reverse(guild,admin,grant.recordCode,'again',randomUUID()),{code:'GRANT_REVERSED'});
+  await s.reverse(guild,admin,oldGrant.entry.id,'legacy correction',randomUUID());
+  await s.settlementPolicy(false);await s.spin(guild,user,20,randomUUID(),compact);s.invalidateCache();
+  const rows=[];let cursor;do{const page=await s.rounds(guild,user,{limit:20,...(cursor?{before:cursor}:{})});rows.push(...page.rows);cursor=page.next;}while(cursor);
+  assert.equal(rows.length,107);assert.equal(new Set(rows.map(r=>r.round.id)).size,107);assert.ok(rows.some(r=>r.round.id===legacy.round.id));
+  const audit=await s.auditHistory(guild,user,{category:'rewards'});assert.equal(audit.rows.find(e=>e.id===grant.entry.id).reversalCode,'R000002');
+  assert.ok((await s.history(guild,user)).every(e=>!Object.hasOwn(e,'recordCode')),'portable ledger stays canonical');
+});
+
+test('compact snapshot restores results and code counters without losing pending daily totals',async t=>{
+  const h=await fixture(t),s=h.s;await s.settlementPolicy(true);await s.checkin(guild,user,compact);
+  const request=randomUUID(),spin=await s.spin(guild,user,20,request,compact),grant=await s.grant(guild,admin,user,100,'reward',randomUUID());
+  const settings=operationsSettings(h.env),maintenance=await h.create(h.settings,{quota:new MaintenanceQuota(settings)},false);
+  const backup=await performFirestoreMaintenance(settings,{store:maintenance,freeBytes:()=>1024**3,forceBackup:true});assert.equal(backup.backup?.verified,true,JSON.stringify(backup));
+  const restored=await h.create({...h.settings,namespace:'compact-restore-'+randomUUID()+'-test'});
+  await importFirestore(restored,firestoreImportPlan(join(settings.directory,backup.backup.file),'test',{version:2}));
+  assert.deepEqual((await restored.spin(guild,user,20,request,compact)).round,spin.round);
+  assert.deepEqual(await restored.auditSummary(guild,user,1),await s.auditSummary(guild,user,1));
+  const reversal=await restored.reverse(guild,admin,grant.recordCode,'restored correction',randomUUID());assert.equal(reversal.recordCode,'R000002');
+  await restored.settlementPolicy(true);assert.equal((await restored.spin(guild,user,20,randomUUID(),compact)).round.recordCode,'P000002');
 });

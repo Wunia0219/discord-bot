@@ -88,7 +88,7 @@ export class FirestoreRest {
   async runTransaction(callback,{maxAttempts=3,readOnly=false}={}){
     for(let attempt=0;attempt<maxAttempts;attempt++){
       const options=readOnly?{readOnly:{}}:{readWrite:{}};
-      const writes=[];let wrote=false,transaction,starting;
+      const writes=[],beforeCommit=[];let wrote=false,transaction,starting;
       const begin=async()=>{
         if(!transaction&&!starting)starting=this.call(this.prefix+':beginTransaction',{options}).then(result=>{transaction=result.transaction;if(!transaction)throw new Error('Missing transaction');});
         if(starting)try{await starting;}finally{starting=null;}
@@ -105,8 +105,8 @@ export class FirestoreRest {
         await begin();return this.batchGet(refs,{transaction});
       };
       const write=(ref,data,create)=>{if(readOnly||this.readOnly)throw new Error('Read-only transport');this.doc(ref.path);wrote=true;writes.push({update:{name:this.prefix+'/'+ref.path,fields:Object.fromEntries(Object.entries(data).map(([k,v])=>[k,encodeValue(v)]))},...(create?{currentDocument:{exists:false}}:{})});};
-      const tx={get:ref=>{if(wrote)throw new Error('Read after write');return ref instanceof Query?begin().then(()=>this.query(ref,{transaction})):read([ref]).then(r=>r[0]);},getAll:(...refs)=>read(refs),set:(r,d)=>write(r,d,false),create:(r,d)=>write(r,d,true),delete:ref=>{if(readOnly||this.readOnly)throw new Error('Read-only transport');this.doc(ref.path);wrote=true;writes.push({delete:this.prefix+'/'+ref.path});}};
-      try{const result=await callback(tx);if(writes.length){await begin();await this.call(this.prefix+':commit',{transaction,writes});}else if(transaction)await this.call(this.prefix+':rollback',{transaction});return result;}
+      const tx={beforeCommit:callback=>beforeCommit.push(callback),get:ref=>{if(wrote)throw new Error('Read after write');return ref instanceof Query?begin().then(()=>this.query(ref,{transaction})):read([ref]).then(r=>r[0]);},getAll:(...refs)=>read(refs),set:(r,d)=>write(r,d,false),create:(r,d)=>write(r,d,true),delete:ref=>{if(readOnly||this.readOnly)throw new Error('Read-only transport');this.doc(ref.path);wrote=true;writes.push({delete:this.prefix+'/'+ref.path});}};
+      try{const result=await callback(tx);if(writes.length){await begin();for(const reserve of beforeCommit)await reserve();await this.call(this.prefix+':commit',{transaction,writes});}else if(transaction)await this.call(this.prefix+':rollback',{transaction});return result;}
       catch(error){if(transaction)try{await this.call(this.prefix+':rollback',{transaction});}catch{}if(error.restStatus==='ABORTED'&&!readOnly&&attempt+1<maxAttempts){await new Promise(resolve=>setTimeout(resolve,50*2**attempt+Math.floor(Math.random()*100)));continue;}throw error;}
     }
   }

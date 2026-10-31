@@ -13,9 +13,54 @@ import {FirestoreQuota} from '../server/firestore/quota.js';
 import {snapshotForCloud,decodeCloudArchive,restoreCloudSnapshot,mergeReturnedQuota} from '../server/recovery/cloud-handoff.js';
 import {FirestoreRest} from '../cloud/firestore-rest.js';
 
+test('explicit notification-only policy preserves usage and permits every scope beyond the free allowance',t=>{
+ const now=Date.now(),f=fixture(t),q=new CloudQuota(f.storage,f.state,{clock:()=>now}),bundle=quotaBundle(now);
+ bundle.scopes.global.usage[0].writes=15000;q.seed(bundle,bundle.projectId);
+ const before=q.export();assert.throws(()=>q.enableNotificationsOnly());
+ assert.throws(()=>q.reserve({writes:2}),{code:'FIRESTORE_BUDGET'});
+ const enabled=q.enableNotificationsOnly({allowPaidUsage:true});assert.equal(enabled.blocked,false);assert.equal(enabled.enforcement,'notify-only');
+ for(const [scope,data] of Object.entries(before.scopes)){
+  const after=q.export().scopes[scope];assert.deepEqual(after.usage,data.usage);assert.deepEqual(after.documents,data.documents);assert.equal(after.growth,data.growth);
+ }
+ const baseline=q.export();q.enableNotificationsOnly({allowPaidUsage:true});assert.deepEqual(q.export(),baseline,'enabling twice must not recount traffic');
+ q.reserve({reads:50001,writes:20001,egressBytes:10*1024**3+1,storageBytes:1024**3+1});
+ const high=new CloudQuota(f.storage,f.state,{scope:'highlights',clock:()=>now});high.reserve({reads:50001,writes:20001});
+ const maintenance=new CloudQuota(f.storage,f.state,{scope:'maintenance',clock:()=>now});maintenance.reserve({reads:50001});
+ assert.equal(q.status().blocked,false);assert.equal(high.status().delivery.blocked,false);assert.equal(maintenance.status().maintenance.blocked,false);
+ assert.equal(q.status().used.writes,55002);assert.equal(q.status().limits.storageBytes,1024**3);
+ assert.throws(()=>maintenance.reserve({writes:1}),'maintenance remains read-only');
+ const reopened=new CloudQuota(f.storage,new CloudState(f.storage),{clock:()=>now});assert.deepEqual(reopened.status(),q.status());
+ const exported=q.export(),other=fixture(t),copy=new CloudQuota(other.storage,other.state,{clock:()=>now});copy.seed(exported,bundle.projectId);assert.deepEqual(copy.status(),q.status());
+ const invalid=structuredClone(exported);delete invalid.scopes.global.monthlyEgress;
+ const empty=fixture(t);assert.throws(()=>new CloudQuota(empty.storage,empty.state,{clock:()=>now}).seed(invalid,bundle.projectId));
+});
+
+test('notification traffic survives daily cleanup and rolls over only at the Pacific calendar month',t=>{
+ let now=Date.parse('2026-10-10T12:00:00Z');const f=fixture(t),q=new CloudQuota(f.storage,f.state,{clock:()=>now});q.seed(quotaBundle(now),'demo-jokers-circus');q.enableNotificationsOnly({allowPaidUsage:true});
+ q.observe(100);const high=new CloudQuota(f.storage,f.state,{scope:'highlights',clock:()=>now});high.observe(50);assert.equal(q.status().used.egressBytes,153);
+ now+=25*3600000;f.storage.sql.exec('DELETE FROM quota_usage WHERE slot<?',now-86460000);
+ assert.equal(q.status().used.reads,0);assert.equal(q.status().used.egressBytes,153);
+ now=Date.parse('2026-11-01T06:59:00Z');q.observe(60);assert.equal(q.status().used.egressBytes,213);
+ now=Date.parse('2026-11-01T07:00:00Z');assert.equal(q.status().used.egressBytes,0);q.observe(20);
+ const restarted=new CloudQuota(f.storage,new CloudState(f.storage),{clock:()=>now});assert.equal(restarted.status().used.egressBytes,20);
+ assert.deepEqual(restarted.export().scopes.global.monthlyEgress,[{month:'2026-10',bytes:213},{month:'2026-11',bytes:20}]);
+});
+
 function fixture(t){const root=resolve('test-results/cloud-unit');mkdirSync(root,{recursive:true});const dir=mkdtempSync(join(root,'case-'));const db=new DatabaseSync(join(dir,'storage.sqlite'));let nested=0;
  const storage={sql:{exec(sql,...args){return db.prepare(sql).all(...args).map(row=>({...row}));}},transactionSync(fn){const id='tx'+nested++;db.exec('SAVEPOINT '+id);try{const result=fn();db.exec('RELEASE '+id);return result;}catch(e){db.exec('ROLLBACK TO '+id);db.exec('RELEASE '+id);throw e;}finally{nested--;}}};t.after(()=>db.close());return {dir,storage,state:new CloudState(storage)};}
 const quotaBundle=(now=Date.now())=>({projectId:'demo-jokers-circus',exportedAt:now,scopes:Object.fromEntries(Object.entries(QUOTA_LIMITS).map(([k,v])=>[k,{limits:{...v},growth:300,usage:[{slot:Math.floor(now/60000)*60000,reads:7,writes:2,egressBytes:3}],documents:[{key:'a'.repeat(64),bytes:300}]}]))});
+test('batched reservations retain all charges and high-water growth with fewer SQL mutations; refusal is atomic',t=>{
+ const now=Date.now(),a=fixture(t),b=fixture(t),qa=new CloudQuota(a.storage,a.state,{clock:()=>now}),qb=new CloudQuota(b.storage,b.state,{clock:()=>now});
+ const bundle=quotaBundle(now);qa.seed(bundle,bundle.projectId);qb.seed(bundle,bundle.projectId);
+ const mutations=f=>{let count=0;const exec=f.storage.sql.exec;f.storage.sql.exec=(sql,...args)=>{if(/^(INSERT|UPDATE)/.test(sql))count++;return exec(sql,...args);};return ()=>count;};
+ const countA=mutations(a),countB=mutations(b),requests=['b','c','d','e'].map(c=>({cost:{writes:2},document:{key:c.repeat(64),bytes:400}}));
+ for(const {cost,document} of requests)qa.reserve(cost,document);qb.reserveBatch(requests);
+ assert.deepEqual(qb.export(),qa.export());assert.equal(countA(),12);assert.equal(countB(),6);
+ const before=qb.export();assert.throws(()=>qb.reserveBatch([...requests,{cost:{writes:15000}}]),{code:'FIRESTORE_BUDGET'});assert.deepEqual(qb.export(),before);
+ qb.reserveBatch([{cost:{writes:2},document:{key:'b'.repeat(64),bytes:500}},{cost:{writes:2},document:{key:'b'.repeat(64),bytes:450}}]);
+ assert.equal(qb.status().used.writes,14);assert.equal(qb.status().used.storageBytes,2000);
+ const sub=new CloudQuota(b.storage,b.state,{scope:'maintenance',clock:()=>now});assert.throws(()=>sub.reserveBatch(requests));assert.deepEqual(qb.status().used.writes,14);
+});
 test('quota checks do not write zero costs; shared caches track subquota charges, rollback and day expiry',t=>{
  const f=fixture(t);let now=Date.now(),writes=0,sums=0;const exec=f.storage.sql.exec;
  f.storage.sql.exec=(sql,...args)=>{if(/^(INSERT|UPDATE|DELETE)/.test(sql))writes++;if(sql.includes('SUM(reads)'))sums++;return exec(sql,...args);};
@@ -28,8 +73,50 @@ test('quota checks do not write zero costs; shared caches track subquota charges
 });
 test('cloud quota carries all three scopes and growth across restart, never bootstraps itself',t=>{const f=fixture(t),q=new CloudQuota(f.storage,f.state);assert.throws(()=>q.reserve({reads:1}));const b=quotaBundle();q.seed(b,b.projectId);q.reserve({reads:6,writes:2},{key:'a'.repeat(64),bytes:350});const restarted=new CloudQuota(f.storage,new CloudState(f.storage));assert.equal(restarted.status().used.reads,13);assert.equal(restarted.status().used.storageBytes,350);assert.throws(()=>restarted.seed(b,b.projectId));assert.deepEqual(restarted.export().scopes.maintenance,b.scopes.maintenance);});
 test('exhausted subquota rolls back global reservation atomically and expired slots do not erase growth',t=>{const f=fixture(t),b=quotaBundle();b.scopes.highlights.limits.reads=8;const q=new CloudQuota(f.storage,f.state);q.seed(b,b.projectId);const sub=new CloudQuota(f.storage,f.state,{scope:'highlights'});assert.throws(()=>sub.reserve({reads:2}),{code:'FIRESTORE_BUDGET'});assert.equal(q.status().used.reads,7);sub.reserve({reads:1});assert.equal(q.status().used.reads,8);const later=new CloudQuota(f.storage,f.state,{clock:()=>Date.now()+86460001});assert.equal(later.status().used.reads,0);assert.equal(later.status().used.storageBytes,300);});
-test('stale handoffs and raised caps cannot enable a cloud writer',t=>{const f=fixture(t),q=new CloudQuota(f.storage,f.state),b=quotaBundle(Date.now()-301000);assert.throws(()=>q.seed(b,b.projectId));b.exportedAt=Date.now();b.scopes.global.limits.reads=40001;assert.throws(()=>q.seed(b,b.projectId));assert.equal(f.state.get('quota-identity'),null);});
+test('stale handoffs and caps above the free ceiling cannot enable a cloud writer',t=>{const f=fixture(t),q=new CloudQuota(f.storage,f.state),b=quotaBundle(Date.now()-301000);assert.throws(()=>q.seed(b,b.projectId));b.exportedAt=Date.now();b.scopes.global.limits.reads=50001;assert.throws(()=>q.seed(b,b.projectId));assert.equal(f.state.get('quota-identity'),null);});
+
+test('explicit free document cap increase restores capacity without resetting any usage or subquota',t=>{
+ const now=Date.now(),f=fixture(t),q=new CloudQuota(f.storage,f.state,{clock:()=>now}),bundle=quotaBundle(now);
+ bundle.scopes.global.usage[0].writes=15000;q.seed(bundle,bundle.projectId);
+ const before=q.export();assert.equal(q.status().blocked,true);
+ assert.throws(()=>q.reserve({writes:2}),{code:'FIRESTORE_BUDGET'});
+ const result=q.raiseDocumentLimits({reads:50000,writes:20000});
+ assert.equal(result.blocked,false);assert.equal(result.previous.writes,15000);assert.equal(result.used.writes,15000);
+ for(const [scope,value] of Object.entries(before.scopes)){
+   const after=q.export().scopes[scope];
+   assert.deepEqual(after.usage,value.usage);assert.deepEqual(after.documents,value.documents);assert.equal(after.growth,value.growth);
+   if(scope!=='global')assert.deepEqual(after.limits,value.limits);
+ }
+ const reopened=new CloudQuota(f.storage,new CloudState(f.storage),{clock:()=>now});
+ assert.equal(reopened.status().limits.writes,20000);reopened.reserve({writes:2});assert.equal(reopened.status().used.writes,15002);
+ const raised=reopened.export();
+ for(const invalid of [{reads:50001,writes:20000},{reads:50000,writes:20001},{reads:40000,writes:20000},{reads:50000,writes:20000,storageBytes:999999999},{reads:'50000',writes:20000},{}]){
+   assert.throws(()=>reopened.raiseDocumentLimits(invalid));assert.deepEqual(reopened.export(),raised);
+ }
+ assert.throws(()=>new CloudQuota(f.storage,f.state,{scope:'highlights'}).raiseDocumentLimits({reads:50000,writes:20000}));
+ const imported=fixture(t),copy=new CloudQuota(imported.storage,imported.state,{clock:()=>now});copy.seed(raised,bundle.projectId);
+ assert.deepEqual(copy.status(),reopened.status(),'raised limits and accumulated usage survive a later handoff');
+});
 test('encrypted sessions and login throttling survive object reconstruction',t=>{const f=fixture(t),sealer=new Sealer(randomBytes(32).toString('hex')),sessions=new CloudSessions(f.storage,sealer);sessions.set('abc',{expires:Date.now()+10000,accessToken:'never-plaintext',count:5});assert.ok(!JSON.stringify([...f.storage.sql.exec('SELECT * FROM sessions')]).includes('never-plaintext'));assert.equal(new CloudSessions(f.storage,sealer).get('abc').count,5);assert.throws(()=>new CloudSessions(f.storage,new Sealer('a'.repeat(64))).get('abc'));const limiter=new CloudLoginLimit(f.state);for(let i=0;i<10;i++)limiter.failed();assert.ok(new CloudLoginLimit(new CloudState(f.storage)).take()>0);sessions.prune(Date.now()+11000);assert.equal(sessions.size,0);});
+test('unchanged session saves preserve ciphertext; counters, TTL changes and expiry remain durable',t=>{
+ const f=fixture(t),sealer=new Sealer(randomBytes(32).toString('hex'));let sessions=new CloudSessions(f.storage,sealer);
+ const initial={expires:Date.now()+10000,accessToken:'private-token',count:1,window:1,checked:1};sessions.set('a',initial);
+ const raw=()=>[...f.storage.sql.exec('SELECT * FROM sessions WHERE key=?','a')][0];const before=raw();
+ sessions.set('a',structuredClone(initial));assert.deepEqual(raw(),before);
+ sessions.set('a',{...initial,count:2});assert.notEqual(raw().value,before.value);assert.equal(raw().expires,initial.expires);
+ sessions=new CloudSessions(f.storage,sealer);assert.equal(sessions.get('a').count,2);
+ sessions.set('a',{...initial,count:1,checked:2});assert.equal(sessions.get('a').count,2,'late membership saves cannot roll back the durable rate counter');
+ sessions.set('a',{...sessions.get('a'),expires:initial.expires+10000});assert.equal(raw().expires,initial.expires+10000);
+ sessions.prune(initial.expires+1);assert.equal(sessions.size,1);sessions.prune(initial.expires+10001);assert.equal(sessions.size,0);
+});
+test('persistent authorization retains the 120-request limit across session reconstructions',async t=>{
+ const f=fixture(t),sealer=new Sealer(randomBytes(32).toString('hex')),now=Date.now(),guild='100000000000000001',user='100000000000000002';
+ let sessions=new CloudSessions(f.storage,sealer);const token='a'.repeat(43),key=digest(token);
+ sessions.set(key,{guild,user,expires:now+60000,checked:now,window:now,count:0,accessToken:'private-token'});
+ const service=()=>new WalletService({assertGuild:()=>{}},{sessions,clock:()=>now,fetchImpl:()=>assert.fail('fresh membership must not be fetched')});
+ for(let i=0;i<120;i++){if(i===60)sessions=new CloudSessions(f.storage,sealer);await service().authorize('Bearer '+token);}
+ await assert.rejects(service().authorize('Bearer '+token),{status:429});assert.equal(new CloudSessions(f.storage,sealer).get(key).count,121);
+});
 test('cloud snapshot encryption, full restore, tampering, incomplete history and overwrite refusal',t=>{const f=fixture(t),path=join(f.dir,'source.sqlite'),wallet=new WalletStore({filename:path,environment:'test',guildIds:['100000000000000001']});wallet.checkin('100000000000000001','100000000000000002');wallet.spin('100000000000000001','100000000000000002',20,'cloud-snapshot-spin-0001');wallet.close();const s=snapshotForCloud(path,'test'),key=randomBytes(32).toString('hex'),vault=new SnapshotVault(f.storage,f.state,new Sealer(key));vault.save('first',s);vault.publish('first');const archive=vault.archive('first');assert.deepEqual(decodeCloudArchive(archive,key,'test'),s);const target=join(f.dir,'restored.sqlite');assert.equal(restoreCloudSnapshot(s,target,'test').ok,true);assert.throws(()=>restoreCloudSnapshot(s,target,'test'));const bad=structuredClone(s);bad.tables.operations=[];assert.throws(()=>auditSnapshot(bad,'test'));const altered=structuredClone(archive);altered.chunks[0]=altered.chunks[0].slice(0,-4)+'AAAA';assert.throws(()=>decodeCloudArchive(altered,key,'test'));assert.throws(()=>decodeCloudArchive(archive,key,'production'));});
 test('returning quota preserves unexpected local use and is idempotent without replacing files',t=>{const f=fixture(t),file=join(f.dir,'quota.sqlite'),q=new FirestoreQuota({filename:file,projectId:'demo-jokers-circus'});q.reserve({reads:7,writes:2,egressBytes:3,storageBytes:300});const b=quotaBundle();q.reserve({reads:10});const returned=structuredClone(b);returned.scopes.global.usage[0].reads+=6;returned.scopes.global.growth+=50;const args={base:b,returned,projectId:b.projectId,receiptId:digest('return-1')};assert.equal(mergeReturnedQuota(file,'global',args).applied,true);assert.equal(q.status().used.reads,23);assert.equal(q.status().used.storageBytes,350);assert.equal(mergeReturnedQuota(file,'global',args).alreadyApplied,true);assert.equal(q.status().used.reads,23);q.close();});
 test('REST transport never retries an ambiguous commit; explicit ABORTED is bounded',async()=>{let commits=0,callbacks=0;const transport=new FirestoreRest({projectId:'demo-jokers-circus',namespace:'cloud-test',emulator:'127.0.0.1:8787',fetchImpl:async url=>{if(url.endsWith(':beginTransaction'))return Response.json({transaction:'fixture'});if(url.endsWith(':commit')){commits++;throw new Error('Network lost after commit');}return Response.json({});}});await assert.rejects(transport.runTransaction(tx=>{callbacks++;tx.create(transport.doc('circus_wallet_v1/cloud-test/meta/state'),{json:'{}'});}));assert.equal(commits,1);assert.equal(callbacks,1);transport.fetchImpl=async url=>url.endsWith(':beginTransaction')?Response.json({transaction:'fixture'}):url.endsWith(':commit')?Response.json({error:{status:'ABORTED'}},{status:409}):Response.json({});callbacks=0;await assert.rejects(transport.runTransaction(tx=>{callbacks++;tx.create(transport.doc('circus_wallet_v1/cloud-test/meta/state'),{json:'{}'});},{maxAttempts:2}));assert.equal(callbacks,2);assert.throws(()=>transport.doc('circus_wallet_v1/cloud-test-other/meta/state'));});

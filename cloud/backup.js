@@ -13,7 +13,7 @@ export class CloudBackup {
   // Reserve BEFORE each attempt; a failed/uncertain attempt is never refunded.
   // A subsequent alarm reserves again. Unknown adapters retain the old margin.
   get readAttempts(){return this.store.db instanceof FirestoreRest?1:6;}
-  async read(refs,readTime){this.store.quota.reserve({reads:this.readAttempts*refs.length});const docs=await this.store.db.batchGet(refs,readTime?{readTime}:{});this.store.quota.observe(Buffer.byteLength(JSON.stringify(docs.map(d=>d.data()))));return docs;}
+  async read(refs,readTime){if(!refs.length)return [];this.store.quota.reserve({reads:this.readAttempts*refs.length});const docs=await this.store.db.batchGet(refs,readTime?{readTime}:{});this.store.quota.observe(Buffer.byteLength(JSON.stringify(docs.map(d=>d.data()))));return docs;}
   async start(){
     const latest=this.state.get('backup-latest');if(!latest)throw new Error('Verified backup baseline required');
     const doc=(await this.read([this.store.meta]))[0],meta=unpack(doc);this.store.checkMeta(meta);const baseline=this.vault.manifest(latest);const snapshot=baseline.format===2?baseline.header:this.vault.load(latest);
@@ -34,11 +34,15 @@ export class CloudBackup {
     for(const name of ['ledger','operations','rounds','wallets','highlight_events','highlight_boards'])t[name]=[];
     if(job.phase==='ledger'&&job.cursor<job.target){
       const ids=Array.from({length:Math.min(20,job.target-job.cursor)},(_,i)=>job.cursor+i+1),docs=await this.read(ids.map(id=>s.root.collection('ledger').doc(String(id))),job.readTime),links=[];
-      docs.forEach((doc,i)=>{const e=unpack(doc);if(e.id!==ids[i])throw new Error('Ledger gap');t.ledger.push(e);if(isOpeningKind(e.kind))return;const key=doc.get('operationKey');if(e.kind==='reset'&&key===null)return;if(typeof key!=='string')throw new Error('Missing original retry key');links.push({guild:e.guild,user:e.user,key});});
+      docs.forEach((doc,i)=>{const e=unpack(doc);if(e.id!==ids[i])throw new Error('Ledger gap');t.ledger.push(e);if(isOpeningKind(e.kind))return;const key=doc.get('operationKey');if(e.kind==='reset'&&key===null)return;if(typeof key!=='string')throw new Error('Missing original retry key');links.push({guild:e.guild,user:e.user,key,roundStorage:doc.get('roundStorage')});});
       const ops=await this.read(links.map(o=>s.root.collection('operations').doc(digest(o.guild+'\0'+o.key))),job.readTime),rounds=[];
-      ops.forEach((doc,i)=>{const o=unpack(doc),link=links[i];t.operations.push({guild:link.guild,key:link.key,fingerprint:o.fingerprint,result:JSON.stringify(o.result)});if(link.key.startsWith('spin:'))rounds.push({...link,round:o.result.round});});
-      const original=await this.read(rounds.map(r=>s.walletRef(r.guild,r.user).collection('rounds').doc(r.round.id)),job.readTime);
-      original.forEach((doc,i)=>{const r=rounds[i];if(!isDeepStrictEqual(unpack(doc),r.round))throw new Error('Original round mismatch');t.rounds.push({guild:r.guild,user:r.user,id:r.round.id,data:JSON.stringify(r.round),created:Date.parse(r.round.time)});});job.cursor=ids.at(-1);
+      ops.forEach((doc,i)=>{const o=unpack(doc),link=links[i];t.operations.push({guild:link.guild,key:link.key,fingerprint:o.fingerprint,result:JSON.stringify(o.result)});if(link.key.startsWith('spin:')){
+        if(o.roundStorage!==link.roundStorage||o.roundStorage!==undefined&&o.roundStorage!=='operation-v1')throw new Error('Round storage mismatch');
+        rounds.push({...link,round:o.result.round});}});
+      const legacy=rounds.filter(r=>r.roundStorage!=='operation-v1');
+      const original=await this.read(legacy.map(r=>s.walletRef(r.guild,r.user).collection('rounds').doc(r.round.id)),job.readTime);
+      original.forEach((doc,i)=>{if(!isDeepStrictEqual(unpack(doc),legacy[i].round))throw new Error('Original round mismatch');});
+      for(const r of rounds)t.rounds.push({guild:r.guild,user:r.user,id:r.round.id,data:JSON.stringify(r.round),created:Date.parse(r.round.time)});job.cursor=ids.at(-1);
     }else{
       job.phase='collections';const collections=job.highlights?['wallets','highlightEvents','highlightBoards']:['wallets'];
       const name=collections[job.collection];let query=s.root.collection(name).orderBy('__name__').limit(20);if(job.cursorId)query=query.startAfter(job.cursorId);

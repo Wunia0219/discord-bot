@@ -23,6 +23,17 @@ async function fixture(t, options={}) {
 }
 const post = (body, origin=`https://${id}.discordsays.com`) => ({method:'POST',headers:{'Content-Type':'application/json',Origin:origin},body:JSON.stringify(body)});
 
+test('wallet budget errors preserve only the public budget code for the game client',async t=>{
+ let code='FIRESTORE_BUDGET';
+ const request=await fixture(t,{wallet:{store:{spin:async()=>{throw Object.assign(new Error('服務使用量已達上限'),{status:503,code});}},service:{authorize:async()=>({guild:'1441097301685698703',user:id})}}});
+ const options=post({bet:200,requestId:'11111111-2222-3333-4444-555555555555'});
+ const refused=await request('/api/spin',options);
+ assert.equal(refused.status,503);assert.equal((await refused.json()).code,'FIRESTORE_BUDGET');
+ code='PRIVATE_PROVIDER_DETAIL';
+ const unknown=await request('/api/spin',options);
+ assert.equal(unknown.status,503);assert.equal((await unknown.json()).code,undefined);
+});
+
 test('readiness checks the actual wallet database and stays separate from process liveness',async t=>{
   const disabled=await fixture(t);
   assert.equal((await disabled('/healthz')).status,200);
