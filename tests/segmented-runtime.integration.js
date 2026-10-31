@@ -13,10 +13,15 @@ test('real workerd reduces session and foreground settlement rows without changi
  await build({entryPoints:['tests/fixtures/cloud-cost-worker.js'],bundle:true,format:'esm',platform:'node',external:['cloudflare:workers'],outfile:join(dir,'worker.js'),logLevel:'silent'});
  const mf=new Miniflare(convertV4MiniflareOptions({modules:true,scriptPath:join(dir,'worker.js'),compatibilityDate:'2026-07-30',compatibilityFlags:['nodejs_compat'],durableObjects:{COST:{className:'CloudCostFixture',useSQLite:true}},outboundService:()=>{throw new Error('No external services permitted');}}));t.after(()=>mf.dispose());
  const results={};for(const kind of ['sessions','spins']){
-  const pair={};for(const mode of ['previous','optimized']){const r=await mf.dispatchFetch('http://localhost/'+kind+'/'+mode);assert.equal(r.status,200);pair[mode]=await r.json();}
+  const pair={};for(const mode of kind==='spins'?['previous','current','optimized']:['previous','optimized']){const r=await mf.dispatchFetch('http://localhost/'+kind+'/'+mode);assert.equal(r.status,200);pair[mode]=await r.json();}
   assert.ok(pair.optimized.rowsWritten<pair.previous.rowsWritten);
-  for(const field of ['used','balance','rounds','persistedSession','firestoreReads','firestoreWrites'])assert.deepEqual(pair.optimized[field],pair.previous[field]);
+  for(const field of ['used','balance','rounds','persistedSession','firestoreReads','firestoreWrites','protections'])assert.deepEqual(pair.optimized[field],pair.previous[field]);
   assert.equal(pair.optimized.firestoreWrites,kind==='spins'?400:0);assert.equal(pair.optimized.firestoreReads,kind==='spins'?400:0);
+  if(kind==='spins'){
+   assert.ok(pair.optimized.rowsWritten<pair.current.rowsWritten,'quota layout must save billable rows beyond the released session optimization');
+   for(const field of ['used','balance','rounds','persistedSession','firestoreReads','firestoreWrites','protections'])assert.deepEqual(pair.optimized[field],pair.current[field]);
+   assert.equal(pair.optimized.protections.finalRounds,102);
+  }
   results[kind]=pair;
  }
  writeFileSync('test-results/cloud-cost-report.json',JSON.stringify({realWorkerd:true,results,scope:'100 deterministic compact spins or 100 authorizations with synthetic Firestore REST responses; excludes backups, casino delivery, alarms and production CPU billing'},null,2));
@@ -29,6 +34,19 @@ test('real workerd SQL row accounting drops when identical quota reservations ar
  const single=await (await mf.dispatchFetch('http://localhost/single')).json(),batch=await (await mf.dispatchFetch('http://localhost/batch')).json();
  assert.deepEqual(batch.used,single.used);assert.deepEqual(batch.documents,single.documents);assert.ok(batch.rowsWritten<single.rowsWritten);
  writeFileSync('test-results/quota-rows-report.json',JSON.stringify({realWorkerd:true,single,batch,scope:'Identical four-write quota reservations only; excludes sessions, alarms, backups and actual settlements'},null,2));
+});
+
+test('real workerd upgrades legacy quota history without copying rows and preserves both layouts after eviction',async t=>{
+ const root=resolve('test-results/quota-upgrade');mkdirSync(root,{recursive:true});const dir=mkdtempSync(join(root,'run-'));
+ await build({entryPoints:['tests/fixtures/quota-rows-worker.js'],bundle:true,format:'esm',platform:'node',external:['cloudflare:workers'],outfile:join(dir,'worker.js'),logLevel:'silent'});
+ const config={modules:true,scriptPath:join(dir,'worker.js'),compatibilityDate:'2026-07-30',compatibilityFlags:['nodejs_compat'],durableObjects:{QUOTA:{className:'QuotaRowsFixture',useSQLite:true}},resourcePersistencePath:join(dir,'durable'),outboundService:()=>{throw new Error('No external services permitted');}};
+ let mf=new Miniflare(convertV4MiniflareOptions(config));t.after(()=>mf.dispose());
+ const call=async path=>{const response=await mf.dispatchFetch('http://localhost/upgrade/'+path);assert.equal(response.status,200);return response.json();},scopes=quota=>quota.scopes;
+ const original=await call('legacy');await mf.dispose();mf=new Miniflare(convertV4MiniflareOptions(config));
+ const upgraded=await call('read');assert.equal(upgraded.startupRowsWritten,2,'only the empty table schema is written, regardless of legacy history size');assert.equal(upgraded.rowsWritten,0);assert.deepEqual(scopes(upgraded.quota),scopes(original.quota));
+ const grown=await call('grow');assert.equal(grown.rowsWritten,5);assert.deepEqual(grown.legacy,upgraded.legacy);assert.equal(grown.quota.scopes.global.growth,2000);
+ await mf.dispose();mf=new Miniflare(convertV4MiniflareOptions(config));
+ const reopened=await call('read');assert.equal(reopened.startupRowsWritten,0);assert.equal(reopened.rowsWritten,0);assert.deepEqual(scopes(reopened.quota),scopes(grown.quota));assert.deepEqual(reopened.legacy,upgraded.legacy);
 });
 
 test('real workerd audits and exports over 8MiB without a full-history SQL rewrite',async t=>{
