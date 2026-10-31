@@ -1,10 +1,6 @@
 # 結算儲存與編號
 
-2026-10-31 的優化保留 Firestore v2、原 namespace、原帳本 ID、產品版本 1.0.0 與[停輪基準](reel-timing-baseline.md)。新格式由既有 meta 文件中的 `compactSettlements` 明確啟用；部署相容讀取程式本身不會改寫歷史資料。
-
-正式服已發布相容 Worker `ed978184-955e-46fa-a231-98d29fa87cd6` 並啟用精簡策略；啟用回執的既有帳本 nextId 為 1555，P/R 計數器從此之後的新操作開始，不回編舊資料。監控 Worker 為 `89a2abdf-5e20-4459-a85c-f626563eb33e`。發布後 `/readyz`、靜態資源雜湊、原綁定及監控通知設定均核對通過；額度維持 notify-only，Cloudflare 方案維持 Free。
-
-本機驗證：完整 `verify:ci` 的其他 13 項通過，唯一失敗是新增案例模擬時鐘倒退 20 秒後仍預期能開轉；原 `SPIN_COOLDOWN` 正確拒絕。修正案例為斷言拒絕，再透過簽到驗證回退日期的摘要保存，之後恢復時鐘；`verify:ci -- --suite=wallet` 41／41 通過。另驗證提交前額度拒絕不送出 commit、未知提交保留預留，共 6／6。玩法及正式程式未因該案例調整；原失敗報告與補驗報告均保留於忽略 Git 的 `test-results/db-write-optimization-20261031/`。遠端 CI 未執行，也未拿真實玩家下注測試。
+2026-10-31 已啟用精簡結算，保留 Firestore v2、原 namespace／帳本 ID 與[停輪基準](reel-timing-baseline.md)，現行產品為 1.0.1。策略由原 meta 的 `compactSettlements` 明確控制；部署相容讀取程式不會改寫歷史。啟用時原 nextId 為 1555，P/R 從後續新操作開始，不回編舊資料。發布與驗證紀錄集中於[正式服交付](customer-handoff.md)。
 
 ## 每局文件與交易
 
@@ -55,7 +51,7 @@ Firestore REST 交易在送出 commit 前，一次預留所有寫入額度。文
 
 Firebase 圖片中的 600,000 寫、1,500,000 讀是月試算器對 30 天的換算，不是可任意跨日挪用的免費池。每日 20,000 寫／50,000 讀沒有用完，不會留給隔天。Blaze 已允許超額計費，應用程式維持 notify-only。
 
-[Cloudflare Durable Objects Free](https://developers.cloudflare.com/durable-objects/platform/pricing/) 仍有每日 100,000 SQLite rows written 等平台硬限制；包含索引維護、登入 session、額度記帳、備份及排程，不等於 Firestore 文件寫入數。此優化不會解除供應商硬限制，也沒有更改 Cloudflare 方案。大量遊玩情境若需超額仍服務，須另將該帳戶切換 Workers Paid；[官方 Workers 價格](https://developers.cloudflare.com/workers/platform/pricing/) 為每月 US$5 起，加上超出各項內含量的費用，不能只用本表推算總維護費。
+Cloudflare SQLite 列數包含索引、登入、額度記帳及背景工作，不等於 Firestore 文件數；供應商硬上限及合併成本模型見[Cloudflare 費用](cloudflare-costs.md)。
 
 ## 啟用與回復
 
@@ -67,4 +63,4 @@ node scripts/admin/cloud-control.js settlement-policy --env .env.cloud.productio
 
 此操作只在原 meta 上啟用新寫入策略，不清空、不重新 seed、不更換 namespace，也不降低既有 nextId 或額度。須使用管理員 token；monitor token 只能讀取摘要。
 
-需要回復寫入策略時使用 `--compact false`。相容版本仍會讀取精簡歷史與 pending day，保留已產生的 P/R 計數；新局改回原文件布局。**一旦啟用過精簡寫入，不可直接退回不懂新格式的舊程式版本。** 資料仍在，舊程式卻會漏讀部分歷史或摘要；應回復策略或回復本次已驗證的相容版本。
+需要回復寫入策略時使用 `--compact false`。相容版本仍讀取精簡歷史與 pending day，保留 P/R 計數；新局改回原布局。**啟用過精簡寫入後，不可退回不懂新格式的舊程式。** 最早已發布相容 Worker 為 `ed978184-955e-46fa-a231-98d29fa87cd6`；回復策略或相容版本，避免漏讀歷史與摘要。

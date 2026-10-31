@@ -1,6 +1,6 @@
 # 部署與維運
 
-本機版本以 `package.json` 為準，線上版本須另查 health。正式入口為 `https://jokers-circus-production.nini900219.workers.dev`；Cloudflare Workers Free／SQLite Durable Object 搭配獨立 Firebase、台灣 `asia-east1` Firestore v2。使用者於 2026-10-31 確認正式 Firebase 已啟用 Blaze，並授權超過免費額度後繼續計費營運，應用程式用量改為只告警。已於 2026-10-30 切至正式群 `1503958213454856252`、頻道 `1565731918107115690`，並更新至 1.0.0、啟用 REST Bot 賭場公告。驗證、來源提交與真人驗收範圍見[客戶交付](customer-handoff.md)。
+本機版本以 `package.json` 為準，線上版本另查 health。正式服務使用 Cloudflare Workers／SQLite DO 與台灣 `asia-east1` Firestore v2；使用者已確認 Firebase Blaze 並授權超額營運，Firestore 內部額度只告警。入口、群／頻道、發布版本及驗證紀錄見[正式服交付](customer-handoff.md)。
 
 ## 設定與資料範圍
 
@@ -62,6 +62,8 @@ Activity `/` URL Mapping 指向固定 HTTPS 主機；Interactions Endpoint 為�
 公開 `/healthz` 代表 HTTP 程序存活，`/readyz` 檢查錢包與維運是否可服務；都不輸出玩家或憑證。政策頁為 `/privacy.html`、`/terms.html`；資料查詢、更正或刪除須先核對本人及帳本關聯，不能只刪錢包而留下不一致流水。
 
 ## 獨立監控
+
+Cloudflare 官方用量由外部 GitHub 排程監測；設定、80%／90%／耗盡預估及失敗處理見[Cloudflare 用量預警](monitoring.md)。以下為既有遊戲健康監控，兩者的用量口徑不同。
 
 `jokers-circus-monitor` 已接通[維護頻道](https://discord.com/channels/1441097301685698703/1564187899019141140)，每 10 分鐘 Cron 查正式遊戲私有狀態，已使用新的正式唯讀 token；私密本機監控設定也已同步正式入口。它只有 `MONITORED_TOKEN`、`MONITOR_WEBHOOK_URL`，沒有 Google、遊戲管理或備份金鑰；遊戲的 `CLOUD_MONITOR_TOKEN` 僅允許 GET status。
 

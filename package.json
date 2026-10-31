@@ -84,6 +84,10 @@
     "wrangler": "4.154.0"
   },
   "overrides": {
+    "@google-cloud/firestore-api": {
+      "google-gax": "5.0.4",
+      "gcp-metadata": "8.1.2"
+    },
     "@discord/embedded-app-sdk": {
       "zod": "4.6.7"
     },

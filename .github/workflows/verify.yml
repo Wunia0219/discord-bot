@@ -50,8 +50,7 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('node_modules/playwright-core/browsers.json') }}
-      # Always run the official installer: it also verifies the locked browser
-      # revision and installs OS libraries that are not part of the cache.
+      # Verify the locked browser and install uncached OS dependencies on every run.
       - run: npx playwright install --with-deps chromium
         if: matrix.suite == 'browser'
       - name: Cache pinned Firestore emulator

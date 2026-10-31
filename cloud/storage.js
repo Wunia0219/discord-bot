@@ -18,13 +18,10 @@ export class CloudSessions {
   get(key){const row=[...this.sql.exec('SELECT value FROM sessions WHERE key=?',key)][0];return row?this.sealer.open(row.value,'session:'+key):undefined;}
   set(key,value){
     const previous=this.get(key);
-    // A membership HTTP check may finish after another authorized request. Never
-    // overwrite that newer request's persistent rate-limit window or count.
+    // Delayed membership checks must preserve newer rate-limit counters.
     if(previous?.window>value.window){value.window=previous.window;value.count=previous.count;}
     else if(previous&&previous.window===value.window)value.count=Math.max(previous.count||0,value.count||0);
-    // Ordinary authorization persists its rate counter before continuing, then
-    // saves the same session again. Keep that durable counter; avoid encrypting
-    // and rewriting an identical second save or touching the unchanged TTL index.
+    // Keep the first durable save; skip identical data and unchanged TTL indexes.
     if(previous&&JSON.stringify(previous)===JSON.stringify(value))return;
     const sealed=this.sealer.seal(value,'session:'+key);
     if(previous&&previous.expires===value.expires)this.sql.exec('UPDATE sessions SET value=? WHERE key=?',sealed,key);

@@ -49,12 +49,8 @@
 
 這是費用模型，沒有承諾該流量已完成長期容量驗收。完整備份有 128 MiB 邏輯容量保護及八成通知，6,000 局合成快照約 11.3 MB；高局數長期使用須另做分區／封存。Paid 解除免費每日用量限制，不會解除所有技術及付款限制。完整帳本、稽核、餘額與冷卻保護均保留。
 
-## GitHub 驗證
+## 監測與驗證
 
-[Modify #13](https://github.com/Wunia0219/discord-bot/actions/runs/41100176636) 三組指令約 1:43、1:36、2:15；browser 測試與 post steps 約 17:39 UTC 完成，job 回報 17:47，workflow 更新至 17:58，不能把 22:21 全算成測試執行。
+Cloudflare 真實用量由 GitHub 外部排程查官方 API，80%／90% 與預估提前耗盡時通知維護頻道；需先設定專用 Secrets 並合併 main。啟用方式及限制見[用量預警](monitoring.md)。
 
-- Chromium 快取鍵依安裝後的 Playwright `browsers.json`、OS、架構；產品版本更新不會無故丟棄相同瀏覽器。每次仍跑 installer 和 OS 相依檢查。
-- Firestore JAR 快取依校驗腳本，每次仍檢查固定 SHA-256。
-- 6,000 局合成來源先在記憶體建立，再以 `VACUUM INTO` 保存；後續真實 workerd、加密備份、還原與資料相等檢查保留。
-
-三組隔離、最終 verify gate、負向案例、慢幀與延遲通知均保留。第一次快取會 miss，平台回報延遲也不受本地程式控制；實際遠端改善待新 CI 執行比較。
+CI 快取 Chromium 與 Firestore JAR，每次仍核對瀏覽器版本、OS 相依與固定 SHA-256。6,000 局合成來源改以記憶體建立再 `VACUUM INTO` 保存；真實 workerd、加密備份、還原及資料比對保留。三組隔離、verify gate、負向與慢幀測試均保留；平台排程／回報延遲不在程式控制範圍。操作見[測試文件](testing.md)。

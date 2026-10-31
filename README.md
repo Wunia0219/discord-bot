@@ -1,6 +1,6 @@
 # Joker’s Circus
 
-Discord Activity：5×3 轉輪、243 路，後端負責算獎、戲籌、週簽到及請求去重，各群錢包獨立。產品版本 **1.0.0**，唯一版本來源為 `package.json`；玩法識別碼 `circus-243-v2` 另行維護。
+Discord Activity：5×3 轉輪、243 路，後端負責算獎、戲籌、週簽到及請求去重，各群錢包獨立。產品版本 **1.0.1**，唯一版本來源為 `package.json`；玩法識別碼 `circus-243-v2` 另行維護。
 
 ## 開發與驗證
 
@@ -35,6 +35,7 @@ npm run dev
 |---|---|
 | [架構與檔案分類](docs/architecture.md) | 來源、產物、私密資料、模組邊界與同步契約 |
 | [部署與維運](docs/deployment.md) | 環境、額度、Discord、監控 |
+| [用量預警](docs/monitoring.md) | Cloudflare 官方用量、提前預測與 GitHub 設定 |
 | [備份與恢復](docs/recovery.md) | 加密、驗帳、事故處理與 writer 交接 |
 | [測試](docs/testing.md) | 自動測試、本機入口與人工驗收 |
 | [客戶交付](docs/customer-handoff.md) | 單群範圍與交付條件 |
@@ -45,4 +46,4 @@ npm run dev
 | [數學](docs/game-math.md) | 輪帶、RTP、賠率與驗算 |
 | [素材](docs/assets.md) | 圖集、荷官、聲音與壓縮 |
 
-正式服為 **1.0.0**，使用獨立 Cloudflare Worker／DO 與台灣 `asia-east1` Firestore v2 帳本，提供 BIG／SUPER／MEGA 及出入場公告。雲端為唯一 writer，本機 `FIRESTORE_LIVE_ENABLED=false`。正式配置、部署來源與驗收結果見[客戶交付](docs/customer-handoff.md)；Git 合併／推送與正式部署分開處理。
+正式服使用獨立 Cloudflare Worker／DO 與台灣 `asia-east1` Firestore v2 帳本，雲端為唯一 writer，本機 `FIRESTORE_LIVE_ENABLED=false`。發布版本、來源與驗收結果見[正式服交付](docs/customer-handoff.md)；Git 合併與部署分開處理。

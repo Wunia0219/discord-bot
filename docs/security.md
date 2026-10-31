@@ -31,6 +31,10 @@ Node 使用 `.node-version` 的 24 LTS 安全版本；npm 12 的 `allowScripts` 
 
 Vite 8 的 Rolldown／Oxc 建置保留原 Chrome／Edge 107、Firefox 104、Safari 16 編譯目標；Vite 歸為開發相依，Docker 建置後移除開發工具。Miniflare 版本配合穩定 Wrangler 的官方依賴，即使其標籤帶 beta 也不獨立降回舊 runtime。Undici 保留受維護的 7.x 安全修正版，避免強制替換相依套件未採用的 8.x API。
 
+## Firestore 相依修正
+
+Firestore 的舊 `@google-cloud/firestore-api` 支線以 scoped override 固定 `google-gax=5.0.4`、`gcp-metadata=8.1.2`，均符合原 SDK 的相依範圍。這是 npm audit 建議的不含問題依賴之相容版本，移除引入 `rimraf → glob → minimatch` 的支線；不是將最新版強塞進舊 SDK。Firestore 9.4.0 與其主要 Google API 支線保留。更新 SDK 時須重新核對並移除不再需要的 override；以全新 `npm ci`、稽核及 emulator／REST／備份恢復驗證相容性。[glob 公告](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4)、[minimatch 公告](https://github.com/advisories/GHSA-g3hv-75wg-m249)
+
 ## Discord SDK／Zod 修補
 
 2026-10-28 修補 [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5)。保留官方 SDK **2.5.0**，其外部 Zod 相依透過 scoped override 固定為 **4.6.7**。SDK 的發布檔另內含舊 Zod，不能只靠 override 或零警示宣稱修復。
