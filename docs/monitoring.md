@@ -1,39 +1,39 @@
-# Cloudflare 用量預警
+# 監控與用量
 
-`.github/workflows/cloudflare-usage.yml` 在 GitHub 每 15 分鐘讀取 Cloudflare 官方帳戶彙總，不呼叫玩家 API、不寫入 Firestore／DO。現有每十分鐘的遊戲健康／備份／Firestore 保守估算告警仍由 `jokers-circus-monitor` 負責。
+| 監控 | 執行位置 | 資料與通知 |
+|---|---|---|
+| 遊戲健康 | `jokers-circus-monitor`，每 10 分鐘 | 唯讀 DO 狀態、備份、alarm、Firestore 保守預留；連續兩次異常／恢復才通知 |
+| Cloudflare 用量 | GitHub `cloudflare-usage.yml`，每 15 分鐘 | 官方帳戶彙總；Free 門檻／預測，Paid 每日觀測；API 故障／恢復 |
 
-## 一次設定
+兩者都不下注、不修改帳本。Cloudflare 方案與 Firestore `notify-only` 是不同設定；Firestore 八成提醒不因升級 Workers Paid 而停用。遊戲健康條件見[部署](deployment.md#獨立監控)。
 
-在 [GitHub → Settings → Secrets and variables → Actions](https://github.com/Wunia0219/discord-bot/settings/secrets/actions) 新增：
+## 外部排程設定
+
+在 [GitHub Actions 設定](https://github.com/Wunia0219/discord-bot/settings/secrets/actions) 配置：
 
 | 類型 | 名稱 | 值 |
-| --- | --- | --- |
-| Variable | `CF_ACCOUNT_ID` | 遊戲所屬 Cloudflare Account ID；本機正式 Wrangler 設定的 `account_id` |
-| Secret | `CF_ANALYTICS_TOKEN` | 專用 token：Account → Account Analytics → Read，只允許該帳戶 |
-| Secret | `CF_USAGE_DISCORD_WEBHOOK` | 私人維護頻道 webhook；不要使用公開遊戲公告 webhook |
+|---|---|---|
+| Variable | `CF_ACCOUNT_ID` | 遊戲的 Cloudflare Account ID |
+| Secret | `CF_ANALYTICS_TOKEN` | 該帳戶的 Account Analytics → Read 專用 token |
+| Secret | `CF_USAGE_DISCORD_WEBHOOK` | 私人維護頻道 webhook，勿用遊戲公告頻道 |
 
-[Cloudflare token 設定](https://developers.cloudflare.com/analytics/graphql-api/getting-started/authentication/api-token-auth/)；不得放入 Git、聊天、前端或使用 Wrangler OAuth 代替長期憑證。合併至預設分支 `main` 後，從 **Actions → Cloudflare usage → Run workflow** 手動驗證；正常用量保持安靜，完整表格在該次 run 的 Summary。自動排程只執行預設分支，PR 不執行、不取得 Secrets。
+Workflow 的 `CLOUD_PLAN` 已設 `paid`（2026-10-31 使用者確認）；CLI 必須明確提供 `CLOUD_PLAN=free|paid`，不猜測方案。`node scripts/cloud/cloudflare-usage.js dry-run` 只查詢與輸出摘要，不發通知。憑證不得放入 Git、聊天、前端，亦不可用 Wrangler OAuth 代替長期監控 token。[token 權限](https://developers.cloudflare.com/analytics/graphql-api/getting-started/authentication/api-token-auth/)
 
-## 判斷與通知
+排程只在預設分支執行，PR 不取得 Secrets。合併後用 **Actions → Cloudflare usage → Run workflow** 驗證；正常狀態安靜，表格保存在 run Summary。Secrets 存在不代表內容或權限已驗證。
 
-| 官方指標 | Free 參考線 |
-| --- | ---: |
-| Worker／DO 請求 | 各 100,000／日 |
-| SQLite 讀取／寫入 | 5,000,000／100,000 列／日 |
-| DO 活躍時間 | 13,000 GB-s／日 |
-| SQLite 儲存 | 5 GB（不每日歸零） |
+## Free 與 Paid 判斷
 
-來源：[Workers](https://developers.cloudflare.com/workers/platform/pricing/)、[DO](https://developers.cloudflare.com/durable-objects/platform/pricing/)。統計包含同帳戶的正式、測試、監控及其他應用；請求、SQL 列數與 Firestore 文件數分開計算。
+- **Paid（現行）**：顯示 UTC 當日 Worker／DO 請求、SQL 讀寫、DO 活躍時間與近 24 小時儲存峰值合計；只通知用量 API 故障與恢復，不發 Free 耗盡警示。未量測月累計、Worker CPU 或 GB-month，付費內含量與帳單查 Cloudflare Billing。
+- **Free（相容）**：Worker／DO 各 100,000 次／日，SQL 讀 5,000,000／寫 100,000 列／日，DO 13,000 GB-s／日，儲存 5 GB。80%、90%、100% 各通知一次；最近最多一小時速率預測會在重設前耗盡時提醒，至少觀察 15 分鐘。
+- Free 每日窗口為 UTC 午夜至午夜（台灣 08:00 重設）；儲存不每日歸零，低於 70% 才重新準備提醒。官方值可能延遲，預測不是帳單。
+- 切換 Free → Paid 取消尚未送出的 Free 額度重試；API 故障狀態仍保留。方案變更不能讓結果不明的舊訊息再次送出。
 
-- 每項達 80%、90%、100% 各升級一次；同級不重貼。每日窗口是 UTC 午夜至午夜，台灣 08:00 重設。
-- 最近最多一小時平均速率預估會在重設前用盡時提前提醒，預估兩小時內耗盡再升級；新的一天至少觀察十五分鐘。流量改變或官方指標延遲都會影響預測，不能保證一定提前通知。
-- 儲存以各 namespace 近 24 小時峰值合計作保守參考，並非即時帳單；不每天重發，低於 70% 後才重新準備下一次提醒。
-- API 失敗顯示「用量未知」，故障與恢復各通知一次，不當成零用量。無玩家資料、憑證或 mentions。
+指標含同帳戶所有應用，Firestore 文件數不能替代 SQL 列數。來源：[Workers](https://developers.cloudflare.com/workers/platform/pricing/)、[DO](https://developers.cloudflare.com/durable-objects/platform/pricing/)；價格集中於[費用文件](cloudflare-costs.md)。
 
-通知意圖先保存為 GitHub artifact，成功才 POST；完成狀態再保存，保留 7 天。429 等待後重查當前風險，過時警示取消；逾時／5xx／中斷送出可能已成功，保留 `uncertain`，不盲目重貼。新門檻仍可升級通知。遇到 `blocked`／`uncertain`，先核對維護頻道及 webhook，再決定是否重送；不要刪除狀態附件以強制重送。歷史查詢、狀態缺損或摘要失敗會讓 workflow 失敗，應開啟 GitHub Actions 失敗通知作為備援。
+## 發送與故障處理
 
-公開 repo 的標準 GitHub runner 執行免費；這個工作不安裝 npm 套件，附件只含少量彙總與通知狀態。既有 CI 附件／其他工作仍占 GitHub 儲存配額。[GitHub 計費](https://docs.github.com/en/billing/concepts/product-billing/github-actions)
+`monitor/usage/analytics.js` 查官方 API，`policy.js` 判斷方案，`notifications.js` 維護去重狀態；`monitor/discord.js` 負責發送分類。API 錯誤顯示「用量未知」，不當成零。
 
-GitHub 排程可能延遲，公開 repo 連續 60 天無活動會停用排程；定期確認最後成功時間，避免將它視為保證即時的告警服務。[排程限制](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)
+通知意圖先存 artifact，成功後才 POST，完成狀態再保存（保留 7 天）。429 到期重新查風險；過時提醒取消。逾時／5xx／中斷保存 `uncertain`，不盲目重貼；`blocked`／`uncertain` 須核對頻道及 webhook，勿刪狀態強制重送。歷史或狀態缺損讓 workflow 失敗，應啟用 Actions 失敗通知作備援。
 
-這項監測不建立訂閱、不停用遊戲。目前依 Free 參考線判斷；未啟用 Workers Paid 時，供應商硬上限仍可能中斷操作。日後升級 Paid，這份表仍只是免費線參考，不能代替付費月用量／帳單。方案及成本見[Cloudflare 費用](cloudflare-costs.md)。
+GitHub 排程可能延遲，公開 repo 60 天無活動可停用排程；需確認最近成功時間。[排程限制](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule) 標準公開 runner 與 artifact 儲存分開計算，見 [GitHub 計費](https://docs.github.com/en/billing/concepts/product-billing/github-actions)。

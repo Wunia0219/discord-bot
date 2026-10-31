@@ -7,6 +7,7 @@ import {LocalTestSessions,LOCAL_TEST_PROFILES} from '../testing/local-test-walle
 import {LOCAL_TEST_CASES} from '../testing/local-test-plan.js';
 import {APP_VERSION} from '../../src/version.js';
 import {firestoreHighlightsConfig} from './highlights.js';
+import {walletSettings} from '../wallet/settings.js';
 import {commandChannels} from '../discord/discord-channel-scope.js';
 
 export async function firestoreWalletConfig(env){
@@ -15,12 +16,11 @@ export async function firestoreWalletConfig(env){
   const localTest=env.LOCAL_WALLET_TEST==='true';
   if(localTest&&env.APP_ENV!=='test')throw new Error('Local Firestore testing requires APP_ENV=test');
   if(!localTest)assertDiscordConfiguration(env);
-  const guildIds=localTest?['100000000000000001']:(env.ALLOWED_GUILD_IDS||'').split(',').map(s=>s.trim()).filter(Boolean);
-  const adminRoles=(env.CHIP_ADMIN_ROLE_IDS||'').split(',').map(s=>s.trim()).filter(Boolean);
-  if(adminRoles.some(id=>!/^\d{17,20}$/.test(id)))throw new Error('Invalid CHIP_ADMIN_ROLE_IDS');
+  const {adminRoles,...options}=walletSettings(env);
+  const guildIds=localTest?['100000000000000001']:options.guildIds;
   const settings=firestoreSettings(env);
   if(localTest&&!settings.namespace.endsWith('-qa-test'))throw new Error('Local Firestore fixtures require a separate namespace ending in -qa-test');
-  const store=new FirestoreWalletStore(settings,{guildIds,weeklyRewards:env.WEEKLY_CHECKIN_REWARDS,grantMax:Number(env.ADMIN_GRANT_MAX||100000),grantDaily:Number(env.ADMIN_DAILY_MAX||1000000)});
+  const store=new FirestoreWalletStore(settings,{...options,guildIds});
   let highlights;
   try{
     highlights=firestoreHighlightsConfig(env,store);

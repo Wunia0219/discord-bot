@@ -13,7 +13,7 @@ if(command==='prepare'){
   if(need('writers-stopped')!=='true')throw new Error('Stop all writers first');
   const env=parseEnv(readFileSync(need('env'),'utf8')),s=operationsSettings(env);if(s?.backend!=='firestore'||s.firestore.schemaVersion!==2)throw new Error('Active v2 required');
   if(process.platform==='win32'){
-    const inventory=String.raw`$ErrorActionPreference='Stop'; @(Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object { $_.CommandLine -match 'server[\\/]index\.js|scripts[\\/]admin[\\/](import-firestore|backup-firestore|operations-status|firestore-status)\.js' }).Count`;
+    const inventory=String.raw`$ErrorActionPreference='Stop'; @(Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object { $_.CommandLine -match 'server[\\/]index\.js|scripts[\\/](admin|firestore)[\\/](import-firestore|backup-firestore|operations-status|firestore-status)\.js' }).Count`;
     const found=execFileSync('powershell.exe',['-NoProfile','-Command',inventory],{encoding:'utf8',windowsHide:true}).trim();if(found!=='0')throw new Error('A writer or maintenance process is still running');
   }else throw new Error('Writer inventory for this host requires a reviewed handoff; no implicit override');
   const source=resolve(need('from')),meta=read(source+'.meta.json');if(checksum(source)!==meta.sha256||meta.namespace!==s.firestore.namespace||meta.projectId!==s.firestore.projectId||!Number.isSafeInteger(meta.createdAt)||meta.createdAt>Date.now()+60000||Date.now()-meta.createdAt>300000)throw new Error('Fresh post-stop backup required');

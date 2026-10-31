@@ -1,6 +1,6 @@
 # 結算儲存與編號
 
-2026-10-31 已啟用精簡結算，保留 Firestore v2、原 namespace／帳本 ID 與[停輪基準](reel-timing-baseline.md)，現行產品為 1.0.1。策略由原 meta 的 `compactSettlements` 明確控制；部署相容讀取程式不會改寫歷史。啟用時原 nextId 為 1555，P/R 從後續新操作開始，不回編舊資料。發布與驗證紀錄集中於[正式服交付](customer-handoff.md)。
+2026-10-31 已啟用精簡結算，保留 Firestore v2、原 namespace／帳本 ID 與[停輪基準](reel-timing-baseline.md)，現行產品為 1.0.2。策略由原 meta 的 `compactSettlements` 明確控制；部署相容讀取程式不會改寫歷史。啟用時原 nextId 為 1555，P/R 從後續新操作開始，不回編舊資料。發布與驗證紀錄集中於[正式服交付](customer-handoff.md)。
 
 ## 每局文件與交易
 
@@ -35,7 +35,7 @@ Firestore REST 交易在送出 commit 前，一次預留所有寫入額度。文
 
 文件大小的新紀錄寫入 `quota_document_sizes`（`WITHOUT ROWID`），省去重複主鍵索引。舊 `quota_documents` 留在原處；查詢與匯出對相同 scope／key 取兩表最大值，沿用原成長總額，不重計歷史。升級只建立空表，隔離 workerd 測得一次性 2 列系統寫入，之後重啟為 0；沒有隨歷史筆數增加的搬移成本。匯出格式不變，移入直接使用新表，拒絕覆寫已有紀錄。
 
-相同四份文件、8 單位寫入預留與 1,600 bytes 成長，隔離 workerd 的逐筆／整批處理現為 **13／7 rows written**；先前 rowid 格式為 17／11。完整前景結算比較見[Cloudflare 費用](cloudflare-costs.md)，不能將這個局部比例當成整個遊戲的降幅。
+批次處理與前景 SQL 列數的隔離比較集中於[Cloudflare 費用](cloudflare-costs.md)，不以局部比例推算整體遊戲降幅。
 
 發布後需回退時保留能讀取兩表的 `cloud/quota.js`，或先透過既有停機移交程序匯出合併紀錄，再交回舊服務；不能直接回退只讀舊表的 Worker，否則會重複估算新表紀錄的成長。Firestore 帳本、收據與結算格式不受此表格調整影響。
 
@@ -53,7 +53,7 @@ Firestore REST 交易在送出 commit 前，一次預留所有寫入額度。文
 
 每日費用公式：`max(讀取數−50000,0)×0.0345/100000 + max(寫入數−20000,0)×0.1042/100000`，再乘 30。這是文件讀寫部分，不是整體帳單；不含額外操作、重試、跨日摘要、備份頁面固定成本、儲存及索引、傳出流量、Cloudflare 與稅金。儲存另有 1 GiB 免費，台灣區超額 US$0.1725／GiB 月；實際索引與傳輸量以供應商帳單為準。
 
-Firebase 圖片中的 600,000 寫、1,500,000 讀是月試算器對 30 天的換算，不是可任意跨日挪用的免費池。每日 20,000 寫／50,000 讀沒有用完，不會留給隔天。Blaze 已允許超額計費，應用程式維持 notify-only。
+月試算器的免費讀寫數是每日額度乘天數，不是可跨日挪用的免費池。每日 20,000 寫／50,000 讀沒有用完，不會留給隔天。Blaze 已允許超額計費，應用程式維持 notify-only。
 
 Cloudflare SQLite 列數包含索引、登入、額度記帳及背景工作，不等於 Firestore 文件數；供應商硬上限及合併成本模型見[Cloudflare 費用](cloudflare-costs.md)。
 
@@ -62,7 +62,7 @@ Cloudflare SQLite 列數包含索引、登入、額度記帳及背景工作，�
 先完整驗證並部署具備新舊格式讀取、備份、還原相容性的版本，保留該版本 ID，再執行：
 
 ```powershell
-node scripts/admin/cloud-control.js settlement-policy --env .env.cloud.production.local --compact true
+node scripts/cloud/cloud-control.js settlement-policy --env .env.cloud.production.local --compact true
 ```
 
 此操作只在原 meta 上啟用新寫入策略，不清空、不重新 seed、不更換 namespace，也不降低既有 nextId 或額度。須使用管理員 token；monitor token 只能讀取摘要。

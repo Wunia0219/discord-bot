@@ -6,6 +6,7 @@ import { highlightsConfig } from './discord/highlights.js';
 import { localTestWalletConfig } from './testing/local-test-wallet.js';
 import { assertDatabaseEnvironment } from './sqlite/database.js';
 import { assertDiscordConfiguration } from './discord/discord-config.js';
+import {walletSettings} from './wallet/settings.js';
 import {commandChannels} from './discord/discord-channel-scope.js';
 
 export function walletConfig(env=process.env){
@@ -18,12 +19,10 @@ export function walletConfig(env=process.env){
   assertDatabaseEnvironment(environment);
   assertDiscordConfiguration(env);
   const commandChannelIds=commandChannels(env);
-  const guildIds=(env.ALLOWED_GUILD_IDS||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const {adminRoles,...options}=walletSettings(env);
   const filename=resolve(env.DATABASE_PATH || `data/${environment}.sqlite`);
-  const adminRoles=(env.CHIP_ADMIN_ROLE_IDS||'').split(',').map(s=>s.trim()).filter(Boolean);
-  if(adminRoles.some(id=>!/^\d{17,20}$/.test(id)))throw new Error('Invalid CHIP_ADMIN_ROLE_IDS');
   mkdirSync(dirname(filename),{recursive:true});
-  const store=new WalletStore({filename,environment,guildIds,weeklyRewards:env.WEEKLY_CHECKIN_REWARDS,grantMax:Number(env.ADMIN_GRANT_MAX||100000),grantDaily:Number(env.ADMIN_DAILY_MAX||1000000)});
+  const store=new WalletStore({filename,environment,...options});
   try { return {store,service:new WalletService(store),adminRoles,commandChannelIds,highlights:highlightsConfig(env,store)}; }
   catch(error) { store.close();throw error; }
 }

@@ -175,7 +175,7 @@ test('maintenance tools require an explicit environment and never create a missi
   assert.throws(()=>inspectWalletDatabase(filename,'test'));
   assert.equal(existsSync(filename),false);
   const env={...process.env,APP_ENV:'test',DATABASE_PATH:filename,BACKUP_DIRECTORY:join(directory,'backups')};
-  const run=(script,args=[])=>spawnSync(process.execPath,[`scripts/admin/${script}.js`,...args],{env,encoding:'utf8',timeout:15000});
+  const run=(script,args=[])=>spawnSync(process.execPath,[`scripts/database/${script}.js`,...args],{env,encoding:'utf8',timeout:15000});
   assert.notEqual(run('check-db').status,0);assert.equal(existsSync(filename),false);
   assert.equal(run('init-db').status,0);
   assert.equal(JSON.parse(run('check-db').stdout).ok,true);

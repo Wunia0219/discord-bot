@@ -1,3 +1,4 @@
+import {unpack} from './documents.js';
 import {DatabaseSync} from 'node:sqlite';
 import {isOpeningKind} from '../wallet/wallet-opening.js';
 import {createHash,randomUUID} from 'node:crypto';
@@ -15,7 +16,6 @@ import {assertHighlightEvent,assertHighlightBoard,highlightBoardRecord} from './
 
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const fail=code=>Object.assign(new Error(code),{code});
-const unpack=snapshot=>snapshot.exists?JSON.parse(snapshot.get('json')):null;
 const pageSize=20;
 
 // Both ledgers are persistent and shared by all local workers using this project.

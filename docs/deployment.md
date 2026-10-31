@@ -1,6 +1,6 @@
 # 部署與維運
 
-本機版本以 `package.json` 為準，線上版本另查 health。正式服務使用 Cloudflare Workers／SQLite DO 與台灣 `asia-east1` Firestore v2；使用者已確認 Firebase Blaze 並授權超額營運，Firestore 內部額度只告警。入口、群／頻道、發布版本及驗證紀錄見[正式服交付](customer-handoff.md)。
+本機版本以 `package.json` 為準，線上版本另查 health。正式服務使用 Cloudflare Workers Paid（2026-10-31 使用者確認）／SQLite DO 與台灣 `asia-east1` Firestore v2；使用者已確認 Firebase Blaze 並授權超額營運，Firestore 內部額度只告警。入口、群／頻道、發布版本及驗證紀錄見[正式服交付](customer-handoff.md)。
 
 ## 設定與資料範圍
 
@@ -14,8 +14,8 @@ Netlify 的建置預覽由根目錄 `netlify.toml` 指定 `NPM_VERSION=12.2.1`�
 | 保留測試 Firestore | 專案 `slot-game-203db`，namespace `jokers-circus-v2-20261024-test`，`APP_ENV=test`；舊服務未刪除，Discord 共用應用程式入口已切正式 |
 | 測試群／頻道 | 群 `760012177326997544`，頻道 `1564243344857632818` |
 | 測試 Worker | `wrangler.jsonc`；私密覆寫為忽略 Git 的 `wrangler.cloud.local.jsonc`，不要用於正式更新 |
-| 執行設定 | `CLOUD_PLAN=free|paid`（須核對實際帳戶方案）、`APP_ENV`、`FIRESTORE_PROJECT_ID`、`FIRESTORE_NAMESPACE`、`FIRESTORE_ENDPOINT` |
-| Discord 範圍 | `DISCORD_CLIENT_ID`、`DISCORD_PUBLIC_KEY`、`ALLOWED_GUILD_IDS`、`DISCORD_COMMAND_CHANNEL_IDS`、`ADMIN_ROLE_IDS` |
+| 執行設定 | `CLOUD_PLAN`（`free`／`paid`，核對實際方案）、`APP_ENV`、`FIRESTORE_PROJECT_ID`、`FIRESTORE_NAMESPACE`、`FIRESTORE_ENDPOINT` |
+| Discord 範圍 | `DISCORD_CLIENT_ID`、`DISCORD_PUBLIC_KEY`、`ALLOWED_GUILD_IDS`、`DISCORD_COMMAND_CHANNEL_IDS`、`CHIP_ADMIN_ROLE_IDS`（相容舊 Worker 的 `ADMIN_ROLE_IDS`） |
 | 遊戲限制 | `WEEKLY_CHECKIN_REWARDS`、`ADMIN_GRANT_MAX`、`ADMIN_DAILY_MAX` |
 | Secrets | `DISCORD_CLIENT_SECRET`、`GOOGLE_SERVICE_ACCOUNT_JSON`、`CLOUD_ADMIN_TOKEN`、`CLOUD_ENCRYPTION_KEY`、`CLOUD_MONITOR_TOKEN`；正式公告使用 `DISCORD_BOT_TOKEN`，舊 Webhook 模式使用 `DISCORD_HIGHLIGHTS_WEBHOOK_URL` |
 
@@ -27,16 +27,16 @@ Cloudflare 於 2026-10-30 將 Durable Object 更新預設改為最多延後 300 
 
 ## 用量與容量
 
-1.0.1 的 Cloudflare 費率、實測、Paid 切換前提及 CI 小幅優化見[Cloudflare 費用與優化](cloudflare-costs.md)。
+Cloudflare 費率、方案標記及容量限制見[Cloudflare 費用](cloudflare-costs.md)。設定兩種角色變數時必須一致；有衝突即拒絕啟動，避免部署後更換授權對象。
 
-2026-10-31 使用者明確要求：完整使用 Firestore 免費資源、達八成時通知，超過免費額度仍繼續營運，由雇主負擔維護費。正式服採 `notify-only`，不再因讀取、寫入、傳出流量、儲存或公告／備份的內部額度拒絕操作。保留全部既有用量、失敗／未確認操作的原計數、帳本與原請求去重；不重設或折減歷史用量。Cloudflare 主機方案不變。
+2026-10-31 使用者明確要求：完整使用 Firestore 免費資源、達八成時通知，超過免費額度仍繼續營運，由雇主負擔維護費。正式服採 `notify-only`，不再因讀取、寫入、傳出流量、儲存或公告／備份的內部額度拒絕操作。保留全部既有用量、失敗／未確認操作的原計數、帳本與原請求去重；不重設或折減歷史用量。Cloudflare Workers Paid 與 Firestore Blaze 分別計費，方案升級不重設任何用量。
 
 告警參考線為每日讀取 50,000、寫入 20,000，儲存 1 GiB、每月傳出 10 GiB。維護及公告共用相同參考線，不再套用較低分配額度；維護服務仍保持唯讀。讀寫保留 24 小時滾動估算，傳出流量使用太平洋時間曆月的持久累計，儲存保留原保守估算；這些不能取代供應商用量與帳單。切換時把仍保存的流量觀測帶入月累計，不反推不存在的歷史。月累計不因每日清理、重啟或匯出／移入而遺失。[官方免費額度](https://firebase.google.com/docs/firestore/quotas#free-quota)
 
 只告警模式須在核對正式專案 Blaze 及使用者付費授權後，以管理員明確啟用；監控 token 無權變更。發布程式不會自行解除原有保護。未明確切換的測試／舊服務仍使用原保護上限，`quota-limits` 可在免費上限內提高其讀寫額度。此授權不包含原生付費備份、PITR 或其他新增付費產品。
 
 ```powershell
-node scripts/admin/cloud-control.js quota-notify-only --env .env.cloud.production.local --allow-paid-usage true
+node scripts/cloud/cloud-control.js quota-notify-only --env .env.cloud.production.local --allow-paid-usage true
 ```
 
 正式服超過參考線仍可操作；八成以上持續使用同一警示指紋，不會在 100% 再升級成停服告警。登入、權限、交易完整性、文件／備份實體容量及備份失效的保護仍保留；供應商實際故障或平台硬限制不在應用程式的額度開關控制範圍內。不得用新 namespace、主機或 DO 隱藏用量。
@@ -48,7 +48,7 @@ node scripts/admin/cloud-control.js quota-notify-only --env .env.cloud.productio
 ```powershell
 npm run cloud:control -- health --env .env.cloud.production.local
 npm run cloud:control -- status --env .env.cloud.production.local
-node --env-file=.env.server.production.local scripts/admin/check-discord.js --cloud --discord --public-origin https://jokers-circus-production.nini900219.workers.dev
+node --env-file=.env.server.production.local scripts/discord/check-discord.js --cloud --discord --public-origin https://jokers-circus-production.nini900219.workers.dev
 ```
 
 `status`／`health` 只讀 DO 摘要，不查玩家文件、不觸發備份。`health` 會核對本機版本；未發布分支的版本差異不等於遊戲故障。下載與還原見[備份](recovery.md)。
@@ -63,7 +63,7 @@ Activity `/` URL Mapping 指向固定 HTTPS 主機；Interactions Endpoint 為�
 
 ## 獨立監控
 
-Cloudflare 官方用量由外部 GitHub 排程監測；設定、80%／90%／耗盡預估及失敗處理見[Cloudflare 用量預警](monitoring.md)。以下為既有遊戲健康監控，兩者的用量口徑不同。
+Cloudflare 官方用量由外部 GitHub 排程監測；設定、Free 門檻／Paid 每日觀測及失敗處理見[Cloudflare 用量預警](monitoring.md)。以下為既有遊戲健康監控，兩者的用量口徑不同。
 
 `jokers-circus-monitor` 已接通[維護頻道](https://discord.com/channels/1441097301685698703/1564187899019141140)，每 10 分鐘 Cron 查正式遊戲私有狀態，已使用新的正式唯讀 token；私密本機監控設定也已同步正式入口。它只有 `MONITORED_TOKEN`、`MONITOR_WEBHOOK_URL`，沒有 Google、遊戲管理或備份金鑰；遊戲的 `CLOUD_MONITOR_TOKEN` 僅允許 GET status。
 
