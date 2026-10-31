@@ -1,6 +1,6 @@
 # 部署與維運
 
-本機版本以 `package.json` 為準，線上版本須另查 health。正式入口為 `https://jokers-circus-production.nini900219.workers.dev`；Cloudflare Workers Free／SQLite Durable Object 搭配獨立 Firebase Spark、台灣 `asia-east1` Firestore v2，保留原用量保護。已於 2026-10-30 切至正式群 `1503958213454856252`、頻道 `1565731918107115690`，並更新至 1.0.0、啟用 REST Bot 賭場公告。驗證、來源提交與真人驗收範圍見[客戶交付](customer-handoff.md)。
+本機版本以 `package.json` 為準，線上版本須另查 health。正式入口為 `https://jokers-circus-production.nini900219.workers.dev`；Cloudflare Workers Free／SQLite Durable Object 搭配獨立 Firebase、台灣 `asia-east1` Firestore v2。使用者於 2026-10-31 確認正式 Firebase 已啟用 Blaze，並授權超過免費額度後繼續計費營運，應用程式用量改為只告警。已於 2026-10-30 切至正式群 `1503958213454856252`、頻道 `1565731918107115690`，並更新至 1.0.0、啟用 REST Bot 賭場公告。驗證、來源提交與真人驗收範圍見[客戶交付](customer-handoff.md)。
 
 ## 設定與資料範圍
 
@@ -23,11 +23,21 @@ Netlify 的建置預覽由根目錄 `netlify.toml` 指定 `NPM_VERSION=12.2.1`�
 
 雲端是唯一 writer；本機 `.env.server.local` 的 `FIRESTORE_LIVE_ENABLED=false` 保留。不可為本機測試重開 4188 直連現行帳本，也不能由本機維護工具額外消費另一份額度。writer 轉移見[恢復程序](recovery.md)。
 
+Cloudflare 於 2026-10-30 將 Durable Object 更新預設改為最多延後 300 秒；Worker 發布成功不表示正在執行的 DO 已切換。緊急修正需立即呼叫新增管理入口時，可對已驗證版本使用 `wrangler versions deploy <VERSION_ID>@100 --config wrangler.production.local.jsonc --durable-objects-code-update-mode immediate --yes`，監控同理使用它自己的設定及版本。這只覆寫該次部署的更新策略；持久資料不清空，未確認操作仍沿原 request ID 恢復。套用後核對實際狀態欄位、`/readyz`、來源版本與原綁定，不能僅以 CLI 成功判定生效。[官方更新策略](https://developers.cloudflare.com/durable-objects/deployments/durable-objects-code-updates/)
+
 ## 用量與容量
 
-原保護上限為全專案讀取 40,000、寫入 15,000、維護讀取 6,000、公告讀取 3,000；保留持久歷史計數及滾動視窗。Blaze 不表示已授權提高上限、重設額度、啟用原生付費備份／PITR 或其他付費資源。
+2026-10-31 使用者明確要求：完整使用 Firestore 免費資源、達八成時通知，超過免費額度仍繼續營運，由雇主負擔維護費。正式服採 `notify-only`，不再因讀取、寫入、傳出流量、儲存或公告／備份的內部額度拒絕操作。保留全部既有用量、失敗／未確認操作的原計數、帳本與原請求去重；不重設或折減歷史用量。Cloudflare 主機方案不變。
 
-額度不足時拒絕新操作；不得用新 namespace、主機或 DO 繞過。這些是保守應用程式預算，不是供應商帳單硬上限，其他服務及儲存／索引仍須核對。平台方案與限制以供應商當下設定為準，不假設有試用抵用金。
+告警參考線為每日讀取 50,000、寫入 20,000，儲存 1 GiB、每月傳出 10 GiB。維護及公告共用相同參考線，不再套用較低分配額度；維護服務仍保持唯讀。讀寫保留 24 小時滾動估算，傳出流量使用太平洋時間曆月的持久累計，儲存保留原保守估算；這些不能取代供應商用量與帳單。切換時把仍保存的流量觀測帶入月累計，不反推不存在的歷史。月累計不因每日清理、重啟或匯出／移入而遺失。[官方免費額度](https://firebase.google.com/docs/firestore/quotas#free-quota)
+
+只告警模式須在核對正式專案 Blaze 及使用者付費授權後，以管理員明確啟用；監控 token 無權變更。發布程式不會自行解除原有保護。未明確切換的測試／舊服務仍使用原保護上限，`quota-limits` 可在免費上限內提高其讀寫額度。此授權不包含原生付費備份、PITR 或其他新增付費產品。
+
+```powershell
+node scripts/admin/cloud-control.js quota-notify-only --env .env.cloud.production.local --allow-paid-usage true
+```
+
+正式服超過參考線仍可操作；八成以上持續使用同一警示指紋，不會在 100% 再升級成停服告警。登入、權限、交易完整性、文件／備份實體容量及備份失效的保護仍保留；供應商實際故障或平台硬限制不在應用程式的額度開關控制範圍內。不得用新 namespace、主機或 DO 隱藏用量。
 
 ## 日常操作
 
@@ -57,8 +67,9 @@ Activity `/` URL Mapping 指向固定 HTTPS 主機；Interactions Endpoint 為�
 | 備份缺失／失敗或超過 48 小時 | 嚴重，玩家 API 保護 |
 | 備份超過 26 小時 | 提醒 |
 | alarm 缺失／失敗或超過 30 分鐘 | 嚴重 |
-| 任一額度／備份容量達八成 | 提醒 |
-| 額度耗盡或狀態不明 | 嚴重 |
+| 免費用量參考線達八成／備份容量達八成 | 提醒；用量不攔截遊戲 |
+| 只告警模式超過免費用量參考線 | 維持相同提醒，不停服、不重複推送 |
+| 保護模式額度耗盡或狀態不明 | 嚴重 |
 
 相同告警或恢復連續兩次才通知，正常啟動不發訊息。POST 前保存意圖，429 依重試時間等待；結果不明保留 uncertain，不盲目重貼。內容只含摘要，停用 mentions。監控與遊戲仍共用 Cloudflare，無法保證整個平台故障時告警可送達。
 

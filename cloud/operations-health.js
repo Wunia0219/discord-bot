@@ -27,7 +27,10 @@ export function operationsHealth(status,{now=Date.now()}={}){
       add('QUOTA_UNAVAILABLE','critical',scope);continue;
     }
     quotaPercent[scope]=Object.fromEntries(metrics.map(key=>[key,Math.round(quota.used[key]/quota.limits[key]*1000)/10]));
-    if(quota.blocked===true||metrics.some(key=>quota.used[key]>=quota.limits[key]))add('QUOTA_EXHAUSTED','critical',scope);
+    if(quota.enforcement==='notify-only'){
+      if(metrics.some(key=>quota.used[key]>=quota.limits[key]*.8))add('QUOTA_HIGH','warning',scope);
+    }
+    else if(quota.blocked===true||metrics.some(key=>quota.used[key]>=quota.limits[key]))add('QUOTA_EXHAUSTED','critical',scope);
     else if(metrics.some(key=>quota.used[key]>=quota.limits[key]*.8))add('QUOTA_HIGH','warning',scope);
   }
   alerts.sort((a,b)=>(a.code+':'+(a.scope||'')).localeCompare(b.code+':'+(b.scope||'')));

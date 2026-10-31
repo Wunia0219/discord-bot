@@ -77,6 +77,14 @@ test('quota percentage changes do not spam while a newly exhausted budget gets a
   used=100;await tick(f,monitor);await tick(f,monitor);assert.equal(f.messages.length,2);
 });
 
+test('notification-only quota warns at 80 percent and stays quiet beyond 100 without declaring an outage',async()=>{
+ const f=fixture();let used=79;f.target(()=>{const s=healthy(f.now);s.quota.used.reads=used;s.quota.enforcement='notify-only';return Response.json(s);});
+ let monitor=f.create();await monitor.check();await tick(f,monitor);assert.equal(f.messages.length,0);
+ used=80;await tick(f,monitor);await tick(f,monitor);assert.equal(f.messages.length,1);assert.match(f.messages[0].content,/八成/);
+ for(const value of [99,100,150]){used=value;monitor=f.create();await tick(f,monitor);const result=await tick(f,monitor);assert.equal(f.messages.length,1);assert.deepEqual(result.alerts,[{code:'QUOTA_HIGH',severity:'warning',scope:'global'}]);}
+ used=10;await tick(f,monitor);await tick(f,monitor);assert.equal(f.messages.length,2);assert.match(f.messages[1].content,/恢復/);
+});
+
 test('missing notification destination records confirmed health without sending; later configuration can notify',async()=>{
   const f=fixture();delete f.env.MONITOR_WEBHOOK_URL;f.target(()=>new Response(null,{status:503}));const monitor=f.create();
   await monitor.check();assert.equal((await tick(f,monitor)).delivery,'unconfigured');assert.equal(f.messages.length,0);

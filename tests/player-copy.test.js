@@ -32,3 +32,15 @@ test('ledger labels describe player actions without internal transaction names',
   assert.equal(ledgerLabel({kind:'grant'}),'收到戲籌');
   assert.equal(ledgerLabel({kind:'reversal'}),'戲籌調整');
 });
+
+test('exhausted service budget explains the shared outage across player operations', () => {
+  const error={status:503,code:'FIRESTORE_BUDGET',message:'private-provider-detail'};
+  for(const context of ['game','connect','load','checkin','ledger']){
+    const copy=playerError(error,{context});
+    assert.match(copy.message,/保護上限/);
+    assert.match(copy.message,/重新開啟遊戲無法解除/);
+    assert.doesNotMatch(copy.message,/private-provider|SPIN|再試一次/);
+    assert.equal(copy.reconnect,undefined);
+  }
+  assert.doesNotMatch(playerError({status:503,code:'UNKNOWN'}).message,/保護上限/);
+});

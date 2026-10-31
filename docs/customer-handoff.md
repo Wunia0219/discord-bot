@@ -11,14 +11,32 @@
 | 指令 | `/戲籌`、`/戲籌管理`；管理操作限授權身分 |
 | 資料庫 | Firebase `jokers-circus-production`，Standard Firestore `(default)`，台灣 `asia-east1` |
 | 帳本 namespace | `jokers-circus-v2-20261030-production`，schema v2 |
-| 執行方式 | Cloudflare Free／SQLite DO，Firebase Spark；雲端唯一 writer，本機 `FIRESTORE_LIVE_ENABLED=false` |
+| 執行方式 | Cloudflare Free／SQLite DO，Firebase Blaze（2026-10-31 使用者確認）；雲端唯一 writer，本機 `FIRESTORE_LIVE_ENABLED=false` |
 | 監控 | `jokers-circus-monitor`，每十分鐘；[維護頻道](https://discord.com/channels/1441097301685698703/1564187899019141140) |
 
 Bot 使用 REST 發送 BIG／SUPER／MEGA 及出入場公告，正文僅標記對應玩家，不維持 Gateway 綠燈；遊戲與管理指令採 HTTP interactions。圖文、帳目口徑與用量限制見[賭場公告](casino-announcements.md)。
 
 ## 發布紀錄
 
-2026-10-31 已發布整理版，來源為 `modify` 基底 `3622f50` 加本次工作目錄變更；尚未提交、合併或推送。玩法、停輪、帳本、額度與版本不變。
+### 2026-10-31 額度熱修
+
+正式服因應用程式的 24 小時寫入估算達 15,000／15,000 而持續拒絕下注。使用者明確授權超過免費額度後繼續付費營運，並確認正式 Firebase 已啟用 Blaze。正式服務與公告／備份的額度已切換為 `notify-only`：以完整免費額度作告警參考，八成只通知、超過不攔截，保留全部既有用量、帳本與原 request ID。月流量持久累計，監控維持每十分鐘與原維護頻道，同一警示不重複發送。產品仍為 **1.0.0**，玩法與已驗收停輪不變。
+
+| 項目 | 本次結果 |
+|---|---|
+| 遊戲版本 ID | `c33d471a-8f5b-4ba0-a174-9ccb864f8024`，100% 流量；以官方 immediate 更新策略確認 DO 已生效 |
+| 監控版本 ID | `c3108c26-6d28-48fb-8686-af912a0d7007`，100% 流量；原十分鐘排程與綁定保留 |
+| 本機驗證 | 基礎 `verify:ci` 14/14；最終一般回歸 457 通過、1 項原條件略過；追加服務 CI 組 5/5 通過 |
+| 超額驗證 | 隔離 workerd 在寫入估算超過 20,000 後仍成功結算，重播、冷啟動與備份恢復通過；80% 至 150% 同一警示只通知一次 |
+| 正式核對 | `/readyz` 200、`notify-only`／`blocked:false`、首頁及入口 JS/CSS 符合本次建置；遊戲與監控的原綁定保留 |
+| 套用時用量 | 保留寫入估算 16,460，為免費參考線的 82.3%；維運呈提醒，沒有攔截遊戲 |
+| 來源與遠端 CI | `modify` 基底 `4eabffb` 加本次工作目錄變更；尚未提交、合併、推送或執行本次遠端 CI |
+
+本次證據位於 `test-results/hotfix-20261031/`，發布前程式／設定快照在 `backups/hotfix-quota-20261031/`。初次服務測試把整體維運級別誤當成額度級別，已改成精確比對 `QUOTA_*` 警示，仍會拒絕錯誤的額度耗盡告警；原失敗報告保留，修正後服務全組通過。未建立正式測試下注或發送公開測試通知。服務帳號未獲擴權，Blaze 狀態由使用者在後台確認；應用用量為保守估算，不能取代供應商帳單。操作與告警口徑見[部署與維運](deployment.md)。
+
+### 先前同日整理版
+
+2026-10-31 先前已發布整理版，當時來源為 `modify` 基底 `3622f50` 加工作目錄變更，尚未提交、合併或推送。該次玩法、停輪、帳本、額度與版本不變。
 
 | 項目 | 本次結果 |
 |---|---|

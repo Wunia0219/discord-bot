@@ -14,6 +14,7 @@ export function createWalletClient(session,fetchImpl=fetch,storage=globalThis.se
     let data;try{data=await response.json();}catch{throw new Error('服務回應中斷，請稍後重試。');}
     if(!response.ok){
       const error=new Error(data.error||'服務暫時無法使用。');error.status=response.status;
+      if(response.status===503&&data.code==='FIRESTORE_BUDGET')error.code=data.code;
       if(response.status===429&&['SPIN_COOLDOWN','SETTLEMENT_BUSY'].includes(data.code)&&validDelay(data.retryAfterMs))Object.assign(error,{code:data.code,retryAfterMs:data.retryAfterMs});
       throw error;
     }

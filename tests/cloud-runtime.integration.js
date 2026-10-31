@@ -55,10 +55,21 @@ for(const casino of [false,true])test(`real workerd persists quotas/sessions, Di
  assert.equal((await call('/healthz')).data.version,APP_VERSION);
  const monitorHeaders={Authorization:'Bearer '+monitorToken};
  const beforeSeed=await call('/__ops/status',{headers:monitorHeaders});assert.equal(beforeSeed.status,200);assert.equal(beforeSeed.data.mode,'unseeded');assert.equal(beforeSeed.data.operations.ok,false);
- for(const path of ['/__ops/seed','/__ops/pause','/__ops/activate','/__ops/backup','/__ops/archive','/__ops/export','/__ops/verify','/__ops/status'])assert.equal((await call(path,{body:{},headers:monitorHeaders})).status,403,path+' is not authorized by a monitor token');
+ for(const path of ['/__ops/seed','/__ops/pause','/__ops/activate','/__ops/backup','/__ops/archive','/__ops/export','/__ops/verify','/__ops/status','/__ops/quota-limits','/__ops/quota-policy'])assert.equal((await call(path,{body:{},headers:monitorHeaders})).status,403,path+' is not authorized by a monitor token');
  const snapshot=snapshotForCloud(source,'test',{upstreamImportFingerprint:plan.fingerprint}),quota={projectId:settings.projectId,exportedAt:Date.now(),scopes:Object.fromEntries(Object.entries(QUOTA_LIMITS).map(([k,v])=>[k,{limits:{...v},growth:300,usage:[{slot:Math.floor(Date.now()/60000)*60000,reads:37,writes:k==='maintenance'?0:13,egressBytes:3}],documents:[]}]))};
+ if(casino)quota.scopes.global.usage[0].writes=20000;
  const seeded=await call('/__ops/seed',{adminAuth:true,body:{projectId:settings.projectId,namespace,writersStopped:true,snapshot,quota}});assert.equal(seeded.status,200,JSON.stringify(seeded));assert.equal((await call('/__ops/seed',{adminAuth:true,body:{}})).status,409);
  const aggregate=await call('/__ops/status',{headers:monitorHeaders});assert.equal(aggregate.data.version,APP_VERSION);assert.deepEqual(Object.keys(aggregate.data.quota.scopes).sort(),['highlights','maintenance']);assert.equal(aggregate.data.quota.used.reads,37,'private status does not consume Firestore quota');
+ assert.equal((await call('/__ops/quota-limits',{body:{reads:50000,writes:20000}})).status,403);
+ assert.equal((await call('/__ops/quota-limits',{adminAuth:true,body:{reads:50000,writes:20001}})).status,409);
+ const raised=await call('/__ops/quota-limits',{adminAuth:true,body:{reads:50000,writes:20000}});
+ assert.equal(raised.status,200);assert.equal(raised.data.limits.writes,20000);assert.deepEqual(raised.data.used,aggregate.data.quota.used);
+ if(casino){
+  assert.equal((await call('/__ops/quota-policy',{body:{mode:'notify-only',allowPaidUsage:true}})).status,403);
+  assert.equal((await call('/__ops/quota-policy',{adminAuth:true,body:{mode:'notify-only'}})).status,409);
+  const policy=await call('/__ops/quota-policy',{adminAuth:true,body:{mode:'notify-only',allowPaidUsage:true}});
+  assert.equal(policy.status,200);assert.equal(policy.data.enforcement,'notify-only');assert.equal(policy.data.used.writes,20000);assert.equal(policy.data.blocked,false);
+ }
  assert.equal((await call('/__ops/activate',{adminAuth:true,body:{writersStopped:true,freePlanVerified:true}})).status,200);assert.equal((await call('/readyz')).status,200);
  const login=await call('/api/token',{body:{code:'fixture-code',guildId:guild}});assert.equal(login.status,200,JSON.stringify(login));const token=login.data.session.token;assert.equal((await call('/api/wallet',{token,headers:{origin:'https://untrusted.invalid'}})).status,403);assert.equal((await call('/api/wallet')).status,401);
  assert.equal((await call('/api/wallet',{token})).data.state.balance,snapshot.tables.wallets[0].balance);
@@ -73,6 +84,7 @@ for(const casino of [false,true])test(`real workerd persists quotas/sessions, Di
  const retry=await call('/api/spin',{token,body:{bet:20,requestId:'runtime-original-spin-0001'}});assert.equal(retry.data.duplicate,true);assert.deepEqual(retry.data.round,JSON.parse(snapshot.tables.rounds[0].data));
  const checkin=await call('/api/checkin',{token,body:{}});assert.equal(checkin.status,200);assert.equal((await call('/api/checkin',{token,body:{}})).data.duplicate,true);
  const spin=await call('/api/spin',{token,body:{bet:20,requestId:'runtime-new-spin-request-0002'},headers:{'x-wallet-view':'compact-v1'}});assert.equal(spin.status,200,JSON.stringify(spin));
+ if(casino){const current=(await call('/__ops/status',{headers:monitorHeaders})).data;assert.ok(current.quota.used.writes>20000);assert.equal(current.quota.enforcement,'notify-only');assert.equal(current.quota.scopes.highlights.enforcement,'notify-only');assert.deepEqual(current.operations.alerts.filter(alert=>alert.code.startsWith('QUOTA_')),[{code:'QUOTA_HIGH',severity:'warning',scope:'global'}],'quota stays a warning even before the first maintenance alarm has run');}
  const statusWithoutMeasurements=await call('/__ops/status?database=info',{adminAuth:true});assert.equal(statusWithoutMeasurements.status,200);assert.equal('spinTiming' in statusWithoutMeasurements.data,false);assert.equal('database' in statusWithoutMeasurements.data,false);
  if(casino){
    for(let i=0;i<150&&!announcements.some(p=>p.content?.includes('進入賭場'));i++)await delay(100);
@@ -82,6 +94,7 @@ for(const casino of [false,true])test(`real workerd persists quotas/sessions, Di
  const forcedTier=casino?'big':'mega';
  const forced=await sdk.transact(guild,user,{kind:'spin',requestId:randomUUID(),fingerprint:'20',bet:20,outcome:roundFromStops(20,examples[forcedTier].stops),roundId:randomUUID()},{compact:true,profileName:'isolated announcement fixture'});
  await mf.dispose();mf=new Miniflare(convertV4MiniflareOptions(config));const after=await call('/api/wallet',{token});assert.equal(after.status,200,JSON.stringify(after));assert.equal(after.data.state.balance,forced.state.balance);assert.equal((await call('/api/spin',{token,body:{bet:20,requestId:'runtime-new-spin-request-0002'}})).data.duplicate,true);
+ assert.equal((await call('/__ops/status',{headers:monitorHeaders})).data.quota.limits.writes,20000,'explicit limits persist across workerd restart');
  assert.equal((await call('/api/interactions',{body:{type:1}})).status,401);
  const interaction={type:2,id:'100000000000000004',application_id:client,guild_id:guild,token:'fixture-interaction-token',member:{user:{id:user,bot:false},permissions:'0'},data:{name:'戲籌'}},raw=JSON.stringify(interaction),timestamp=String(Math.floor(Date.now()/1000)),signature=sign(null,Buffer.from(timestamp+raw),ed.privateKey).toString('hex');
  const r=await mf.dispatchFetch('http://localhost/api/interactions',{method:'POST',headers:{'x-signature-timestamp':timestamp,'x-signature-ed25519':signature,'Content-Type':'application/json'},body:raw});assert.deepEqual(await r.json(),{type:5,data:{flags:64}});

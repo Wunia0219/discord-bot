@@ -75,14 +75,14 @@ export class CircusProject extends DurableObject {
     if(!apiPaths.has(url.pathname))return json({error:'找不到此功能。'},404);
     if(!this.ready())return json({error:'帳號戲籌正在維護，請稍後再試。'},503);
     const origin=request.headers.get('origin');if(origin&&origin!==`https://${this.env.DISCORD_CLIENT_ID}.discordsays.com`)return json({error:'不允許的來源。'},403);
-    const run=async()=>{try{const rt=await this.runtime();if(!this.ready())return json({error:'服務正在維護。'},503);return await handleFetch(rt.handler,request);}catch{return json({error:'暫時無法完成請求，請沿用原請求重試。'},503);}};
+    const run=async()=>{try{const rt=await this.runtime();if(!this.ready())return json({error:'服務正在維護。'},503);return await handleFetch(rt.handler,request);}catch(error){return json({error:'暫時無法完成請求，請沿用原請求重試。',...(error?.code==='FIRESTORE_BUDGET'?{code:error.code}:{})},503);}};
     return this.track(run());
   }
   async admin(path,request){
     const settings=identity(this.env);
     if(path==='/__ops/status'&&request.method==='GET'){
       const quota=this.state.get('quota-identity')?this.quota.status():null;
-      if(quota)quota.scopes=Object.fromEntries(['maintenance','highlights'].map(scope=>[scope,{used:this.quota.totals(scope),limits:this.quota.identity().limits[scope]}]));
+      if(quota)quota.scopes=Object.fromEntries(['maintenance','highlights'].map(scope=>[scope,{used:this.quota.totals(scope),limits:this.quota.identity().limits[scope],...(quota.enforcement?{enforcement:quota.enforcement}: {})}]));
       const backup=this.state.get('backup-status'),manifest=this.state.get('backup:'+this.state.get('backup-latest'));
       const status={version:APP_VERSION,mode:this.state.get('mode')||'unseeded',source:this.state.get('source'),backup:backup?{...backup,...(Number.isSafeInteger(manifest?.bytes)?{bytes:manifest.bytes,limitBytes:manifest.limitBytes,parts:manifest.parts,limitParts:manifest.format===2?BACKUP_MAX_PARTS:200}: {})}:null,alarm:this.state.get('alarm-status'),quota};
       const casino=casinoVisitStatus(this.state.get('casino-visits'));
@@ -90,6 +90,15 @@ export class CircusProject extends DurableObject {
       return json({...status,operations:operationsHealth(status)});
     }
     if(request.method!=='POST')return json({error:'POST required'},405);
+    if(path==='/__ops/quota-limits'){
+      if(this.quota.identity().projectId!==settings.projectId)throw new Error('Quota identity mismatch');
+      return json(this.quota.raiseDocumentLimits(await body(request,1024)));
+    }
+    if(path==='/__ops/quota-policy'){
+      if(this.quota.identity().projectId!==settings.projectId)throw new Error('Quota identity mismatch');
+      const input=await body(request,1024);if(input.mode!=='notify-only')throw new Error('Unsupported quota policy');
+      return json(this.quota.enableNotificationsOnly(input));
+    }
     if(path==='/__ops/test-reset'){
       if(settings.environment!=='test'||!this.env.TEST_DATA_RESET_ID||this.state.get('mode')!=='paused'||this.active.size)throw new Error('Test reset unavailable');
       const input=await body(request,2*1024**2),vault=new SnapshotVault(this.ctx.storage,this.state,new Sealer(this.env.CLOUD_ENCRYPTION_KEY));

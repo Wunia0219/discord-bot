@@ -2,6 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWalletClient } from '../src/platform/wallet-client.js';
 
+test('budget refusal reaches the player without retrying or discarding an unconfirmed request',async()=>{
+ const storageData=new Map(),storage={getItem:key=>storageData.get(key),setItem:(key,value)=>storageData.set(key,value),removeItem:key=>storageData.delete(key)};
+ const session={guildId:'guild',userId:'user'};let calls=0,original;
+ const client=createWalletClient(session,async(path,options)=>{
+  calls++;original=JSON.parse(options.body);
+  return Response.json({error:'busy',code:'FIRESTORE_BUDGET'},{status:503});
+ },storage,{wait:()=>assert.fail('budget errors must not retry')});
+ await assert.rejects(client.spin(200),error=>error.status===503&&error.code==='FIRESTORE_BUDGET');
+ assert.equal(calls,1);assert.equal(client.hasPending(),true);
+ const reopened=createWalletClient(session,async(path,options)=>{
+  assert.deepEqual(JSON.parse(options.body),original);return Response.json({round:{id:'recovered'}});
+ },storage);
+ assert.equal((await reopened.spin(20)).round.id,'recovered');assert.equal(reopened.hasPending(),false);
+});
+
 test('a new wallet epoch isolates old pending bets and preserves retries within the new epoch',async()=>{
  const old={bet:100,requestId:'old-request-before-reset'},data=new Map([['kemet-pending:g:u',JSON.stringify(old)]]);
  const storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)};
