@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
+import {existsSync,mkdtempSync,mkdirSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve,sep} from 'node:path';
-import {fetchUsage,parseUsage,prepareUsage,readUsageState,usageQuery,usageRisks,usageSummary,usageWindow} from '../monitor/cloudflare-usage.js';
+import {fetchUsage,parseUsage,usageQuery,usageWindow} from '../monitor/usage/analytics.js';
+import {prepareUsage,readUsageState,usageSummary} from '../monitor/usage/notifications.js';
+import {usageRisks} from '../monitor/usage/policy.js';
 import {operationsWebhook,postNotification} from '../monitor/discord.js';
-import {previousUsageArtifact,runUsageCommand} from '../scripts/admin/cloudflare-usage.js';
+import {previousUsageArtifact,runUsageCommand} from '../scripts/cloud/cloudflare-usage.js';
 
 const HOUR=3600000,NOW=Date.UTC(2026,9,31,12),ACCOUNT='a'.repeat(32);
 const WEBHOOK='https://discord.com/api/webhooks/100000000000000005/isolated-usage-fixture';
@@ -19,6 +21,40 @@ function body({writes=0,hourWrites=0,storage=0}={}){
 }
 const snapshot=(options={},now=NOW)=>parseUsage(body(options),now);
 const sent=result=>({...result.state,pending:result.state.pending?{...result.state.pending,status:'sent'}:null});
+
+test('Paid observations never announce Free daily exhaustion or imply monthly billing coverage',()=>{
+  const data=snapshot({writes:200000,hourWrites:100000,storage:6e9});
+  const result=prepareUsage(undefined,data,{now:NOW,plan:'paid'});
+  assert.equal(result.send,false);
+  assert.ok(result.risks.every(metric=>metric.keys.length===0&&metric.quotaStage===0&&metric.forecastStage===0));
+  assert.match(usageSummary(result),/Paid 每日觀測/);
+  assert.match(usageSummary(result),/未量測月累計/);
+  assert.doesNotMatch(usageSummary(result),/免費參考線|200\.0%|用盡/);
+  assert.throws(()=>prepareUsage(undefined,data,{now:NOW,plan:'pro'}));
+});
+
+test('Free to Paid transition cancels quota retries and preserves API failure and recovery alerts',()=>{
+  const first=prepareUsage(undefined,snapshot({writes:90000}),{now:NOW});
+  const previous={...first.state,pending:{...first.state.pending,status:'retry',nextAttempt:NOW+HOUR}};
+  const paid=prepareUsage(previous,snapshot({writes:120000}),{now:NOW,plan:'paid'});
+  assert.equal(paid.send,false);assert.equal(paid.state.pending,null);assert.deepEqual(paid.state.notified,[]);
+  const failure=prepareUsage(paid.state,null,{now:NOW,plan:'paid'});
+  assert.equal(failure.send,true);assert.deepEqual(failure.state.pending.keys,['api:failure']);
+  assert.match(failure.state.pending.content,/Paid/);
+  const repeated=prepareUsage(sent(failure),null,{now:NOW,plan:'paid'});
+  assert.equal(repeated.send,false);
+  const recovery=prepareUsage(repeated.state,snapshot(),{now:NOW,plan:'paid'});
+  assert.equal(recovery.send,true);assert.deepEqual(recovery.state.pending.keys,['api:recovery']);
+  const oldState={...sent(first)};delete oldState.plan;
+  assert.equal(prepareUsage(oldState,snapshot({writes:120000}),{now:NOW,plan:'paid'}).send,false);
+  assert.throws(()=>readUsageState({...paid.state,plan:'pro'},NOW),/state is invalid/);
+});
+
+test('a plan change never resends an uncertain notification',()=>{
+  const first=prepareUsage(undefined,snapshot({writes:90000}),{now:NOW});
+  const result=prepareUsage(first.state,snapshot({writes:120000}),{now:NOW,plan:'paid'});
+  assert.equal(result.send,false);assert.equal(result.state.pending.status,'uncertain');
+});
 
 test('official query aggregates the entire account without namespace truncation of daily counters',()=>{
   const query=usageQuery(ACCOUNT,NOW);
@@ -181,6 +217,23 @@ test('CLI requires a persisted intent before POST and safely retries an upload t
   }finally{globalThis.fetch=oldFetch;process.chdir(cwd);rmSync(directory,{recursive:true,force:true});}
 });
 
+test('CLI dry-run requires a plan and only reads analytics without persisting or posting notifications',async()=>{
+  const cwd=process.cwd(),directory=mkdtempSync(join(tmpdir(),'circus-usage-')),oldFetch=globalThis.fetch,oldLog=console.log;
+  const prefix=join(tmpdir(),'circus-usage-');
+  assert.ok(resolve(directory).startsWith(resolve(prefix))&&!directory.slice(prefix.length).includes(sep));
+  const requests=[],lines=[];
+  try{
+    process.chdir(directory);console.log=line=>lines.push(line);
+    globalThis.fetch=async(url,options)=>{requests.push({url,method:options.method});return Response.json(body({writes:200000}));};
+    await assert.rejects(runUsageCommand('dry-run',{}),/CLOUD_PLAN/);
+    assert.equal(requests.length,0);
+    await runUsageCommand('dry-run',{CLOUD_PLAN:'paid',CF_ACCOUNT_ID:ACCOUNT,CF_ANALYTICS_TOKEN:'isolated-read-only-token'});
+    assert.deepEqual(requests,[{url:'https://api.cloudflare.com/client/v4/graphql',method:'POST'}]);
+    assert.match(lines.join('\n'),/Paid 每日觀測/);
+    assert.equal(existsSync('test-results/cloudflare-usage/state.json'),false);
+  }finally{globalThis.fetch=oldFetch;console.log=oldLog;process.chdir(cwd);rmSync(directory,{recursive:true,force:true});}
+});
+
 test('workflow keeps monitoring outside Cloudflare, restricts credentials and persists intent before POST',()=>{
   const workflow=readFileSync('.github/workflows/cloudflare-usage.yml','utf8');
   assert.match(workflow,/cron: '7,22,37,52 \* \* \* \*'/);
@@ -188,6 +241,7 @@ test('workflow keeps monitoring outside Cloudflare, restricts credentials and pe
   assert.match(workflow,/cancel-in-progress: false/);assert.match(workflow,/persist-credentials: false/);
   assert.match(workflow,/digest-mismatch: error/);assert.match(workflow,/vars.CF_ACCOUNT_ID/);
   assert.match(workflow,/secrets.CF_ANALYTICS_TOKEN/);assert.match(workflow,/steps.intent.outputs.artifact-id/);
+  assert.match(workflow,/CLOUD_PLAN: paid/);
   assert.ok(workflow.indexOf('Persist intent before Discord POST')<workflow.indexOf('Notify maintenance channel'));
   assert.ok([...workflow.matchAll(/uses: ([^\s]+)/g)].every(match=>/@[a-f0-9]{40}$/.test(match[1])));
 });

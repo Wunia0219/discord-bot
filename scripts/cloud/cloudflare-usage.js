@@ -1,6 +1,8 @@
+import {cloudPlan} from '../../cloud/plan.js';
 import {appendFileSync,existsSync,mkdirSync,readFileSync,renameSync,statSync,writeFileSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
-import {fetchUsage,prepareUsage,readUsageState,usageSummary} from '../../monitor/cloudflare-usage.js';
+import {fetchUsage} from '../../monitor/usage/analytics.js';
+import {prepareUsage,readUsageState,usageSummary} from '../../monitor/usage/notifications.js';
 import {operationsWebhook,postNotification} from '../../monitor/discord.js';
 
 const DIRECTORY='test-results/cloudflare-usage',WORKFLOW='cloudflare-usage.yml';
@@ -55,12 +57,13 @@ export async function runUsageCommand(command,env=process.env){
     if(command==='prepare')operationsWebhook(env.CF_USAGE_DISCORD_WEBHOOK);
     const input=`${DIRECTORY}/previous/state.json`;
     if(env.CF_USAGE_RESTORED==='true'&&!existsSync(input))throw new Error('Restored notification state is missing');
+    const plan=cloudPlan(env.CLOUD_PLAN);
     const previous=existsSync(input)?read(input):undefined,now=Date.now();
     readUsageState(previous,now);
     let snapshot;
     try{snapshot=await fetchUsage({account:env.CF_ACCOUNT_ID,token:env.CF_ANALYTICS_TOKEN,now});}
     catch(error){console.error(error.message);}
-    const result=prepareUsage(previous,snapshot,{now});
+    const result=prepareUsage(previous,snapshot,{now,plan});
     if(command==='dry-run'){
       console.log(usageSummary(result));
       if(!result.queryOk)throw new Error('Cloudflare usage could not be verified');

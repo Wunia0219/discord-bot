@@ -8,6 +8,6 @@
   "durable_objects": {"bindings": [{"name": "CIRCUS_MONITOR", "class_name": "CircusMonitor"}]},
   "migrations": [{"tag": "monitor-v1", "new_sqlite_classes": ["CircusMonitor"]}],
   "triggers": {"crons": ["*/10 * * * *"]},
-  "vars": {"CLOUD_PLAN": "free", "MONITOR_ENABLED": "false"},
+  "vars": {"CLOUD_PLAN": "paid", "MONITOR_ENABLED": "false"},
   "observability": {"enabled": false}
 }

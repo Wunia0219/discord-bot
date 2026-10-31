@@ -31,7 +31,7 @@ test('v2 planning keeps original rounds and request results while replacing all 
 
 test('migration dry-run emits a local plan without opening a quota database or contacting Firestore',t=>{
   const h=source(t),quota=join(h.directory,'quota.sqlite');
-  const result=spawnSync(process.execPath,['scripts/admin/import-firestore.js','--from',h.filename,'--dry-run'],{
+  const result=spawnSync(process.execPath,['scripts/firestore/import-firestore.js','--from',h.filename,'--dry-run'],{
     env:{...process.env,APP_ENV:'test',FIRESTORE_PROJECT_ID:'demo-jokers-circus',FIRESTORE_EMULATOR_HOST:'127.0.0.1:8799',
       FIRESTORE_SCHEMA_VERSION:'2',FIRESTORE_NAMESPACE:'dry-run-test',FIRESTORE_QUOTA_PATH:quota},encoding:'utf8',windowsHide:true,timeout:10000});
   assert.equal(result.status,0,result.stderr);const plan=JSON.parse(result.stdout);

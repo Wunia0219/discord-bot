@@ -49,6 +49,51 @@ test('notification traffic survives daily cleanup and rolls over only at the Pac
 function fixture(t){const root=resolve('test-results/cloud-unit');mkdirSync(root,{recursive:true});const dir=mkdtempSync(join(root,'case-'));const db=new DatabaseSync(join(dir,'storage.sqlite'));let nested=0;
  const storage={sql:{exec(sql,...args){return db.prepare(sql).all(...args).map(row=>({...row}));}},transactionSync(fn){const id='tx'+nested++;db.exec('SAVEPOINT '+id);try{const result=fn();db.exec('RELEASE '+id);return result;}catch(e){db.exec('ROLLBACK TO '+id);db.exec('RELEASE '+id);throw e;}finally{nested--;}}};t.after(()=>db.close());return {dir,storage,state:new CloudState(storage)};}
 const quotaBundle=(now=Date.now())=>({projectId:'demo-jokers-circus',exportedAt:now,scopes:Object.fromEntries(Object.entries(QUOTA_LIMITS).map(([k,v])=>[k,{limits:{...v},growth:300,usage:[{slot:Math.floor(now/60000)*60000,reads:7,writes:2,egressBytes:3}],documents:[{key:'a'.repeat(64),bytes:300}]}]))});
+
+test('quota layout upgrade leaves legacy rows untouched and merges high-water records through restart and handoff',t=>{
+ const now=Date.now(),f=fixture(t),initial=new CloudQuota(f.storage,f.state,{clock:()=>now}),bundle=quotaBundle(now);
+ initial.seed(bundle,bundle.projectId);initial.enableNotificationsOnly({allowPaidUsage:true});
+ // Reconstruct the published schema, with enough history to catch an eager migration.
+ f.storage.sql.exec('INSERT INTO quota_documents SELECT * FROM quota_document_sizes');f.storage.sql.exec('DROP TABLE quota_document_sizes');
+ for(let i=0;i<1000;i++)f.storage.sql.exec('INSERT INTO quota_documents VALUES(?,?,?)','global',i.toString(16).padStart(64,'0'),1);
+ f.storage.sql.exec('UPDATE quota_growth SET bytes=bytes+1000 WHERE scope=?','global');
+ initial.state.quotaCache=null;const beforeStatus=initial.status(),legacy=[...f.storage.sql.exec('SELECT * FROM quota_documents ORDER BY scope,key')];let mutations=0;const exec=f.storage.sql.exec;
+ f.storage.sql.exec=(sql,...args)=>{if(/^(INSERT|UPDATE|DELETE|DROP|ALTER)/.test(sql))mutations++;return exec(sql,...args);};
+ const q=new CloudQuota(f.storage,new CloudState(f.storage),{clock:()=>now}),before=q.export();
+ assert.equal(mutations,0,'startup must not copy, rewrite or delete existing history');assert.deepEqual(q.status(),beforeStatus);
+ q.reserve({writes:2},{key:'a'.repeat(64),bytes:250});assert.deepEqual(q.export().scopes.global.documents,before.scopes.global.documents);
+ q.reserve({writes:2},{key:'b'.repeat(64),bytes:400});
+ const high=new CloudQuota(f.storage,q.state,{scope:'highlights',clock:()=>now});high.reserve({writes:2},{key:'a'.repeat(64),bytes:500});
+ q.reserve({writes:2},{key:'a'.repeat(64),bytes:450});
+ assert.equal(q.status().used.storageBytes,1900);assert.equal(high.totals().storageBytes,500);
+ assert.deepEqual([...f.storage.sql.exec('SELECT * FROM quota_documents ORDER BY scope,key')],legacy);
+ // A higher legacy observation must win too, even when the new table has this key.
+ f.storage.sql.exec('UPDATE quota_documents SET bytes=550 WHERE scope=? AND key=?','global','a'.repeat(64));
+ f.storage.sql.exec('UPDATE quota_growth SET bytes=bytes+50 WHERE scope=?','global');q.state.quotaCache=null;
+ q.reserve({writes:2},{key:'a'.repeat(64),bytes:600});assert.equal(q.status().used.storageBytes,2000);
+ const exported=q.export(),reopened=new CloudQuota(f.storage,new CloudState(f.storage),{clock:()=>now});assert.deepEqual(reopened.export(),exported);
+ const copy=fixture(t),imported=new CloudQuota(copy.storage,copy.state,{clock:()=>now});imported.seed(exported,bundle.projectId);
+ assert.deepEqual(imported.export(),exported,'handoffs flatten both layouts without losing or duplicating a key');
+ assert.equal([...copy.storage.sql.exec('SELECT COUNT(*) n FROM quota_documents')][0].n,0);
+});
+
+test('quota document storage failure rolls back every scope, counter and cache',t=>{
+ const now=Date.now(),f=fixture(t),q=new CloudQuota(f.storage,f.state,{clock:()=>now}),bundle=quotaBundle(now);q.seed(bundle,bundle.projectId);
+ const high=new CloudQuota(f.storage,f.state,{scope:'highlights',clock:()=>now}),before=q.export(),exec=f.storage.sql.exec;
+ f.storage.sql.exec=(sql,...args)=>{if(sql.startsWith('INSERT INTO quota_document_sizes')&&args[0]==='global')throw new Error('Injected storage failure');return exec(sql,...args);};
+ assert.throws(()=>high.reserve({writes:2},{key:'b'.repeat(64),bytes:400}),/Injected storage failure/);
+ assert.deepEqual(q.export(),before);assert.deepEqual(new CloudQuota(f.storage,new CloudState(f.storage),{clock:()=>now}).export(),before);
+});
+
+test('quota import refuses orphaned document history even without usage or identity',t=>{
+ for(const table of ['quota_documents','quota_document_sizes']){
+  const now=Date.now(),f=fixture(t),q=new CloudQuota(f.storage,f.state,{clock:()=>now});
+  f.storage.sql.exec('INSERT INTO '+table+' VALUES(?,?,?)','global','a'.repeat(64),900);
+  assert.throws(()=>q.seed(quotaBundle(now),'demo-jokers-circus'),/Refusing populated quota/);
+  assert.equal(q.documentBytes('global','a'.repeat(64)),900);assert.equal(f.state.get('quota-identity'),null);
+ }
+});
+
 test('batched reservations retain all charges and high-water growth with fewer SQL mutations; refusal is atomic',t=>{
  const now=Date.now(),a=fixture(t),b=fixture(t),qa=new CloudQuota(a.storage,a.state,{clock:()=>now}),qb=new CloudQuota(b.storage,b.state,{clock:()=>now});
  const bundle=quotaBundle(now);qa.seed(bundle,bundle.projectId);qb.seed(bundle,bundle.projectId);

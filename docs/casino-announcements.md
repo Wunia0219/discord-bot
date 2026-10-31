@@ -1,6 +1,6 @@
 # 賭場機器人公告
 
-版本 1.0.0。正式服以同一個「🎲命運荷官」Bot 發送得獎與出入場公告；使用 REST API，不需要 Gateway 常駐在線。遊戲與管理指令仍走 HTTP interactions。入場登記先確立帳目起點，Discord 訊息則由背景佇列傳送。
+產品版本以 `package.json` 為準。正式服以同一個「🎲命運荷官」Bot 發送得獎與出入場公告；使用 REST API，不需要 Gateway 常駐在線。遊戲與管理指令仍走 HTTP interactions。入場登記先確立帳目起點，Discord 訊息則由背景佇列傳送。
 
 ## 玩家看到的內容
 

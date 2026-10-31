@@ -35,7 +35,7 @@ try{
   Object.assign(report,summary);
   if(operation==='drill'){
     stage='drill';
-    const child=spawnSync(process.execPath,[fileURLToPath(new URL('./rehearse-cloud-recovery.js',import.meta.url)),'--archive',archivePath,'--key-file',keyFile,'--environment',environment,'--out',join(out,'local-drill')],{encoding:'utf8',windowsHide:true,maxBuffer:1024*1024,timeout:180000});
+    const child=spawnSync(process.execPath,[fileURLToPath(new URL('../qa/rehearse-cloud-recovery.js',import.meta.url)),'--archive',archivePath,'--key-file',keyFile,'--environment',environment,'--out',join(out,'local-drill')],{encoding:'utf8',windowsHide:true,maxBuffer:1024*1024,timeout:180000});
     if(child.status!==0)throw new Error('Isolated recovery verification failed');
     const drill=JSON.parse(readFileSync(join(out,'local-drill','report.json'),'utf8'));
     if(drill.ok!==true||drill.allSevenTablesUnchanged!==true||drill.sourceUnchanged!==true||drill.externalServicesAccessed!==false)throw new Error('Recovery drill incomplete');

@@ -20,6 +20,7 @@ export class CloudQuota {
       'CREATE TABLE IF NOT EXISTS quota_usage(scope TEXT,slot INTEGER,reads INTEGER,writes INTEGER,egressBytes INTEGER,PRIMARY KEY(scope,slot))',
       'CREATE TABLE IF NOT EXISTS quota_growth(scope TEXT PRIMARY KEY,bytes INTEGER)',
       'CREATE TABLE IF NOT EXISTS quota_documents(scope TEXT,key TEXT,bytes INTEGER,PRIMARY KEY(scope,key))',
+      'CREATE TABLE IF NOT EXISTS quota_document_sizes(scope TEXT,key TEXT,bytes INTEGER,PRIMARY KEY(scope,key)) WITHOUT ROWID',
       'CREATE TABLE IF NOT EXISTS quota_monthly_egress(scope TEXT,month TEXT,bytes INTEGER,PRIMARY KEY(scope,month))',
     ])this.sql.exec(query);
   }
@@ -40,17 +41,21 @@ export class CloudQuota {
       }
     }
     this.storage.transactionSync(()=>{
-      if([...this.sql.exec('SELECT COUNT(*) n FROM quota_usage')][0].n)throw new Error('Refusing populated quota');
+      if([...this.sql.exec('SELECT EXISTS(SELECT 1 FROM quota_usage) OR EXISTS(SELECT 1 FROM quota_growth) OR EXISTS(SELECT 1 FROM quota_documents) OR EXISTS(SELECT 1 FROM quota_document_sizes) OR EXISTS(SELECT 1 FROM quota_monthly_egress) populated')][0].populated)throw new Error('Refusing populated quota');
       for(const [scope,s] of Object.entries(bundle.scopes)){if(!QUOTA_LIMITS[scope])throw new Error('Unknown quota');
         this.sql.exec('INSERT INTO quota_growth VALUES(?,?)',scope,s.growth);
         for(const r of s.usage)this.sql.exec('INSERT INTO quota_usage VALUES(?,?,?,?,?)',scope,r.slot,r.reads,r.writes,r.egressBytes);
-        for(const r of s.documents)this.sql.exec('INSERT INTO quota_documents VALUES(?,?,?)',scope,r.key,r.bytes);
+        for(const r of s.documents)this.recordDocument(scope,r.key,r.bytes);
         if(bundle.enforcement==='notify-only')for(const row of s.monthlyEgress)this.sql.exec('INSERT INTO quota_monthly_egress VALUES(?,?,?)',scope,row.month,row.bytes);
       }
       this.state.set('quota-identity',{projectId,limits:Object.fromEntries(Object.entries(bundle.scopes).map(([k,v])=>[k,v.limits])),...(bundle.enforcement?{enforcement:bundle.enforcement}:{})});
     });
   }
   identity(){const i=this.state.get('quota-identity');if(!i)throw unavailable();return i;}
+  // Read both layouts; leave legacy rows in place to avoid a bulk rewrite on release.
+  documentBytes(scope,key){return [...this.sql.exec('SELECT MAX(bytes) bytes FROM (SELECT bytes FROM quota_documents WHERE scope=? AND key=? UNION ALL SELECT bytes FROM quota_document_sizes WHERE scope=? AND key=?)',scope,key,scope,key)][0]?.bytes||0;}
+  recordDocument(scope,key,bytes){this.sql.exec('INSERT INTO quota_document_sizes VALUES(?,?,?) ON CONFLICT(scope,key) DO UPDATE SET bytes=MAX(bytes,excluded.bytes)',scope,key,bytes);}
+  documents(scope){return [...this.sql.exec('SELECT key,MAX(bytes) bytes FROM (SELECT key,bytes FROM quota_documents WHERE scope=? UNION ALL SELECT key,bytes FROM quota_document_sizes WHERE scope=?) GROUP BY key ORDER BY key',scope,scope)];}
   enableNotificationsOnly({allowPaidUsage}={}){
     if(this.scope!=='global'||allowPaidUsage!==true)throw new Error('Explicit paid usage approval required');
     return this.storage.transactionSync(()=>{
@@ -107,20 +112,20 @@ export class CloudQuota {
     const charged=[];
     this.storage.transactionSync(()=>{for(const scope of scopes){const limits=identity.limits[scope],current=this.totals(scope),v=Object.fromEntries(Object.keys(limits).map(k=>[k,cost[k]||0]));
       const growth=[];
-      for(const [key,bytes] of documents){const previous=[...this.sql.exec('SELECT bytes FROM quota_documents WHERE scope=? AND key=?',scope,key)][0]?.bytes||0;
+      for(const [key,bytes] of documents){const previous=this.documentBytes(scope,key);
         if(bytes>previous){v.storageBytes+=bytes-previous;growth.push([key,bytes]);}}
       if(Object.values(v).some(n=>!integer(n)))throw new Error('Quota cost overflow');
       if(identity.enforcement!=='notify-only'&&Object.keys(limits).some(k=>current[k]+v[k]>limits[k]))throw unavailable();
       if(v.reads||v.writes||v.egressBytes)this.sql.exec('INSERT INTO quota_usage VALUES(?,?,?,?,?) ON CONFLICT(scope,slot) DO UPDATE SET reads=reads+excluded.reads,writes=writes+excluded.writes,egressBytes=egressBytes+excluded.egressBytes',scope,Math.floor(this.clock()/60000)*60000,v.reads,v.writes,v.egressBytes);
       if(identity.enforcement==='notify-only')this.recordMonthlyEgress(scope,v.egressBytes);
       if(v.storageBytes)this.sql.exec('UPDATE quota_growth SET bytes=bytes+? WHERE scope=?',v.storageBytes,scope);
-      for(const [key,bytes] of growth)this.sql.exec('INSERT INTO quota_documents VALUES(?,?,?) ON CONFLICT(scope,key) DO UPDATE SET bytes=MAX(bytes,excluded.bytes)',scope,key,bytes);
+      for(const [key,bytes] of growth)this.recordDocument(scope,key,bytes);
       charged.push([scope,v]);
     }});
     for(const [scope,cost] of charged)this.updateTotals(scope,cost);
   }
   observe(bytes){if(!integer(bytes))throw new Error('Invalid egress');this.reserve({});const monthly=this.identity().enforcement==='notify-only';this.storage.transactionSync(()=>{for(const scope of this.scope==='global'?['global']:[this.scope,'global']){this.sql.exec('INSERT INTO quota_usage VALUES(?,?,0,0,?) ON CONFLICT(scope,slot) DO UPDATE SET egressBytes=egressBytes+excluded.egressBytes',scope,Math.floor(this.clock()/60000)*60000,bytes);if(monthly)this.recordMonthlyEgress(scope,bytes);}});for(const scope of this.scope==='global'?['global']:[this.scope,'global'])this.updateTotals(scope,{egressBytes:bytes});}
   status(){const identity=this.identity(),used=this.totals('global'),limits=identity.limits.global,notify=identity.enforcement==='notify-only';const policy=notify?{enforcement:'notify-only',egressWindow:'calendar-month-pacific'}:{};const status={used,limits,blocked:!notify&&Object.keys(limits).some(k=>used[k]>=limits[k]),windowHours:24,estimated:true,...policy};if(this.scope!=='global'){const sub=this.totals(),caps=identity.limits[this.scope];status[this.scope==='maintenance'?'maintenance':'delivery']={used:sub,limits:caps,blocked:!notify&&Object.keys(caps).some(k=>sub[k]>=caps[k]),...policy};}return status;}
-  export(){const identity=this.identity(),notify=identity.enforcement==='notify-only';return {projectId:identity.projectId,exportedAt:this.clock(),...(notify?{enforcement:'notify-only'}:{}),scopes:Object.fromEntries(Object.keys(QUOTA_LIMITS).map(scope=>[scope,{limits:identity.limits[scope],growth:this.totals(scope).storageBytes,usage:[...this.sql.exec('SELECT slot,reads,writes,egressBytes FROM quota_usage WHERE scope=? AND slot>? ORDER BY slot',scope,this.clock()-86460000)],documents:[...this.sql.exec('SELECT key,bytes FROM quota_documents WHERE scope=? ORDER BY key',scope)],...(notify?{monthlyEgress:[...this.sql.exec('SELECT month,bytes FROM quota_monthly_egress WHERE scope=? ORDER BY month',scope)]}:{})}]))};}
+  export(){const identity=this.identity(),notify=identity.enforcement==='notify-only';return {projectId:identity.projectId,exportedAt:this.clock(),...(notify?{enforcement:'notify-only'}:{}),scopes:Object.fromEntries(Object.keys(QUOTA_LIMITS).map(scope=>[scope,{limits:identity.limits[scope],growth:this.totals(scope).storageBytes,usage:[...this.sql.exec('SELECT slot,reads,writes,egressBytes FROM quota_usage WHERE scope=? AND slot>? ORDER BY slot',scope,this.clock()-86460000)],documents:this.documents(scope),...(notify?{monthlyEgress:[...this.sql.exec('SELECT month,bytes FROM quota_monthly_egress WHERE scope=? ORDER BY month',scope)]}:{})}]))};}
   close(){}
 }

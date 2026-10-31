@@ -1,3 +1,4 @@
+import {cloudPlan} from '../../cloud/plan.js';
 // Explicit operator actions only; no automatic deployment or credential output.
 import {readFileSync,writeFileSync,existsSync} from 'node:fs';
 import {parseEnv} from 'node:util';
@@ -28,7 +29,7 @@ if(command==='seed')input=JSON.parse(readFileSync(need('from'),'utf8'));
 if(command==='activate'){
   if(need('writers-stopped')!=='true')throw new Error('Verify stopped writers first');
   if(flags.has('--plan')){
-    const plan=need('plan');if(!['free','paid'].includes(plan)||need('plan-verified')!=='true')throw new Error('Verify the actual account plan first');
+    const plan=cloudPlan(need('plan'));if(need('plan-verified')!=='true')throw new Error('Verify the actual account plan first');
     input={writersStopped:true,planVerified:true,plan};
   }else{
     if(need('free-plan-verified')!=='true')throw new Error('Verify the actual Free subscription first');

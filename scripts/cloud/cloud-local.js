@@ -6,7 +6,7 @@ const run=async args=>{if(await runNode(node,args)!==0)throw new Error('Local cl
 const command=process.argv[2];if(!['build','test','monitor-build','monitor-test','recovery-test','reset-test'].includes(command))throw new Error('Expected build, test, monitor-build, monitor-test, recovery-test or reset-test; deployment is not automatic');
 const monitor=command.startsWith('monitor-');
 await run(['node_modules/wrangler/bin/wrangler.js','deploy','--dry-run',...(monitor?['--config','wrangler.monitor.jsonc']:[]),'--outdir',monitor?'test-results/monitor-bundle':'test-results/cloud-bundle']);
-if(command==='test')await run(['scripts/admin/test-firestore.js','tests/cloud-rest.integration.js','tests/cloud-runtime.integration.js','tests/cloud-welcome.integration.js','tests/cloud-backup-scale.integration.js','tests/segmented-runtime.integration.js']);
+if(command==='test')await run(['scripts/qa/test-firestore.js','tests/cloud-rest.integration.js','tests/cloud-runtime.integration.js','tests/cloud-welcome.integration.js','tests/cloud-backup-scale.integration.js','tests/segmented-runtime.integration.js']);
 if(command==='monitor-test')await run(['--test','tests/monitor-runtime.integration.js']);
-if(command==='recovery-test')await run(['scripts/admin/test-firestore.js','tests/customer-recovery.integration.js']);
-if(command==='reset-test')await run(['scripts/admin/test-firestore.js','tests/test-data-reset.integration.js']);
+if(command==='recovery-test')await run(['scripts/qa/test-firestore.js','tests/customer-recovery.integration.js']);
+if(command==='reset-test')await run(['scripts/qa/test-firestore.js','tests/test-data-reset.integration.js']);

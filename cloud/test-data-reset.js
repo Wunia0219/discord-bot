@@ -1,10 +1,10 @@
+import {unpack} from '../server/firestore/documents.js';
 // Explicit, resumable maintenance for a paused test namespace. Disabled without a matching operation ID.
 import {TABLES,digest} from './snapshot.js';
 
 const rootCollections=['wallets','ledger','operations','adminDays','reversals','highlightEvents','highlightBoards'];
 const allowedPath=/^(?:wallets\/\d{17,20}_\d{17,20}(?:\/(?:rounds|days)\/[A-Za-z0-9-]+)?|ledger\/\d+|operations\/[a-f0-9]{64}|adminDays\/\d{17,20}_\d{17,20}_\d{4}-\d{2}-\d{2}|reversals\/\d+|highlightEvents\/[A-Za-z0-9_-]+|highlightBoards\/\d{17,20})$/;
 const requireValue=(value,message)=>{if(!value)throw new Error(message);};
-const unpack=doc=>doc.exists?JSON.parse(doc.get('json')):null;
 const fields=value=>({json:JSON.stringify(value)});
 
 export function validateTestReset(input,{settings,enabledId,manifest,mode}){

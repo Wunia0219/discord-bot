@@ -13,8 +13,8 @@ export function verificationPlan({ci=false,full=false,suite='all',node=process.e
     steps.push(
       step('unit','一般回歸',['--test','tests/*.test.js']),
       step('build','前端建置',['node_modules/vite/bin/vite.js','build']),
-      step('worker','遊戲 Worker dry-run',['scripts/admin/cloud-local.js','build'],['build']),
-      step('monitor-build','監控 Worker dry-run',['scripts/admin/cloud-local.js','monitor-build']),
+      step('worker','遊戲 Worker dry-run',['scripts/cloud/cloud-local.js','build'],['build']),
+      step('monitor-build','監控 Worker dry-run',['scripts/cloud/cloud-local.js','monitor-build']),
       step('sdk','Discord SDK 安全與登入',['scripts/qa/discord-sdk.js']),
       step('startup','啟動失敗回收',['scripts/qa/startup-resources.js']),
       step('dealer','荷官資源與影格',['scripts/qa/dealer-resources.js']),
@@ -30,7 +30,7 @@ export function verificationPlan({ci=false,full=false,suite='all',node=process.e
   if((full||ci)&&suite!=='browser'){
     const files=suite==='all'?Object.values(integrationFiles).flat():integrationFiles[suite];
     steps.push(step('firestore','Firestore SDK／REST／workerd／恢復',[
-      'scripts/admin/test-firestore.js',...files.map(name=>`tests/${name}.integration.js`),
+      'scripts/qa/test-firestore.js',...files.map(name=>`tests/${name}.integration.js`),
     ],suite==='wallet'?[]:['worker'],integrationNode));
     if(suite!=='wallet')steps.push(step('monitor','監控 workerd',['--test','tests/monitor-runtime.integration.js'],['monitor-build'],integrationNode));
   }

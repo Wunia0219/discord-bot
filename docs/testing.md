@@ -23,7 +23,7 @@
 | `npm run test:security` | 先 build；Edge：CSP、腳本注入阻擋、SQLite 結算 |
 | `npm run test:discord-sdk` | 隔離父頁／iframe：真實 SDK 握手、OAuth、方向鎖定及大型非法集合拒絕 |
 | `npm run test:monitor` | scheduled handler、持久去重、故障與恢復通知 |
-| `node --test tests/cloudflare-usage.test.js tests/monitor.test.js` | 外部用量預測、門檻／跨日、通知意圖、429／未知送出、可信附件恢復；不聯絡正式服務 |
+| `node --test tests/cloudflare-usage.test.js tests/monitor.test.js` | Free 門檻／Paid 觀測、方案切換、跨日、通知意圖、429／未知送出、可信附件恢復；不聯絡正式服務 |
 | `npm run build`、`cloud:build`、`monitor:build` | 前端與 Worker dry-run，不部署 |
 | `npm run verify:math`、`verify:sessions` | 完整枚舉與固定 seed 回合驗算 |
 

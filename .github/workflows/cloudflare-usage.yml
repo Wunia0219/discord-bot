@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     env:
+      CLOUD_PLAN: paid
       GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -32,7 +33,7 @@ jobs:
         id: previous
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/admin/cloudflare-usage.js previous
+        run: node scripts/cloud/cloudflare-usage.js previous
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: steps.previous.outputs.artifact != ''
         with:
@@ -48,7 +49,7 @@ jobs:
           CF_ANALYTICS_TOKEN: ${{ secrets.CF_ANALYTICS_TOKEN }}
           CF_USAGE_DISCORD_WEBHOOK: ${{ secrets.CF_USAGE_DISCORD_WEBHOOK }}
           CF_USAGE_RESTORED: ${{ steps.previous.outputs.artifact != '' }}
-        run: node scripts/admin/cloudflare-usage.js prepare
+        run: node scripts/cloud/cloudflare-usage.js prepare
       - name: Persist intent before Discord POST
         id: intent
         if: steps.prepare.outputs.send == 'true'
@@ -64,10 +65,10 @@ jobs:
         env:
           CF_INTENT_ARTIFACT_ID: ${{ steps.intent.outputs.artifact-id }}
           CF_USAGE_DISCORD_WEBHOOK: ${{ secrets.CF_USAGE_DISCORD_WEBHOOK }}
-        run: node scripts/admin/cloudflare-usage.js send
+        run: node scripts/cloud/cloudflare-usage.js send
       - name: Release intent when upload failed before POST
         if: always() && steps.intent.outcome == 'failure' && steps.notify.outcome == 'skipped'
-        run: node scripts/admin/cloudflare-usage.js unsent
+        run: node scripts/cloud/cloudflare-usage.js unsent
       - name: Save notification state
         if: always() && steps.prepare.outcome == 'success'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -78,4 +79,4 @@ jobs:
           if-no-files-found: error
       - name: Usage summary
         if: always() && steps.prepare.outcome == 'success'
-        run: node scripts/admin/cloudflare-usage.js summary
+        run: node scripts/cloud/cloudflare-usage.js summary
